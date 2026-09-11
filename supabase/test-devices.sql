@@ -22,6 +22,21 @@
 --   delete from public.assets where asset_ref like 'TEST-%';
 -- =====================================================================
 
+-- Stop with a readable message if the migration has not been run, rather
+-- than failing later with 'column "location" does not exist'.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name   = 'assets'
+      and column_name  = 'location'
+  ) then
+    raise exception
+      'Run supabase/migration-001-asset-management.sql first - the assets table has no location/purchase_cost/purchase_date columns yet.';
+  end if;
+end $$;
+
 insert into public.assets
   (asset_ref, device_type, owner_name, department, location,
    purchase_cost, purchase_date, date_cleaned, cleaned_by,
