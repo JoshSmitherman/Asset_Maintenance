@@ -1,0 +1,102 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Required by the official GitHub Pages deployment actions.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deployment at a time; newer pushes supersede older ones.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Cache npm downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json', 'package.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - name: Install dependencies
+        # npm ci is used when package-lock.json has been committed (recommended);
+        # npm install keeps the workflow working before that first lockfile exists.
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Verify Supabase secrets are present
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Add the repository secrets VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (Settings -> Secrets and variables -> Actions)."
+            exit 1
+          fi
+
+      - name: Work out the Vite base path
+        id: base
+        run: |
+          REPO="${{ github.event.repository.name }}"
+          OWNER="${{ github.repository_owner }}"
+          OWNER_LOWER="$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          REPO_LOWER="$(echo "$REPO" | tr '[:upper:]' '[:lower:]')"
+          # A user/organisation site (<owner>.github.io) is served from the domain
+          # root; every other repository is served from /<repo>/.
+          if [ "$REPO_LOWER" = "$OWNER_LOWER.github.io" ]; then
+            echo "path=/" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=/$REPO/" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Base path: $(tail -n1 "$GITHUB_OUTPUT")"
+
+      - name: Build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_BASE_PATH: ${{ steps.base.outputs.path }}
+        run: npm run build
+
+      - name: Add SPA fallback and disable Jekyll processing
+        run: |
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - name: Upload the built site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
