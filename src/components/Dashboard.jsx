@@ -94,7 +94,9 @@ export default function Dashboard({ assets }) {
             </p>
           </div>
         </div>
-        <StatusComposition data={status} />
+        <div className="chart-card__body">
+          <StatusComposition data={status} />
+        </div>
       </div>
 
       <div className="card chart-card">
@@ -104,7 +106,9 @@ export default function Dashboard({ assets }) {
             <p className="card__subtitle">Every device in the register.</p>
           </div>
         </div>
-        <BarList data={byType} colour="var(--chart-navy)" emptyMessage="No assets yet." />
+        <div className="chart-card__body">
+          <BarList data={byType} colour="var(--chart-navy)" emptyMessage="No assets yet." />
+        </div>
       </div>
 
       <div className="card chart-card">
@@ -114,7 +118,9 @@ export default function Dashboard({ assets }) {
             <p className="card__subtitle">Where the hardware lives.</p>
           </div>
         </div>
-        <BarList data={byLocation} colour="var(--chart-purple)" emptyMessage="No assets yet." />
+        <div className="chart-card__body">
+          <BarList data={byLocation} colour="var(--chart-purple)" emptyMessage="No assets yet." />
+        </div>
       </div>
 
     </section>
