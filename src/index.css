@@ -493,6 +493,21 @@ code {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   outline: none;
+  /* The dialog scrolls inside itself, so the backdrop never needs a
+     scrollbar - grabbing one used to dismiss the dialog. */
+  max-height: calc(100vh - 64px);
+  max-height: calc(100dvh - 64px);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal__header { flex: 0 0 auto; }
+
+.modal > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .modal--sm { max-width: 460px; }
 
@@ -507,9 +522,16 @@ code {
 .modal__title { font-size: 17px; }
 .modal__description { margin: 4px 0 0; font-size: 13px; color: var(--slate-500); }
 
-.modal__body { padding: 20px; }
+.modal__body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
 
 .modal__footer {
+  flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -609,6 +631,7 @@ code {
   .field--inline { flex: 1 1 140px; }
   .card__header { flex-direction: column; gap: 8px; }
   .modal-backdrop { padding: 12px; }
+  .modal { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); }
   .table th, .table td { padding: 9px 10px; }
 }
 
@@ -753,3 +776,76 @@ code {
 .stat--value { cursor: default; border-left-color: var(--brand-purple); }
 .stat__value--currency { font-size: 22px; color: var(--brand-navy); }
 @media (max-width: 640px) { .stat__value--currency { font-size: 19px; } }
+
+/* =====================================================================
+   Section navigation
+   ===================================================================== */
+.app-nav {
+  background: #fff;
+  border-bottom: 1px solid var(--slate-200);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.app-nav__inner {
+  max-width: 1340px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+}
+
+.app-nav__tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 13px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--slate-500);
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.app-nav__tab:hover { color: var(--brand-navy); }
+.app-nav__tab:focus-visible { outline: 2px solid var(--brand-navy); outline-offset: -2px; }
+
+.app-nav__tab--active {
+  color: var(--brand-purple);
+  border-bottom-color: var(--brand-purple);
+}
+
+.app-nav__count {
+  background: var(--brand-purple-050);
+  color: var(--brand-purple-dark);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+/* A wide data table scrolls sideways rather than crushing its columns,
+   which is what hid the purchase details on narrower screens. */
+.table--full { min-width: 1060px; }
+.table--cleaning { min-width: 880px; }
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 720px) {
+  .app-nav__inner { padding: 0 12px; }
+  .app-nav__tab { padding: 12px 11px; font-size: 13.5px; }
+}
+
+/* A flex/grid child refuses to shrink below its content width by default, so
+   the wide table stretched the whole page instead of scrolling inside its
+   card. Letting these shrink keeps the overflow where it belongs. */
+.container > *,
+.card,
+.dashboard > *,
+.stat-grid > *,
+.table-scroll { min-width: 0; }

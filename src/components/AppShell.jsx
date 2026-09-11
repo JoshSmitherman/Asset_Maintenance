@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Header from './Header';
+import AppNav from './AppNav';
 import StatsGrid from './StatsGrid';
 import Dashboard from './Dashboard';
 import AttentionPanel from './AttentionPanel';
@@ -18,6 +19,7 @@ import {
   sortAssets,
   uniqueDepartments
 } from '../lib/assetQueries';
+import { ATTENTION_STATUSES, isCleaningTracked } from '../lib/constants';
 import { todayIso } from '../lib/dates';
 
 export default function AppShell() {
@@ -34,6 +36,7 @@ export default function AppShell() {
     assetRefExists
   } = useAssets();
 
+  const [page, setPage] = useState('dashboard');
   const [filters, setFilters] = useState({ ...EMPTY_FILTERS });
   const [sort, setSort] = useState({ ...DEFAULT_SORT });
   const [formState, setFormState] = useState(null); // { asset?, prefill? }
@@ -44,9 +47,21 @@ export default function AppShell() {
   const departments = useMemo(() => uniqueDepartments(assets), [assets]);
   const totalValue = useMemo(() => totalPurchaseValue(assets), [assets]);
 
+  // The cleaning section only ever sees laptops and desktops.
+  const cleaningAssets = useMemo(
+    () => assets.filter((asset) => isCleaningTracked(asset.device_type)),
+    [assets]
+  );
+  const attentionCount = useMemo(
+    () => cleaningAssets.filter((asset) => ATTENTION_STATUSES.includes(asset.status)).length,
+    [cleaningAssets]
+  );
+
+  const sourceAssets = page === 'cleaning' ? cleaningAssets : assets;
+
   const visibleAssets = useMemo(
-    () => sortAssets(filterAssets(assets, filters), sort),
-    [assets, filters, sort]
+    () => sortAssets(filterAssets(sourceAssets, filters), sort),
+    [sourceAssets, filters, sort]
   );
 
   const handleCreate = async (values) => {
@@ -71,6 +86,7 @@ export default function AppShell() {
   return (
     <div className="app">
       <Header onRefresh={refresh} refreshing={refreshing} lastSyncedAt={lastSyncedAt} />
+      <AppNav page={page} onChange={setPage} counts={{ cleaning: attentionCount }} />
 
       <main className="container">
         {error ? (
@@ -82,30 +98,48 @@ export default function AppShell() {
 
         {loading ? (
           <p className="empty-state">Loading assets…</p>
-        ) : (
+        ) : page === 'dashboard' ? (
           <>
             <StatsGrid
               summary={summary}
               activeStatus={filters.status}
-              onSelectStatus={(status) => setFilters((current) => ({ ...current, status }))}
+              onSelectStatus={(status) => {
+                setFilters((current) => ({ ...current, status }));
+                setPage(status === 'all' ? 'assets' : 'cleaning');
+              }}
               totalValue={totalValue}
             />
 
             <Dashboard assets={assets} />
 
             <AttentionPanel
-              assets={assets}
+              assets={cleaningAssets}
               onRecordClean={(asset) =>
                 setFormState({ asset, prefill: { date_cleaned: todayIso() } })
               }
             />
+          </>
+        ) : (
+          <>
+            {page === 'cleaning' ? (
+              <AttentionPanel
+                assets={cleaningAssets}
+                onRecordClean={(asset) =>
+                  setFormState({ asset, prefill: { date_cleaned: todayIso() } })
+                }
+              />
+            ) : null}
 
             <section className="card">
               <div className="card__header">
                 <div>
-                  <h2 className="card__title">All assets</h2>
+                  <h2 className="card__title">
+                    {page === 'cleaning' ? 'Cleaning register' : 'All assets'}
+                  </h2>
                   <p className="card__subtitle">
-                    Search, filter and sort the full hardware register. Click a column heading to sort.
+                    {page === 'cleaning'
+                      ? 'Laptops and desktops only, showing the fields that matter for a cleaning round.'
+                      : 'The full inventory, including location and purchase details.'}
                   </p>
                 </div>
               </div>
@@ -116,19 +150,21 @@ export default function AppShell() {
                 departments={departments}
                 onAddAsset={() => setFormState({})}
                 resultCount={visibleAssets.length}
-                totalCount={assets.length}
+                totalCount={sourceAssets.length}
               />
 
               <AssetTable
                 assets={visibleAssets}
                 sort={sort}
                 onSortChange={setSort}
+                variant={page === 'cleaning' ? 'cleaning' : 'full'}
                 onEdit={(asset) => setFormState({ asset })}
                 onDelete={(asset) => setPendingDelete(asset)}
               />
             </section>
           </>
         )}
+
       </main>
 
       <footer className="app-footer">

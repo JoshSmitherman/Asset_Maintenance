@@ -16,8 +16,22 @@ export default function Modal({ title, description, onClose, children, size = 'm
     };
   }, [onClose]);
 
+  // Close only when a click both starts and ends on the backdrop itself.
+  // Using mousedown alone closed the dialog when the user grabbed a scrollbar
+  // or dragged a selection out of the form.
+  const pressStartedOnBackdrop = useRef(false);
+
   return (
-    <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div
+      className="modal-backdrop"
+      onMouseDown={(event) => {
+        pressStartedOnBackdrop.current = event.target === event.currentTarget;
+      }}
+      onClick={(event) => {
+        if (pressStartedOnBackdrop.current && event.target === event.currentTarget) onClose();
+        pressStartedOnBackdrop.current = false;
+      }}
+    >
       <div
         className={`modal modal--${size}`}
         role="dialog"

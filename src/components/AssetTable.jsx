@@ -2,19 +2,31 @@ import { formatCurrency, isCleaningTracked, STATUS } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import StatusBadge from './StatusBadge';
 
-const COLUMNS = [
-  { key: 'asset_ref', label: 'Asset Ref', sortable: true },
-  { key: 'device_type', label: 'Type', sortable: true },
-  { key: 'owner_name', label: 'Owner', sortable: true },
-  { key: 'department', label: 'Department', sortable: true, className: 'col-hide-md' },
-  { key: 'location', label: 'Location', sortable: true, className: 'col-hide-md' },
-  { key: 'purchase_date', label: 'Purchased', sortable: true, className: 'col-hide-lg' },
-  { key: 'purchase_cost', label: 'Cost', sortable: true, className: 'col-hide-lg' },
-  { key: 'date_cleaned', label: 'Date Cleaned', sortable: true },
-  { key: 'cleaned_by', label: 'Cleaned By', sortable: true, className: 'col-hide-sm' },
-  { key: 'next_clean_due', label: 'Next Clean Due', sortable: true },
-  { key: 'status', label: 'Status', sortable: true },
-  { key: 'updated_at', label: 'Last updated', sortable: true, className: 'col-hide-lg' }
+const ALL_COLUMNS = {
+  asset_ref:      { key: 'asset_ref', label: 'Asset Ref' },
+  device_type:    { key: 'device_type', label: 'Type' },
+  owner_name:     { key: 'owner_name', label: 'Owner' },
+  department:     { key: 'department', label: 'Department', className: 'col-hide-sm' },
+  location:       { key: 'location', label: 'Location' },
+  purchase_date:  { key: 'purchase_date', label: 'Purchased' },
+  purchase_cost:  { key: 'purchase_cost', label: 'Cost' },
+  date_cleaned:   { key: 'date_cleaned', label: 'Date Cleaned' },
+  cleaned_by:     { key: 'cleaned_by', label: 'Cleaned By' },
+  next_clean_due: { key: 'next_clean_due', label: 'Next Clean Due' },
+  status:         { key: 'status', label: 'Status' },
+  updated_at:     { key: 'updated_at', label: 'Last updated', className: 'col-hide-lg' }
+};
+
+/** The full inventory view. */
+const FULL_KEYS = [
+  'asset_ref', 'device_type', 'owner_name', 'department', 'location',
+  'purchase_date', 'purchase_cost', 'date_cleaned', 'next_clean_due', 'status', 'updated_at'
+];
+
+/** The cleaning view: purchase details are irrelevant to a cleaning round. */
+const CLEANING_KEYS = [
+  'asset_ref', 'device_type', 'owner_name', 'department', 'location',
+  'date_cleaned', 'cleaned_by', 'next_clean_due', 'status', 'updated_at'
 ];
 
 function SortIndicator({ active, direction }) {
@@ -22,7 +34,9 @@ function SortIndicator({ active, direction }) {
   return <span className="sort-indicator sort-indicator--active" aria-hidden="true">{direction === 'asc' ? '↑' : '↓'}</span>;
 }
 
-export default function AssetTable({ assets, sort, onSortChange, onEdit, onDelete }) {
+export default function AssetTable({ assets, sort, onSortChange, onEdit, onDelete, variant = 'full' }) {
+  const columns = (variant === 'cleaning' ? CLEANING_KEYS : FULL_KEYS).map((key) => ALL_COLUMNS[key]);
+  const shownKeys = new Set(columns.map((column) => column.key));
   const handleSort = (key) => {
     if (sort.key === key) {
       onSortChange({ key, direction: sort.direction === 'asc' ? 'desc' : 'asc' });
@@ -37,10 +51,10 @@ export default function AssetTable({ assets, sort, onSortChange, onEdit, onDelet
 
   return (
     <div className="table-scroll">
-      <table className="table">
+      <table className={`table table--${variant}`}>
         <thead>
           <tr>
-            {COLUMNS.map((column) => {
+            {columns.map((column) => {
               const isActive = sort.key === column.key;
               return (
                 <th
@@ -70,14 +84,16 @@ export default function AssetTable({ assets, sort, onSortChange, onEdit, onDelet
               </td>
               <td>{asset.device_type}</td>
               <td>{asset.owner_name}</td>
-              <td className="col-hide-md">{asset.department}</td>
-              <td className="col-hide-md">{asset.location ?? <span className="cell-muted">—</span>}</td>
-              <td className="col-hide-lg">
-                {asset.purchase_date ? formatDate(asset.purchase_date) : <span className="cell-muted">—</span>}
-              </td>
-              <td className="col-hide-lg">
-                {formatCurrency(asset.purchase_cost) ?? <span className="cell-muted">—</span>}
-              </td>
+              <td className="col-hide-sm">{asset.department}</td>
+              <td>{asset.location ?? <span className="cell-muted">—</span>}</td>
+              {shownKeys.has('purchase_date') ? (
+                <td>
+                  {asset.purchase_date ? formatDate(asset.purchase_date) : <span className="cell-muted">—</span>}
+                </td>
+              ) : null}
+              {shownKeys.has('purchase_cost') ? (
+                <td>{formatCurrency(asset.purchase_cost) ?? <span className="cell-muted">—</span>}</td>
+              ) : null}
               <td>
                 {!isCleaningTracked(asset.device_type) ? (
                   <span className="cell-muted">—</span>
@@ -87,7 +103,9 @@ export default function AssetTable({ assets, sort, onSortChange, onEdit, onDelet
                   <span className="cell-flag">Never cleaned</span>
                 )}
               </td>
-              <td className="col-hide-sm">{asset.cleaned_by ?? <span className="cell-muted">—</span>}</td>
+              {shownKeys.has('cleaned_by') ? (
+                <td>{asset.cleaned_by ?? <span className="cell-muted">—</span>}</td>
+              ) : null}
               <td>
                 {asset.next_clean_due ? (
                   <>
