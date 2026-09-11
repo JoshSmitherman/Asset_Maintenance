@@ -62,7 +62,7 @@ function validate(values, { assetRefExists, ignoreId }) {
     errors.device_type = 'Choose a device type.';
   }
   if (!values.owner_name.trim()) {
-    errors.owner_name = 'Owner is required.';
+    errors.owner_name = 'User is required.';
   }
   if (!values.department.trim()) {
     errors.department = 'Department is required.';
@@ -198,13 +198,14 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
           </div>
 
           <div className="field">
-            <label className="field__label" htmlFor="owner_name">Owner *</label>
+            <label className="field__label" htmlFor="owner_name">User *</label>
             <input
               id="owner_name"
               className={`input${errors.owner_name ? ' input--error' : ''}`}
               value={values.owner_name}
               onChange={(event) => setField('owner_name', event.target.value)}
-              placeholder="Person or location"
+              list="user-options"
+              placeholder="Person, or a shared location"
               disabled={busy}
             />
             {errors.owner_name ? <span className="field__error">{errors.owner_name}</span> : null}

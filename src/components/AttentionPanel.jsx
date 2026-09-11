@@ -27,7 +27,7 @@ export default function AttentionPanel({ assets, onRecordClean }) {
               <tr>
                 <th scope="col">Asset Ref</th>
                 <th scope="col">Type</th>
-                <th scope="col">Owner</th>
+                <th scope="col">User</th>
                 <th scope="col" className="col-hide-md">Department</th>
                 <th scope="col">Next Clean Due</th>
                 <th scope="col">Status</th>

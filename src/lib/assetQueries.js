@@ -98,7 +98,16 @@ export function sortByUrgency(assets) {
 }
 
 export function uniqueDepartments(assets) {
-  return [...new Set(assets.map((asset) => asset.department).filter(Boolean))].sort((a, b) =>
+  return uniqueValues(assets, (asset) => asset.department);
+}
+
+/** Names already in use, so the form can suggest them and keep spelling consistent. */
+export function uniqueUsers(assets) {
+  return uniqueValues(assets, (asset) => asset.owner_name);
+}
+
+function uniqueValues(assets, pick) {
+  return [...new Set(assets.map(pick).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, 'en-GB', { sensitivity: 'base' })
   );
 }

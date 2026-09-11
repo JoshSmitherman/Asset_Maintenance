@@ -14,7 +14,7 @@ export default function AssetToolbar({ filters, onChange, departments, onAddAsse
             id="asset-search"
             className="input"
             type="search"
-            placeholder="Search asset ref, owner, department, location or notes…"
+            placeholder="Search asset ref, user, department, location or notes…"
             value={filters.search}
             onChange={(event) => update({ search: event.target.value })}
           />

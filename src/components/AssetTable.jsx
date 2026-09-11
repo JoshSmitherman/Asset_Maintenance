@@ -5,7 +5,7 @@ import StatusBadge from './StatusBadge';
 const ALL_COLUMNS = {
   asset_ref:      { key: 'asset_ref', label: 'Asset Ref' },
   device_type:    { key: 'device_type', label: 'Type' },
-  owner_name:     { key: 'owner_name', label: 'Owner' },
+  owner_name:     { key: 'owner_name', label: 'User' },
   department:     { key: 'department', label: 'Department', className: 'col-hide-sm' },
   location:       { key: 'location', label: 'Location' },
   purchase_date:  { key: 'purchase_date', label: 'Purchased' },

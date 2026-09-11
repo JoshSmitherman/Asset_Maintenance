@@ -17,7 +17,8 @@ import {
   EMPTY_FILTERS,
   filterAssets,
   sortAssets,
-  uniqueDepartments
+  uniqueDepartments,
+  uniqueUsers
 } from '../lib/assetQueries';
 import { ATTENTION_STATUSES, isCleaningTracked } from '../lib/constants';
 import { todayIso } from '../lib/dates';
@@ -45,6 +46,7 @@ export default function AppShell() {
 
   const summary = useMemo(() => summariseAssets(assets), [assets]);
   const departments = useMemo(() => uniqueDepartments(assets), [assets]);
+  const users = useMemo(() => uniqueUsers(assets), [assets]);
   const totalValue = useMemo(() => totalPurchaseValue(assets), [assets]);
 
   // The cleaning section only ever sees laptops and desktops.
@@ -177,9 +179,13 @@ export default function AppShell() {
         </span>
       </footer>
 
-      {/* Suggestions for the department field in the asset form. */}
+      {/* Suggestions for the department and user fields in the asset form. */}
       <datalist id="department-options">
         {departments.map((department) => <option key={department} value={department} />)}
+      </datalist>
+
+      <datalist id="user-options">
+        {users.map((user) => <option key={user} value={user} />)}
       </datalist>
 
       {formState ? (
