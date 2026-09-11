@@ -4,12 +4,30 @@
    ===================================================================== */
 
 :root {
-  --navy-900: #0f2138;
-  --navy-800: #16304f;
-  --navy-600: #24486f;
-  --blue-600: #1d64c4;
-  --blue-500: #2a7ae2;
-  --blue-050: #eaf2fd;
+  /* ADARO brand. Navy carries structure (header, headings); purple is the
+     action/accent colour on primary buttons, focus states and highlights. */
+  --brand-navy: #34506d;
+  --brand-navy-dark: #263d54;
+  --brand-navy-deep: #1b2c3d;
+  --brand-purple: #8c4a9c;
+  --brand-purple-dark: #743d82;
+  --brand-purple-050: #f4ecf7;
+
+  /* Chart palette - checked for colour-vision separation and contrast
+     against the page surface before use. Do not re-hue casually. */
+  --chart-overdue:  #c0342b;
+  --chart-never:    #8c4a9c;
+  --chart-due-soon: #d98c00;
+  --chart-ok:       #1f8a5a;
+  --chart-navy:     #34506d;
+  --chart-purple:   #8c4a9c;
+
+  --navy-900: #1b2c3d;
+  --navy-800: #263d54;
+  --navy-600: #34506d;
+  --blue-600: #8c4a9c;
+  --blue-500: #34506d;
+  --blue-050: #f4ecf7;
 
   --slate-900: #16202c;
   --slate-700: #3c4a5a;
@@ -191,8 +209,13 @@ code {
 /* ------------------------------------------------------------ Stat cards */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  /* Six tiles: the five statuses plus total value. */
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 14px;
+}
+
+@media (max-width: 1100px) {
+  .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 .stat {
@@ -305,7 +328,7 @@ code {
 .btn:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
 
 .btn--primary { background: var(--blue-600); border-color: var(--blue-600); color: #fff; }
-.btn--primary:hover:not(:disabled) { background: var(--navy-800); border-color: var(--navy-800); }
+.btn--primary:hover:not(:disabled) { background: var(--brand-purple-dark); border-color: var(--brand-purple-dark); }
 
 .btn--danger { background: var(--red-600); border-color: var(--red-600); color: #fff; }
 .btn--danger:hover:not(:disabled) { background: var(--red-700); border-color: var(--red-700); }
@@ -597,3 +620,136 @@ code {
   .card__header { padding: 14px 14px 12px; }
   .toolbar { padding: 14px; }
 }
+
+
+/* =====================================================================
+   Branding
+   ===================================================================== */
+.brand-logo {
+  display: block;
+  width: auto;
+  background: #fff;
+  border-radius: var(--radius-sm);
+}
+
+.brand-wordmark { font-weight: 800; letter-spacing: 0.14em; }
+
+.app-header__logo { height: 34px; padding: 5px 9px; }
+.app-header__logo.brand-wordmark {
+  height: auto;
+  padding: 0;
+  background: none;
+  color: #fff;
+  font-size: 18px;
+}
+
+.login__logo { height: 40px; padding: 0; margin: 0 auto 4px; }
+.login__logo.brand-wordmark { color: var(--brand-navy); font-size: 20px; }
+
+/* =====================================================================
+   Dashboard
+   ===================================================================== */
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.chart-card { display: flex; flex-direction: column; padding-bottom: 16px; }
+
+.chart__empty {
+  margin: 6px 0 0;
+  color: var(--slate-500);
+  font-size: 14px;
+}
+
+/* Single stacked bar: 2px surface gaps keep adjacent fills legible. */
+.stackbar {
+  display: flex;
+  gap: 2px;
+  height: 18px;
+  margin: 2px 0 14px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--slate-100);
+}
+
+.stackbar__segment { min-width: 3px; }
+
+.chart-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+
+.chart-legend__item {
+  display: grid;
+  grid-template-columns: 10px 1fr auto auto;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+}
+
+.chart-legend__swatch { width: 10px; height: 10px; border-radius: 3px; }
+.chart-legend__label { color: var(--slate-700); }
+.chart-legend__value { font-weight: 600; color: var(--slate-900); font-variant-numeric: tabular-nums; }
+.chart-legend__percent {
+  color: var(--slate-500);
+  font-variant-numeric: tabular-nums;
+  min-width: 38px;
+  text-align: right;
+}
+
+.barlist { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 9px; }
+
+.barlist__row {
+  display: grid;
+  grid-template-columns: minmax(72px, 108px) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.barlist__label {
+  color: var(--slate-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barlist__track { background: var(--slate-100); border-radius: 4px; height: 14px; }
+
+.barlist__bar {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 160ms ease-out;
+}
+
+.barlist__value {
+  font-weight: 600;
+  color: var(--slate-900);
+  font-variant-numeric: tabular-nums;
+  min-width: 26px;
+  text-align: right;
+}
+
+.chart-card--figure { justify-content: flex-start; }
+
+.figure {
+  margin: 6px 0 0;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--brand-navy);
+  font-variant-numeric: tabular-nums;
+}
+
+.figure__note { margin: 6px 0 0; color: var(--slate-500); font-size: 13px; }
+
+@media (max-width: 640px) {
+  .dashboard { grid-template-columns: 1fr; }
+  .figure { font-size: 27px; }
+}
+
+.stat--value { cursor: default; border-left-color: var(--brand-purple); }
+.stat__value--currency { font-size: 22px; color: var(--brand-navy); }
+@media (max-width: 640px) { .stat__value--currency { font-size: 19px; } }

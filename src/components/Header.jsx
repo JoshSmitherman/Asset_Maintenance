@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import BrandLogo from './BrandLogo';
 import { formatTimestamp } from '../lib/dates';
 
 export default function Header({ onRefresh, refreshing, lastSyncedAt }) {
@@ -19,7 +20,7 @@ export default function Header({ onRefresh, refreshing, lastSyncedAt }) {
     <header className="app-header">
       <div className="app-header__inner">
         <div className="app-header__brand">
-          <span className="app-header__mark" aria-hidden="true">IT</span>
+          <BrandLogo className="app-header__logo" />
           <div>
             <h1 className="app-header__title">Hardware Maintenance Tracker</h1>
             <p className="app-header__subtitle">

@@ -1,4 +1,4 @@
-import { STATUS } from '../lib/constants';
+import { formatCurrency, STATUS } from '../lib/constants';
 
 const CARDS = [
   { key: 'total', label: 'Total assets', tone: 'neutral', filterValue: 'all' },
@@ -8,7 +8,7 @@ const CARDS = [
   { key: STATUS.OK, label: 'OK', tone: 'ok', filterValue: STATUS.OK }
 ];
 
-export default function StatsGrid({ summary, activeStatus, onSelectStatus }) {
+export default function StatsGrid({ summary, activeStatus, onSelectStatus, totalValue }) {
   return (
     <section className="stat-grid" aria-label="Fleet summary">
       {CARDS.map((card) => {
@@ -26,6 +26,15 @@ export default function StatsGrid({ summary, activeStatus, onSelectStatus }) {
           </button>
         );
       })}
+
+      {totalValue === undefined ? null : (
+        <div className="stat stat--value">
+          <span className="stat__value stat__value--currency">
+            {formatCurrency(totalValue) ?? '£0.00'}
+          </span>
+          <span className="stat__label">Total value</span>
+        </div>
+      )}
     </section>
   );
 }

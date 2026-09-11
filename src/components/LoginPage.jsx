@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import BrandLogo from './BrandLogo';
 
 export default function LoginPage() {
   const { signIn } = useAuth();
@@ -35,7 +36,7 @@ export default function LoginPage() {
     <div className="login">
       <form className="login__card" onSubmit={handleSubmit}>
         <div className="login__brand">
-          <span className="login__mark" aria-hidden="true">IT</span>
+          <BrandLogo className="login__logo" />
           <div>
             <h1 className="login__title">Hardware Maintenance Tracker</h1>
             <p className="login__subtitle">Internal IT support team</p>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import Header from './Header';
 import StatsGrid from './StatsGrid';
+import Dashboard from './Dashboard';
 import AttentionPanel from './AttentionPanel';
 import AssetToolbar from './AssetToolbar';
 import AssetTable from './AssetTable';
@@ -9,6 +10,7 @@ import ConfirmDialog from './ConfirmDialog';
 import Toast from './Toast';
 import { useAssets } from '../hooks/useAssets';
 import { summariseAssets } from '../lib/assetStatus';
+import { totalPurchaseValue } from '../lib/dashboardStats';
 import {
   DEFAULT_SORT,
   EMPTY_FILTERS,
@@ -40,6 +42,7 @@ export default function AppShell() {
 
   const summary = useMemo(() => summariseAssets(assets), [assets]);
   const departments = useMemo(() => uniqueDepartments(assets), [assets]);
+  const totalValue = useMemo(() => totalPurchaseValue(assets), [assets]);
 
   const visibleAssets = useMemo(
     () => sortAssets(filterAssets(assets, filters), sort),
@@ -85,7 +88,10 @@ export default function AppShell() {
               summary={summary}
               activeStatus={filters.status}
               onSelectStatus={(status) => setFilters((current) => ({ ...current, status }))}
+              totalValue={totalValue}
             />
+
+            <Dashboard assets={assets} />
 
             <AttentionPanel
               assets={assets}
