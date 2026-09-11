@@ -1,17 +1,34 @@
 import { useState } from 'react';
 
-// Served from public/, so it respects the GitHub Pages base path.
-const LOGO_SRC = `${import.meta.env.BASE_URL}adaro-logo.png`;
+// Served from public/, so the GitHub Pages base path is applied automatically.
+// Several extensions are tried in turn so the upload does not have to be a
+// particular format - the first one that loads wins.
+const CANDIDATES = [
+  'adaro-logo.svg',
+  'adaro-logo.png',
+  'adaro-logo.jpg',
+  'adaro-logo.jpeg',
+  'adaro-logo.webp'
+];
 
 /**
- * Shows the ADARO logo, falling back to a plain wordmark if the image is
- * missing - so the page never renders a broken-image icon.
+ * Shows the ADARO logo. If no logo file has been uploaded yet, falls back to a
+ * plain wordmark rather than a broken-image icon.
  */
 export default function BrandLogo({ className = '' }) {
-  const [failed, setFailed] = useState(false);
-  const classes = `${className} ${failed ? 'brand-wordmark' : 'brand-logo'}`.trim();
+  const [attempt, setAttempt] = useState(0);
+  const exhausted = attempt >= CANDIDATES.length;
+  const classes = `${className} ${exhausted ? 'brand-wordmark' : 'brand-logo'}`.trim();
 
-  if (failed) return <span className={classes}>ADARO</span>;
+  if (exhausted) return <span className={classes}>ADARO</span>;
 
-  return <img src={LOGO_SRC} alt="ADARO" className={classes} onError={() => setFailed(true)} />;
+  return (
+    <img
+      key={CANDIDATES[attempt]}
+      src={`${import.meta.env.BASE_URL}${CANDIDATES[attempt]}`}
+      alt="ADARO"
+      className={classes}
+      onError={() => setAttempt((current) => current + 1)}
+    />
+  );
 }
