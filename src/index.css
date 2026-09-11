@@ -107,13 +107,18 @@ code {
   flex: 1;
 }
 
+/* The header and the nav are one sticky unit. They were previously both
+   sticky at top:0, so they pinned to the same place and overlapped. */
+.app-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
 .app-header {
   background: var(--navy-900);
   color: #fff;
   box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 0;
-  z-index: 20;
 }
 
 .app-header__inner {
@@ -797,9 +802,7 @@ code {
 .app-nav {
   background: #fff;
   border-bottom: 1px solid var(--slate-200);
-  position: sticky;
-  top: 0;
-  z-index: 30;
+  box-shadow: var(--shadow-sm);
 }
 
 .app-nav__inner {
@@ -863,3 +866,10 @@ code {
 .dashboard > *,
 .stat-grid > *,
 .table-scroll { min-width: 0; }
+
+/* On a phone the header plus nav would eat too much of the screen, so only
+   the nav stays pinned there. */
+@media (max-width: 720px) {
+  .app-chrome { position: static; }
+  .app-nav { position: sticky; top: 0; z-index: 40; }
+}

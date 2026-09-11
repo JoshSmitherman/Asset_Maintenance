@@ -85,8 +85,12 @@ export default function AppShell() {
 
   return (
     <div className="app">
-      <Header onRefresh={refresh} refreshing={refreshing} lastSyncedAt={lastSyncedAt} />
-      <AppNav page={page} onChange={setPage} counts={{ cleaning: attentionCount }} />
+      {/* Header and nav stick as one block so they cannot pin to the same
+          offset and overlap each other. */}
+      <div className="app-chrome">
+        <Header onRefresh={refresh} refreshing={refreshing} lastSyncedAt={lastSyncedAt} />
+        <AppNav page={page} onChange={setPage} counts={{ cleaning: attentionCount }} />
+      </div>
 
       <main className="container">
         {error ? (
