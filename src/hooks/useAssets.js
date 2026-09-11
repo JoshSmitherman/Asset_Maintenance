@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { ASSETS_TABLE, ASSETS_VIEW } from '../lib/constants';
+import { ASSETS_TABLE, ASSETS_VIEW, isCleaningTracked } from '../lib/constants';
 import { decorateAsset } from '../lib/assetStatus';
 import { describeDatabaseError } from '../lib/errors';
 import { todayIso } from '../lib/dates';
@@ -9,12 +9,20 @@ const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 /** Only these columns are ever written; the rest are database-managed. */
 function toWritePayload(values) {
-  const hasCleanRecord = Boolean(values.date_cleaned);
+  // Cleaning fields only apply to laptops and desktops. Clearing them here
+  // means changing an asset's type cannot leave a stale cleaning record behind.
+  const tracked = isCleaningTracked(values.device_type);
+  const hasCleanRecord = tracked && Boolean(values.date_cleaned);
+  const cost = String(values.purchase_cost ?? '').trim();
+
   return {
     asset_ref: values.asset_ref.trim(),
     device_type: values.device_type,
     owner_name: values.owner_name.trim(),
     department: values.department.trim(),
+    location: values.location || null,
+    purchase_cost: cost === '' ? null : Number(cost),
+    purchase_date: values.purchase_date || null,
     date_cleaned: hasCleanRecord ? values.date_cleaned : null,
     cleaned_by: hasCleanRecord ? values.cleaned_by : null,
     cleaning_interval_months: Number(values.cleaning_interval_months),

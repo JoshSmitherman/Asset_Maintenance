@@ -1,6 +1,7 @@
 import {
   DEFAULT_CLEANING_INTERVAL_MONTHS,
   DUE_SOON_WINDOW_DAYS,
+  isCleaningTracked,
   STATUS,
   STATUS_VALUES
 } from './constants';
@@ -18,8 +19,10 @@ export function previewNextCleanDue(dateCleaned, intervalMonths = DEFAULT_CLEANI
   return addMonthsIso(dateCleaned, months);
 }
 
-/** Mirrors public.asset_status() in supabase/schema.sql. */
-export function statusFor(dateCleaned, nextCleanDue, today = todayIso()) {
+/** Mirrors public.asset_status() in the migration. Only laptops and desktops
+ *  carry a cleaning status; everything else is inventory-only. */
+export function statusFor(deviceType, dateCleaned, nextCleanDue, today = todayIso()) {
+  if (!isCleaningTracked(deviceType)) return STATUS.NOT_TRACKED;
   if (!dateCleaned || !nextCleanDue) return STATUS.NEVER_CLEANED;
   const days = daysBetween(today, nextCleanDue);
   if (days === null) return STATUS.NEVER_CLEANED;
@@ -38,7 +41,7 @@ export function decorateAsset(row, today = todayIso()) {
   return {
     ...row,
     nextCleanDue,
-    status: statusFor(row.date_cleaned, nextCleanDue, today),
+    status: statusFor(row.device_type, row.date_cleaned, nextCleanDue, today),
     daysUntilDue: nextCleanDue ? daysBetween(today, nextCleanDue) : null
   };
 }

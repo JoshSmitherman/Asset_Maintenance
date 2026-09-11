@@ -1,4 +1,4 @@
-import { CLEANERS, DEVICE_TYPES, STATUS_VALUES } from '../lib/constants';
+import { CLEANERS, DEVICE_TYPES, LOCATIONS, STATUS_FILTER_VALUES } from '../lib/constants';
 import { EMPTY_FILTERS } from '../lib/assetQueries';
 
 export default function AssetToolbar({ filters, onChange, departments, onAddAsset, resultCount, totalCount }) {
@@ -14,7 +14,7 @@ export default function AssetToolbar({ filters, onChange, departments, onAddAsse
             id="asset-search"
             className="input"
             type="search"
-            placeholder="Search asset ref, owner, department or notes…"
+            placeholder="Search asset ref, owner, department, location or notes…"
             value={filters.search}
             onChange={(event) => update({ search: event.target.value })}
           />
@@ -54,6 +54,20 @@ export default function AssetToolbar({ filters, onChange, departments, onAddAsse
         </div>
 
         <div className="field field--inline">
+          <label className="field__label" htmlFor="filter-location">Location</label>
+          <select
+            id="filter-location"
+            className="select"
+            value={filters.location}
+            onChange={(event) => update({ location: event.target.value })}
+          >
+            <option value="all">All</option>
+            {LOCATIONS.map((place) => <option key={place} value={place}>{place}</option>)}
+            <option value="unassigned">Not recorded</option>
+          </select>
+        </div>
+
+        <div className="field field--inline">
           <label className="field__label" htmlFor="filter-cleaner">Cleaned by</label>
           <select
             id="filter-cleaner"
@@ -76,7 +90,7 @@ export default function AssetToolbar({ filters, onChange, departments, onAddAsse
             onChange={(event) => update({ status: event.target.value })}
           >
             <option value="all">All</option>
-            {STATUS_VALUES.map((status) => <option key={status} value={status}>{status}</option>)}
+            {STATUS_FILTER_VALUES.map((status) => <option key={status} value={status}>{status}</option>)}
           </select>
         </div>
 

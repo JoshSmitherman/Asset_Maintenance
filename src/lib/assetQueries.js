@@ -4,6 +4,7 @@ export const EMPTY_FILTERS = {
   search: '',
   deviceType: 'all',
   department: 'all',
+  location: 'all',
   cleanedBy: 'all',
   status: 'all'
 };
@@ -14,7 +15,7 @@ function matchesSearch(asset, term) {
   if (!term) return true;
   const needle = term.trim().toLowerCase();
   if (!needle) return true;
-  return [asset.asset_ref, asset.owner_name, asset.department, asset.notes, asset.cleaned_by]
+  return [asset.asset_ref, asset.owner_name, asset.department, asset.location, asset.notes, asset.cleaned_by]
     .filter(Boolean)
     .some((field) => String(field).toLowerCase().includes(needle));
 }
@@ -24,6 +25,11 @@ export function filterAssets(assets, filters) {
     if (!matchesSearch(asset, filters.search)) return false;
     if (filters.deviceType !== 'all' && asset.device_type !== filters.deviceType) return false;
     if (filters.department !== 'all' && asset.department !== filters.department) return false;
+    if (filters.location !== 'all') {
+      if (filters.location === 'unassigned' ? asset.location : asset.location !== filters.location) {
+        return false;
+      }
+    }
     if (filters.cleanedBy !== 'all') {
       if (filters.cleanedBy === 'unassigned' ? asset.cleaned_by : asset.cleaned_by !== filters.cleanedBy) {
         return false;
@@ -47,6 +53,15 @@ function compareValues(a, b, key) {
       if (!left) return -1;
       if (!right) return 1;
       return left < right ? -1 : left > right ? 1 : 0;
+    }
+    case 'purchase_cost': {
+      // Numeric, and blank costs sort last so priced assets lead the list.
+      const left = a[key];
+      const right = b[key];
+      if (left == null && right == null) return 0;
+      if (left == null) return 1;
+      if (right == null) return -1;
+      return Number(left) - Number(right);
     }
     case 'created_at':
     case 'updated_at': {

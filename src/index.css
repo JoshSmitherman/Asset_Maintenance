@@ -417,6 +417,7 @@ code {
 .badge--due-soon { background: var(--amber-100); color: var(--amber-700); border-color: #f0dcae; }
 .badge--ok       { background: var(--green-100); color: var(--green-700); border-color: #bfe4d1; }
 .badge--never    { background: var(--slate-100); color: var(--slate-700); border-color: var(--slate-300); }
+.badge--not-tracked { background: transparent; color: var(--slate-500); border-color: var(--slate-200); border-style: dashed; }
 
 /* ------------------------------------------------------ Empty and alerts */
 .empty-state {

@@ -4,7 +4,9 @@ import StatusBadge from './StatusBadge';
 import {
   CLEANERS,
   DEFAULT_CLEANING_INTERVAL_MONTHS,
-  DEVICE_TYPES
+  DEVICE_TYPES,
+  isCleaningTracked,
+  LOCATIONS
 } from '../lib/constants';
 import { previewNextCleanDue, statusFor } from '../lib/assetStatus';
 import { formatDate, isValidIsoDate, todayIso } from '../lib/dates';
@@ -15,6 +17,9 @@ function blankValues(prefill = {}) {
     device_type: DEVICE_TYPES[0],
     owner_name: '',
     department: '',
+    location: '',
+    purchase_cost: '',
+    purchase_date: '',
     date_cleaned: '',
     cleaned_by: '',
     cleaning_interval_months: String(DEFAULT_CLEANING_INTERVAL_MONTHS),
@@ -29,6 +34,9 @@ function valuesFromAsset(asset, prefill = {}) {
     device_type: asset.device_type ?? DEVICE_TYPES[0],
     owner_name: asset.owner_name ?? '',
     department: asset.department ?? '',
+    location: asset.location ?? '',
+    purchase_cost: asset.purchase_cost ?? '',
+    purchase_date: asset.purchase_date ?? '',
     date_cleaned: asset.date_cleaned ?? '',
     cleaned_by: asset.cleaned_by ?? '',
     cleaning_interval_months: String(asset.cleaning_interval_months ?? DEFAULT_CLEANING_INTERVAL_MONTHS),
@@ -40,6 +48,7 @@ function valuesFromAsset(asset, prefill = {}) {
 function validate(values, { assetRefExists, ignoreId }) {
   const errors = {};
   const today = todayIso();
+  const tracked = isCleaningTracked(values.device_type);
 
   if (!values.asset_ref.trim()) {
     errors.asset_ref = 'Asset Ref is required.';
@@ -59,7 +68,24 @@ function validate(values, { assetRefExists, ignoreId }) {
     errors.department = 'Department is required.';
   }
 
-  if (values.date_cleaned) {
+  if (values.location && !LOCATIONS.includes(values.location)) {
+    errors.location = 'Choose a location from the list.';
+  }
+
+  if (values.purchase_date && !isValidIsoDate(values.purchase_date)) {
+    errors.purchase_date = 'Enter a valid date.';
+  }
+
+  const costText = String(values.purchase_cost ?? '').trim();
+  if (costText) {
+    const cost = Number(costText);
+    if (!Number.isFinite(cost) || cost < 0) {
+      errors.purchase_cost = 'Purchase cost must be a number of zero or more.';
+    }
+  }
+
+  // Cleaning only applies to laptops and desktops.
+  if (tracked && values.date_cleaned) {
     if (!isValidIsoDate(values.date_cleaned)) {
       errors.date_cleaned = 'Enter a valid date.';
     } else if (values.date_cleaned > today) {
@@ -68,12 +94,12 @@ function validate(values, { assetRefExists, ignoreId }) {
     if (!values.cleaned_by) {
       errors.cleaned_by = 'Select who cleaned it.';
     }
-  } else if (values.cleaned_by) {
+  } else if (tracked && values.cleaned_by) {
     errors.date_cleaned = 'Enter the date this asset was cleaned.';
   }
 
   const months = Number(values.cleaning_interval_months);
-  if (!Number.isInteger(months) || months < 1 || months > 60) {
+  if (tracked && (!Number.isInteger(months) || months < 1 || months > 60)) {
     errors.cleaning_interval_months = 'Interval must be a whole number of months between 1 and 60.';
   }
 
@@ -103,13 +129,15 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
     });
   };
 
+  const tracked = isCleaningTracked(values.device_type);
+
   const preview = useMemo(() => {
     const nextCleanDue = previewNextCleanDue(values.date_cleaned, values.cleaning_interval_months);
     return {
       nextCleanDue,
-      status: statusFor(values.date_cleaned, nextCleanDue)
+      status: statusFor(values.device_type, values.date_cleaned, nextCleanDue)
     };
-  }, [values.date_cleaned, values.cleaning_interval_months]);
+  }, [values.device_type, values.date_cleaned, values.cleaning_interval_months]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -197,6 +225,52 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
           </div>
 
           <div className="field">
+            <label className="field__label" htmlFor="location">Location</label>
+            <select
+              id="location"
+              className={`select${errors.location ? ' input--error' : ''}`}
+              value={values.location}
+              onChange={(event) => setField('location', event.target.value)}
+              disabled={busy}
+            >
+              <option value="">— Not recorded —</option>
+              {LOCATIONS.map((place) => <option key={place} value={place}>{place}</option>)}
+            </select>
+            {errors.location ? <span className="field__error">{errors.location}</span> : null}
+          </div>
+
+          <div className="field">
+            <label className="field__label" htmlFor="purchase_date">Purchase Date</label>
+            <input
+              id="purchase_date"
+              className={`input${errors.purchase_date ? ' input--error' : ''}`}
+              type="date"
+              value={values.purchase_date}
+              onChange={(event) => setField('purchase_date', event.target.value)}
+              disabled={busy}
+            />
+            {errors.purchase_date ? <span className="field__error">{errors.purchase_date}</span> : null}
+          </div>
+
+          <div className="field">
+            <label className="field__label" htmlFor="purchase_cost">Purchase Cost (£)</label>
+            <input
+              id="purchase_cost"
+              className={`input${errors.purchase_cost ? ' input--error' : ''}`}
+              type="number"
+              min={0}
+              step="0.01"
+              value={values.purchase_cost}
+              onChange={(event) => setField('purchase_cost', event.target.value)}
+              placeholder="e.g. 899.00"
+              disabled={busy}
+            />
+            {errors.purchase_cost ? <span className="field__error">{errors.purchase_cost}</span> : null}
+          </div>
+
+          {tracked ? (
+            <>
+          <div className="field">
             <label className="field__label" htmlFor="date_cleaned">Date Cleaned</label>
             <input
               id="date_cleaned"
@@ -258,6 +332,15 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
               <StatusBadge status={preview.status} />
             </div>
           </div>
+            </>
+          ) : (
+            <div className="field field--full">
+              <p className="field__hint">
+                Cleaning is tracked for laptops and desktops only. This asset is recorded
+                for inventory and will not appear in the cleaning area.
+              </p>
+            </div>
+          )}
 
           <div className="field field--full">
             <label className="field__label" htmlFor="notes">Notes</label>

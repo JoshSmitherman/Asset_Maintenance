@@ -1,4 +1,4 @@
-import { STATUS } from '../lib/constants';
+import { formatCurrency, isCleaningTracked, STATUS } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import StatusBadge from './StatusBadge';
 
@@ -7,6 +7,9 @@ const COLUMNS = [
   { key: 'device_type', label: 'Type', sortable: true },
   { key: 'owner_name', label: 'Owner', sortable: true },
   { key: 'department', label: 'Department', sortable: true, className: 'col-hide-md' },
+  { key: 'location', label: 'Location', sortable: true, className: 'col-hide-md' },
+  { key: 'purchase_date', label: 'Purchased', sortable: true, className: 'col-hide-lg' },
+  { key: 'purchase_cost', label: 'Cost', sortable: true, className: 'col-hide-lg' },
   { key: 'date_cleaned', label: 'Date Cleaned', sortable: true },
   { key: 'cleaned_by', label: 'Cleaned By', sortable: true, className: 'col-hide-sm' },
   { key: 'next_clean_due', label: 'Next Clean Due', sortable: true },
@@ -68,8 +71,17 @@ export default function AssetTable({ assets, sort, onSortChange, onEdit, onDelet
               <td>{asset.device_type}</td>
               <td>{asset.owner_name}</td>
               <td className="col-hide-md">{asset.department}</td>
+              <td className="col-hide-md">{asset.location ?? <span className="cell-muted">—</span>}</td>
+              <td className="col-hide-lg">
+                {asset.purchase_date ? formatDate(asset.purchase_date) : <span className="cell-muted">—</span>}
+              </td>
+              <td className="col-hide-lg">
+                {formatCurrency(asset.purchase_cost) ?? <span className="cell-muted">—</span>}
+              </td>
               <td>
-                {asset.date_cleaned ? (
+                {!isCleaningTracked(asset.device_type) ? (
+                  <span className="cell-muted">—</span>
+                ) : asset.date_cleaned ? (
                   formatDate(asset.date_cleaned)
                 ) : (
                   <span className="cell-flag">Never cleaned</span>
