@@ -151,37 +151,49 @@ code {
 .app-header__title { font-size: 17px; }
 .app-header__subtitle { margin: 2px 0 0; font-size: 12px; color: rgba(255, 255, 255, 0.66); }
 
-.app-header__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.app-header__actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 
+/* Plain label, not an action: no underline, dimmer than the links either
+   side of it, so it reads as "who's signed in" rather than something to click. */
 .app-header__user {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.62);
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.app-header .btn--ghost {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.24);
-  color: #fff;
-}
-.app-header .btn--ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); }
+/* Sign out uses the standard .btn--primary, already the brand purple - the
+   one solid button in the header, so it's unmistakably the action people
+   are looking for. */
 
-/* Lower-emphasis header actions (Refresh, Change password): no border, dimmer
-   text, transparent until hovered - a visible step below .btn--ghost's Sign
-   out, without vanishing entirely. */
-.app-header .btn--quiet {
-  background: transparent;
-  border-color: transparent;
-  color: rgba(255, 255, 255, 0.72);
+/* Refresh and Change password: underlined text links rather than buttons -
+   visibly clickable, but a clear step below Sign out's solid button. */
+.app-header__link {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
 }
-.app-header .btn--quiet:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
+.app-header__link:hover:not(:disabled) {
   color: #fff;
+  text-decoration-color: #fff;
 }
-.app-header .btn--quiet:disabled { color: rgba(255, 255, 255, 0.4); }
+.app-header__link:focus-visible { outline: 2px solid #fff; outline-offset: 3px; border-radius: 2px; }
+.app-header__link:disabled {
+  color: rgba(255, 255, 255, 0.4);
+  text-decoration-color: rgba(255, 255, 255, 0.25);
+  cursor: not-allowed;
+}
 
 .app-footer {
   border-top: 1px solid var(--slate-200);
