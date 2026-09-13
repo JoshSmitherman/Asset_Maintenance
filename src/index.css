@@ -200,24 +200,9 @@ code {
   border-top: 1px solid var(--slate-200);
   background: #fff;
   padding: 14px 20px;
+  text-align: center;
   font-size: 12px;
   color: var(--slate-500);
-}
-
-/* Same max-width and centring as the header and nav, so the footer's edges
-   line up with the page content rather than the viewport. */
-.app-footer__inner {
-  max-width: 1340px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px 20px;
-  flex-wrap: wrap;
-}
-
-@media (max-width: 720px) {
-  .app-footer__inner { justify-content: center; text-align: center; }
 }
 
 /* ----------------------------------------------------------------- Cards */

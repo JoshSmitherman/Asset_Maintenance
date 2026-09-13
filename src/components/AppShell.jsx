@@ -173,12 +173,9 @@ export default function AppShell() {
       </main>
 
       <footer className="app-footer">
-        <div className="app-footer__inner">
-          <span>© Josh Smitherman, {new Date().getFullYear()}</span>
-          <span>
-            Cleaning cycle defaults to 6 months. Status: Overdue (past due) · Due Soon (within 30 days) · OK (more than 30 days).
-          </span>
-        </div>
+        <span>
+          Cleaning cycle defaults to 6 months. Status: Overdue (past due) · Due Soon (within 30 days) · OK (more than 30 days).
+        </span>
       </footer>
 
       {/* Suggestions for the department and user fields in the asset form. */}
