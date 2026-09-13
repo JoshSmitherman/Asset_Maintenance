@@ -169,6 +169,20 @@ code {
 }
 .app-header .btn--ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); }
 
+/* Lower-emphasis header actions (Refresh, Change password): no border, dimmer
+   text, transparent until hovered - a visible step below .btn--ghost's Sign
+   out, without vanishing entirely. */
+.app-header .btn--quiet {
+  background: transparent;
+  border-color: transparent;
+  color: rgba(255, 255, 255, 0.72);
+}
+.app-header .btn--quiet:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.app-header .btn--quiet:disabled { color: rgba(255, 255, 255, 0.4); }
+
 .app-footer {
   border-top: 1px solid var(--slate-200);
   background: #fff;

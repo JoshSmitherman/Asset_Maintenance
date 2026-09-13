@@ -39,13 +39,15 @@ export default function Header({ onRefresh, refreshing, lastSyncedAt }) {
         </div>
 
         <div className="app-header__actions">
-          <button type="button" className="btn btn--ghost" onClick={onRefresh} disabled={refreshing}>
+          {/* Refresh and Change password are occasional, low-stakes actions -
+              a quieter style than Sign out keeps them from competing with it. */}
+          <button type="button" className="btn btn--quiet" onClick={onRefresh} disabled={refreshing}>
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
-          <span className="app-header__user" title={userEmail}>{userEmail}</span>
-          <button type="button" className="btn btn--ghost" onClick={() => setChangingPassword(true)}>
+          <button type="button" className="btn btn--quiet" onClick={() => setChangingPassword(true)}>
             Change password
           </button>
+          <span className="app-header__user" title={userEmail}>{userEmail}</span>
           <button type="button" className="btn btn--ghost" onClick={handleSignOut} disabled={signingOut}>
             {signingOut ? 'Signing out…' : 'Sign out'}
           </button>
