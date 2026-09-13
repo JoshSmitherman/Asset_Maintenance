@@ -284,6 +284,38 @@ create policy "assets_delete_admins" on public.assets for delete to authenticate
 
 ---
 
+## Testing
+
+Automated tests run with no live Supabase project required.
+
+```bash
+npm test          # unit + component tests (Vitest), fast and offline
+npm run test:watch  # the same, in watch mode
+npm run test:e2e  # end-to-end browser tests (Playwright), Supabase mocked
+```
+
+- **Unit tests** (`src/lib/__tests__/`) cover the business logic that mirrors the
+  database: date maths and month-end clamping, the Overdue/Due Soon/Never
+  Cleaned/OK status machine, filtering/sorting, and the Postgres→human error
+  translations.
+- **Component tests** (`src/components/*.test.jsx`, jsdom) cover the login flow,
+  the asset form's validation (required fields, duplicate refs, future clean
+  dates), and the delete confirmation.
+- **End-to-end tests** (`e2e/`) drive a real production build in Chromium with
+  every Supabase call intercepted in the browser — login, listing assets with
+  their computed status, and adding an asset.
+
+CI (`.github/workflows/ci.yml`) runs all three on every push and pull request,
+and the deploy workflow gates on the unit/component suite so a red build never
+reaches GitHub Pages.
+
+> **Playwright browsers:** CI installs Chromium automatically. If a local or
+> sandboxed environment already ships a pinned Chromium, point Playwright at it
+> with `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chrome npm run test:e2e` to skip
+> the download.
+
+---
+
 ## How concurrent use is handled
 
 - Every write goes straight to Supabase; there is no local cache to get stale.
