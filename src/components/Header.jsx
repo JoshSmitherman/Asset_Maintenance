@@ -5,7 +5,7 @@ import ChangePasswordModal from './ChangePasswordModal';
 import Toast from './Toast';
 import { formatTimestamp } from '../lib/dates';
 
-export default function Header({ onRefresh, refreshing, lastSyncedAt }) {
+export default function Header({ lastSyncedAt }) {
   const { userEmail, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
@@ -39,12 +39,9 @@ export default function Header({ onRefresh, refreshing, lastSyncedAt }) {
         </div>
 
         <div className="app-header__actions">
-          {/* Refresh and Change password read as underlined links - visibly
-              clickable, but a clear step below Sign out's solid button. The
-              email between them is plain text: not an action, just a label. */}
-          <button type="button" className="app-header__link" onClick={onRefresh} disabled={refreshing}>
-            {refreshing ? 'Refreshing…' : 'Refresh'}
-          </button>
+          {/* Change password reads as an underlined link - visibly clickable,
+              a clear step below Sign out's solid button. The email is plain
+              text: not an action, just a label. */}
           <button type="button" className="app-header__link" onClick={() => setChangingPassword(true)}>
             Change password
           </button>
