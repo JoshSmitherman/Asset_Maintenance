@@ -1,0 +1,57 @@
+name: CI
+
+# Runs the test suite on every push and pull request. The deploy workflow gates
+# on its own fast test job, so a red build never reaches GitHub Pages.
+on:
+  push:
+    branches-ignore: [gh-pages]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: Unit & component tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      - name: Run Vitest (logic + components)
+        run: npm test
+      - name: Production build sanity check
+        env:
+          # Build only needs these to be present; values are inert for the bundle.
+          VITE_SUPABASE_URL: https://stub.supabase.co
+          VITE_SUPABASE_ANON_KEY: stub-anon-key
+        run: npm run build
+
+  e2e:
+    name: End-to-end (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright
+        # playwright.config.js builds and previews the app, mocking Supabase in
+        # the browser, so no live backend or secrets are required.
+        run: npm run test:e2e
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
