@@ -47,7 +47,7 @@ test.describe('Hardware Maintenance Tracker — end to end (mocked Supabase)', (
     await page.getByRole('button', { name: /add asset/i }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel(/asset ref/i).fill('LAP-999');
-    await dialog.getByLabel(/^user$/i).fill('Dana');
+    await dialog.getByLabel(/^user \*/i).fill('Dana');
     await dialog.getByLabel(/department/i).fill('IT');
     await dialog.getByRole('button', { name: /add asset/i }).click();
 

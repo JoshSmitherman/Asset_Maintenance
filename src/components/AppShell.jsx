@@ -7,7 +7,6 @@ import AttentionPanel from './AttentionPanel';
 import AssetToolbar from './AssetToolbar';
 import AssetTable from './AssetTable';
 import AssetFormModal from './AssetFormModal';
-import RecordCleanModal from './RecordCleanModal';
 import ConfirmDialog from './ConfirmDialog';
 import Toast from './Toast';
 import { useAssets } from '../hooks/useAssets';
@@ -18,11 +17,11 @@ import {
   EMPTY_FILTERS,
   filterAssets,
   sortAssets,
-  sortByUrgency,
   uniqueDepartments,
   uniqueUsers
 } from '../lib/assetQueries';
 import { ATTENTION_STATUSES, isCleaningTracked } from '../lib/constants';
+import { todayIso } from '../lib/dates';
 
 export default function AppShell() {
   const {
@@ -33,7 +32,6 @@ export default function AppShell() {
     refresh,
     createAsset,
     updateAsset,
-    recordClean,
     deleteAsset,
     assetRefExists
   } = useAssets();
@@ -42,7 +40,6 @@ export default function AppShell() {
   const [filters, setFilters] = useState({ ...EMPTY_FILTERS });
   const [sort, setSort] = useState({ ...DEFAULT_SORT });
   const [formState, setFormState] = useState(null); // { asset?, prefill? }
-  const [cleaningTarget, setCleaningTarget] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -63,35 +60,10 @@ export default function AppShell() {
 
   const sourceAssets = page === 'cleaning' ? cleaningAssets : assets;
 
-  const visibleAssets = useMemo(() => {
-    const filtered = filterAssets(sourceAssets, filters);
-    // The queue's default order is urgency, which also ranks by how overdue
-    // something is - more useful than the plain status grouping a column
-    // sort would give. Clicking any heading still sorts normally.
-    if (page === 'cleaning' && sort.key === 'status') {
-      const byUrgency = sortByUrgency(filtered);
-      return sort.direction === 'desc' ? [...byUrgency].reverse() : byUrgency;
-    }
-    return sortAssets(filtered, sort);
-  }, [sourceAssets, filters, sort, page]);
-
-  // On the register, kit nobody holds is listed on its own so it is obvious
-  // what is spare or waiting to be issued.
-  const unassignedAssets = useMemo(
-    () => visibleAssets.filter((asset) => !asset.owner_name),
-    [visibleAssets]
+  const visibleAssets = useMemo(
+    () => sortAssets(filterAssets(sourceAssets, filters), sort),
+    [sourceAssets, filters, sort]
   );
-  const assignedAssets = useMemo(
-    () => visibleAssets.filter((asset) => asset.owner_name),
-    [visibleAssets]
-  );
-
-  const goToPage = (next) => {
-    setPage(next);
-    // Each page has its own natural order: urgency for the queue, asset
-    // reference for the register.
-    setSort(next === 'cleaning' ? { key: 'status', direction: 'asc' } : { ...DEFAULT_SORT });
-  };
 
   const handleCreate = async (values) => {
     await createAsset(values);
@@ -103,13 +75,6 @@ export default function AppShell() {
     await updateAsset(asset.id, asset.version, values);
     setFormState(null);
     setToast({ tone: 'success', message: `Asset ${values.asset_ref.trim()} updated.` });
-  };
-
-  const handleRecordClean = async (values) => {
-    const asset = cleaningTarget;
-    await recordClean(asset.id, asset.version, values);
-    setCleaningTarget(null);
-    setToast({ tone: 'success', message: `Clean recorded for ${asset.asset_ref}.` });
   };
 
   const handleDelete = async () => {
@@ -125,7 +90,7 @@ export default function AppShell() {
           offset and overlap each other. */}
       <div className="app-chrome">
         <Header lastSyncedAt={lastSyncedAt} />
-        <AppNav page={page} onChange={goToPage} counts={{ cleaning: attentionCount }} />
+        <AppNav page={page} onChange={setPage} counts={{ cleaning: attentionCount }} />
       </div>
 
       <main className="container">
@@ -145,77 +110,41 @@ export default function AppShell() {
               activeStatus={filters.status}
               onSelectStatus={(status) => {
                 setFilters((current) => ({ ...current, status }));
-                goToPage(status === 'all' ? 'assets' : 'cleaning');
+                setPage(status === 'all' ? 'assets' : 'cleaning');
               }}
               totalValue={totalValue}
             />
 
             <Dashboard assets={assets} />
 
-            <AttentionPanel assets={cleaningAssets} onRecordClean={setCleaningTarget} />
+            <AttentionPanel
+              assets={cleaningAssets}
+              onRecordClean={(asset) =>
+                setFormState({ asset, prefill: { date_cleaned: todayIso() } })
+              }
+            />
           </>
-        ) : page === 'cleaning' ? (
-          /* The work queue: what needs doing, most urgent first. Creating and
-             editing assets lives on the register, not here. */
-          <section className="card">
-            <div className="card__header">
-              <div>
-                <h2 className="card__title">Cleaning queue</h2>
-                <p className="card__subtitle">
-                  Laptops and desktops, most urgent first. Record a clean straight from the list.
-                </p>
-              </div>
-              <span className={`pill${attentionCount ? ' pill--overdue' : ''}`}>{attentionCount}</span>
-            </div>
-
-            <AssetToolbar
-              filters={filters}
-              onChange={setFilters}
-              departments={departments}
-              resultCount={visibleAssets.length}
-              totalCount={sourceAssets.length}
-            />
-
-            <AssetTable
-              assets={visibleAssets}
-              sort={sort}
-              onSortChange={setSort}
-              variant="cleaning"
-              onRecordClean={setCleaningTarget}
-            />
-          </section>
         ) : (
-          /* The register: everything owned, and what we know about it. */
           <>
-            {unassignedAssets.length > 0 ? (
-              <section className="card">
-                <div className="card__header">
-                  <div>
-                    <h2 className="card__title">Unassigned devices</h2>
-                    <p className="card__subtitle">
-                      Nobody is recorded as using these — spare kit, or waiting to be issued.
-                    </p>
-                  </div>
-                  <span className="pill">{unassignedAssets.length}</span>
-                </div>
-
-                <AssetTable
-                  assets={unassignedAssets}
-                  sort={sort}
-                  onSortChange={setSort}
-                  variant="full"
-                  onEdit={(asset) => setFormState({ asset })}
-                  onDelete={(asset) => setPendingDelete(asset)}
-                />
-              </section>
+            {page === 'cleaning' ? (
+              <AttentionPanel
+                assets={cleaningAssets}
+                onRecordClean={(asset) =>
+                  setFormState({ asset, prefill: { date_cleaned: todayIso() } })
+                }
+              />
             ) : null}
 
             <section className="card">
               <div className="card__header">
                 <div>
-                  <h2 className="card__title">Asset register</h2>
+                  <h2 className="card__title">
+                    {page === 'cleaning' ? 'Cleaning register' : 'All assets'}
+                  </h2>
                   <p className="card__subtitle">
-                    Every device we own, with its user, location and purchase details.
+                    {page === 'cleaning'
+                      ? 'Laptops and desktops only, showing the fields that matter for a cleaning round.'
+                      : 'The full inventory, including location and purchase details.'}
                   </p>
                 </div>
               </div>
@@ -230,10 +159,10 @@ export default function AppShell() {
               />
 
               <AssetTable
-                assets={assignedAssets}
+                assets={visibleAssets}
                 sort={sort}
                 onSortChange={setSort}
-                variant="full"
+                variant={page === 'cleaning' ? 'cleaning' : 'full'}
                 onEdit={(asset) => setFormState({ asset })}
                 onDelete={(asset) => setPendingDelete(asset)}
               />
@@ -270,18 +199,10 @@ export default function AppShell() {
         />
       ) : null}
 
-      {cleaningTarget ? (
-        <RecordCleanModal
-          asset={cleaningTarget}
-          onClose={() => setCleaningTarget(null)}
-          onSubmit={handleRecordClean}
-        />
-      ) : null}
-
       {pendingDelete ? (
         <ConfirmDialog
           title="Delete asset"
-          message={`Delete ${pendingDelete.asset_ref} (${pendingDelete.owner_name ?? 'unassigned'})? This removes it for everyone and cannot be undone.`}
+          message={`Delete ${pendingDelete.asset_ref} (${pendingDelete.owner_name})? This removes it for everyone and cannot be undone.`}
           confirmLabel="Delete asset"
           onConfirm={handleDelete}
           onCancel={() => setPendingDelete(null)}

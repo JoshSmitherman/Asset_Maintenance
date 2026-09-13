@@ -46,9 +46,7 @@ export default function AttentionPanel({ assets, onRecordClean }) {
                 <tr key={asset.id}>
                   <td className="cell-strong">{asset.asset_ref}</td>
                   <td>{asset.device_type}</td>
-                  <td>
-                    {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
-                  </td>
+                  <td>{asset.owner_name}</td>
                   <td className="col-hide-md">{asset.department}</td>
                   <td>
                     {asset.status === STATUS.NEVER_CLEANED ? (
