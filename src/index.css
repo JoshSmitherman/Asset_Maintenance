@@ -11,6 +11,7 @@
   --brand-navy-deep: #1b2c3d;
   --brand-purple: #8c4a9c;
   --brand-purple-dark: #743d82;
+  --brand-purple-light: #9c5aa8;
   --brand-purple-050: #f4ecf7;
 
   /* Chart palette - checked for colour-vision separation and contrast
@@ -237,6 +238,11 @@ code {
   font-weight: 600;
 }
 
+/* Urgency colouring for the "needs attention" count - grey blends into the
+   card and hides a number that matters. */
+.pill--overdue { background: var(--red-100); color: var(--red-700); }
+.pill--due-soon { background: var(--amber-100); color: var(--amber-700); }
+
 /* ------------------------------------------------------------ Stat cards */
 .stat-grid {
   display: grid;
@@ -367,6 +373,13 @@ code {
 .btn--danger-ghost { color: var(--red-700); border-color: var(--slate-300); }
 .btn--danger-ghost:hover:not(:disabled) { background: var(--red-100); border-color: #f0bcbc; }
 
+/* A lighter tint of the brand purple for frequent, low-stakes row actions
+   (e.g. "Record clean") - purple family like .btn--primary, but visually
+   a step down so it doesn't compete with the page's actual primary actions.
+   4.7:1 contrast with white text. */
+.btn--brand-light { background: var(--brand-purple-light); border-color: var(--brand-purple-light); color: #fff; }
+.btn--brand-light:hover:not(:disabled) { background: var(--brand-purple); border-color: var(--brand-purple); }
+
 .btn--ghost { background: transparent; }
 .btn--small { padding: 5px 10px; font-size: 12.5px; }
 .btn--block { width: 100%; padding: 11px 14px; }
@@ -395,6 +408,11 @@ code {
   border-bottom: 1px solid var(--slate-200);
   vertical-align: top;
 }
+
+/* The attention table's rows are always single-line, so its badge and button
+   (each taller than plain text, from their own padding) can centre against
+   the row instead of sitting top-aligned and reading as lower than it. */
+.table--attention td { vertical-align: middle; }
 
 .table thead th {
   position: sticky;
