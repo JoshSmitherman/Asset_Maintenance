@@ -18,7 +18,9 @@ function toWritePayload(values) {
   return {
     asset_ref: values.asset_ref.trim(),
     device_type: values.device_type,
-    owner_name: values.owner_name.trim(),
+    // Blank means unassigned, stored as null so there is one representation
+    // of "nobody has this" rather than two.
+    owner_name: values.owner_name?.trim() ? values.owner_name.trim() : null,
     department: values.department.trim(),
     location: values.location || null,
     purchase_cost: cost === '' ? null : Number(cost),
@@ -122,6 +124,42 @@ export function useAssets() {
     [load]
   );
 
+  /**
+   * Writes only the cleaning columns, for the Cleaning page's Record clean
+   * dialog. Leaves the register's own fields - reference, user, location,
+   * purchase details - untouched, so the two pages cannot overwrite each
+   * other's data.
+   */
+  const recordClean = useCallback(
+    async (id, version, values) => {
+      const hasCleanRecord = Boolean(values.date_cleaned);
+      const payload = {
+        date_cleaned: hasCleanRecord ? values.date_cleaned : null,
+        cleaned_by: hasCleanRecord ? values.cleaned_by : null,
+        cleaning_interval_months: Number(values.cleaning_interval_months),
+        notes: values.notes?.trim() ? values.notes.trim() : null
+      };
+
+      const { data, error: writeError } = await supabase
+        .from(ASSETS_TABLE)
+        .update(payload)
+        .eq('id', id)
+        .eq('version', version)
+        .select('id');
+
+      if (writeError) throw new Error(describeDatabaseError(writeError));
+      if (!data || data.length === 0) {
+        await load({ quiet: true });
+        throw new Error(
+          'Someone else updated this asset while you were editing it. The latest version has been reloaded - please reapply your changes.'
+        );
+      }
+      await load({ quiet: true });
+      return data[0];
+    },
+    [load]
+  );
+
   const updateAsset = useCallback(
     async (id, version, values) => {
       const payload = toWritePayload(values);
@@ -179,9 +217,10 @@ export function useAssets() {
       refresh: () => load({ quiet: true }),
       createAsset,
       updateAsset,
+      recordClean,
       deleteAsset,
       assetRefExists
     }),
-    [assets, loading, refreshing, error, lastSyncedAt, load, createAsset, updateAsset, deleteAsset, assetRefExists]
+    [assets, loading, refreshing, error, lastSyncedAt, load, createAsset, updateAsset, recordClean, deleteAsset, assetRefExists]
   );
 }

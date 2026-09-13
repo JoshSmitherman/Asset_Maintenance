@@ -34,7 +34,7 @@ function SortIndicator({ active, direction }) {
   return <span className="sort-indicator sort-indicator--active" aria-hidden="true">{direction === 'asc' ? '↑' : '↓'}</span>;
 }
 
-export default function AssetTable({ assets, sort, onSortChange, onEdit, onDelete, variant = 'full' }) {
+export default function AssetTable({ assets, sort, onSortChange, onEdit, onDelete, onRecordClean, variant = 'full' }) {
   const columns = (variant === 'cleaning' ? CLEANING_KEYS : FULL_KEYS).map((key) => ALL_COLUMNS[key]);
   const shownKeys = new Set(columns.map((column) => column.key));
   const handleSort = (key) => {
@@ -83,7 +83,9 @@ export default function AssetTable({ assets, sort, onSortChange, onEdit, onDelet
                 ) : null}
               </td>
               <td>{asset.device_type}</td>
-              <td>{asset.owner_name}</td>
+              <td>
+                {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
+              </td>
               <td className="col-hide-sm">{asset.department}</td>
               <td>{asset.location ?? <span className="cell-muted">—</span>}</td>
               {shownKeys.has('purchase_date') ? (
@@ -127,10 +129,22 @@ export default function AssetTable({ assets, sort, onSortChange, onEdit, onDelet
                 <span className="cell-muted cell-block">{asset.updated_by_email || 'unknown user'}</span>
               </td>
               <td className="table__actions">
-                <button type="button" className="btn btn--small" onClick={() => onEdit(asset)}>Edit</button>
-                <button type="button" className="btn btn--small btn--danger-ghost" onClick={() => onDelete(asset)}>
-                  Delete
-                </button>
+                {variant === 'cleaning' ? (
+                  <button
+                    type="button"
+                    className="btn btn--small btn--brand-light"
+                    onClick={() => onRecordClean(asset)}
+                  >
+                    Record clean
+                  </button>
+                ) : (
+                  <>
+                    <button type="button" className="btn btn--small" onClick={() => onEdit(asset)}>Edit</button>
+                    <button type="button" className="btn btn--small btn--danger-ghost" onClick={() => onDelete(asset)}>
+                      Delete
+                    </button>
+                  </>
+                )}
               </td>
             </tr>
           ))}
