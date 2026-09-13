@@ -200,9 +200,24 @@ code {
   border-top: 1px solid var(--slate-200);
   background: #fff;
   padding: 14px 20px;
-  text-align: center;
   font-size: 12px;
   color: var(--slate-500);
+}
+
+/* Same max-width and centring as the header and nav, so the footer's edges
+   line up with the page content rather than the viewport. */
+.app-footer__inner {
+  max-width: 1340px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .app-footer__inner { justify-content: center; text-align: center; }
 }
 
 /* ----------------------------------------------------------------- Cards */
@@ -453,7 +468,10 @@ code {
 
 .table__actions { white-space: nowrap; }
 .table__actions .btn + .btn { margin-left: 6px; }
-.table__actions-header { text-align: right; }
+/* Both need the element in the selector to out-specify ".table th, .table td",
+   which sets text-align: left. Without it the Action heading silently stayed
+   left-aligned while the buttons below it sat right-aligned. */
+.table th.table__actions-header { text-align: right; }
 .table td.table__actions { text-align: right; }
 
 .cell-strong { font-weight: 600; color: var(--navy-900); }
