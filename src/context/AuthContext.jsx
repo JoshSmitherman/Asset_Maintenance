@@ -49,6 +49,14 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }, []);
 
+  /** Changes the signed-in user's own password. The current session already
+   *  proves who they are, so - unlike signing in - no current password is
+   *  required; Supabase authorises the change against the active session. */
+  const changePassword = useCallback(async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }, []);
+
   const value = useMemo(
     () => ({
       session,
@@ -56,9 +64,10 @@ export function AuthProvider({ children }) {
       userEmail: session?.user?.email ?? '',
       initialising,
       signIn,
-      signOut
+      signOut,
+      changePassword
     }),
-    [session, initialising, signIn, signOut]
+    [session, initialising, signIn, signOut, changePassword]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

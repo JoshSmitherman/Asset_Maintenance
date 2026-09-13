@@ -552,6 +552,12 @@ code {
   gap: 16px;
 }
 
+/* A single column of stacked fields, e.g. the change-password form. */
+.field-stack {
+  display: grid;
+  gap: 14px;
+}
+
 .calc-preview {
   display: flex;
   align-items: center;

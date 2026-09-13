@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo from './BrandLogo';
+import ChangePasswordModal from './ChangePasswordModal';
+import Toast from './Toast';
 import { formatTimestamp } from '../lib/dates';
 
 export default function Header({ onRefresh, refreshing, lastSyncedAt }) {
   const { userEmail, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -14,6 +18,11 @@ export default function Header({ onRefresh, refreshing, lastSyncedAt }) {
     } finally {
       setSigningOut(false);
     }
+  };
+
+  const handlePasswordChanged = () => {
+    setChangingPassword(false);
+    setToast({ tone: 'success', message: 'Password changed.' });
   };
 
   return (
@@ -34,11 +43,23 @@ export default function Header({ onRefresh, refreshing, lastSyncedAt }) {
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
           <span className="app-header__user" title={userEmail}>{userEmail}</span>
+          <button type="button" className="btn btn--ghost" onClick={() => setChangingPassword(true)}>
+            Change password
+          </button>
           <button type="button" className="btn btn--ghost" onClick={handleSignOut} disabled={signingOut}>
             {signingOut ? 'Signing out…' : 'Sign out'}
           </button>
         </div>
       </div>
+
+      {changingPassword ? (
+        <ChangePasswordModal
+          onClose={() => setChangingPassword(false)}
+          onSuccess={handlePasswordChanged}
+        />
+      ) : null}
+
+      <Toast toast={toast} onDismiss={() => setToast(null)} />
     </header>
   );
 }
