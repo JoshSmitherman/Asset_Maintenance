@@ -13,6 +13,10 @@
   --brand-purple-dark: #743d82;
   --brand-purple-light: #9c5aa8;
   --brand-purple-050: #f4ecf7;
+  /* Lighter still: a purple that reads as almost white, for resting states
+     that want a hint of the brand rather than a block of it. */
+  --brand-purple-025: #faf6fc;
+  --brand-purple-100: #e6d6ec;
 
   /* Chart palette - checked for colour-vision separation and contrast
      against the page surface before use. Do not re-hue casually. */
@@ -983,15 +987,17 @@ code {
   width: 30px;
   height: 30px;
   padding: 0;
-  border: 1px solid var(--slate-300);
+  /* The barest tint of the brand purple, so the row's one action is
+     findable without a column of coloured blocks down the table. */
+  border: 1px solid var(--brand-purple-100);
   border-radius: var(--radius-sm);
-  background: #fff;
-  color: var(--slate-500);
+  background: var(--brand-purple-025);
+  color: var(--brand-purple);
   cursor: pointer;
   transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
 .icon-action:hover {
-  color: var(--brand-purple);
+  color: var(--brand-purple-dark);
   border-color: var(--brand-purple);
   background: var(--brand-purple-050);
 }
