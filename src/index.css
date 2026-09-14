@@ -384,18 +384,45 @@ code {
 .btn--small { padding: 5px 10px; font-size: 12.5px; }
 .btn--block { width: 100%; padding: 11px 14px; }
 
+/* A bordered box rather than a bare x, so it reads as something to click and
+   gives the pointer a proper target. */
 .icon-button {
-  border: none;
-  background: transparent;
-  font-size: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--slate-300);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  font-size: 19px;
   line-height: 1;
   color: var(--slate-500);
   cursor: pointer;
-  padding: 0 4px;
 }
-.icon-button:hover { color: var(--slate-900); }
-.icon-button--light { color: rgba(255, 255, 255, 0.8); font-size: 20px; }
-.icon-button--light:hover { color: #fff; }
+.icon-button:hover {
+  color: var(--slate-900);
+  background: var(--slate-100);
+  border-color: var(--slate-500);
+}
+
+/* On a toast the box sits on a dark fill, so it borrows that instead of
+   punching a white square through it. */
+.icon-button--light {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.85);
+  width: 26px;
+  height: 26px;
+  font-size: 17px;
+}
+.icon-button--light:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.6);
+  color: #fff;
+}
 
 /* ---------------------------------------------------------------- Tables */
 .table-scroll { overflow-x: auto; }
@@ -995,10 +1022,8 @@ code {
 /* Delete sits apart from the confirm-style actions so it is not clicked by
    reflex on the way to Edit. */
 .modal__footer--split { justify-content: space-between; }
-.modal__footer-actions { display: flex; gap: 10px; }
 
 @media (max-width: 480px) {
   .detail { grid-template-columns: 1fr; gap: 2px; }
   .modal__footer--split { flex-direction: column-reverse; align-items: stretch; }
-  .modal__footer-actions { justify-content: flex-end; }
 }

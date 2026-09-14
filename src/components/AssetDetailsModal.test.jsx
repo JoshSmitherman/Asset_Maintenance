@@ -45,6 +45,12 @@ describe('AssetDetailsModal', () => {
     expect(screen.getByText(/only laptops and desktops/i)).toBeInTheDocument();
   });
 
+  it('leaves closing to the header control rather than repeating it below', () => {
+    render(<AssetDetailsModal asset={asset} onEdit={() => {}} onDelete={() => {}} onClose={() => {}} />);
+    const close = screen.getByRole('button', { name: /^close$/i });
+    expect(close).toHaveClass('icon-button');
+  });
+
   it('hands the asset to edit and delete', async () => {
     const onEdit = vi.fn();
     const onDelete = vi.fn();

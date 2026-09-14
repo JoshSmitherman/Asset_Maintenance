@@ -85,9 +85,7 @@ describe('AppShell details view', () => {
     render(<AppShell />);
 
     await openDetails(user);
-    // The header's x and the footer's button share the name; take the footer.
-    const closes = screen.getAllByRole('button', { name: /^close$/i });
-    await user.click(closes[closes.length - 1]);
+    await user.click(screen.getByRole('button', { name: /^close$/i }));
     expect(screen.queryByText('Purchase cost')).not.toBeInTheDocument();
   });
 

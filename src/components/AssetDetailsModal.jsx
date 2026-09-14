@@ -84,16 +84,15 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onClose }) 
         </dl>
       </div>
 
+      {/* No Close button: the header's x does that, and repeating it here only
+          crowded the two actions that actually change something. */}
       <footer className="modal__footer modal__footer--split">
         <button type="button" className="btn btn--danger-ghost" onClick={() => onDelete(asset)}>
           Delete asset
         </button>
-        <div className="modal__footer-actions">
-          <button type="button" className="btn btn--ghost" onClick={onClose}>Close</button>
-          <button type="button" className="btn btn--primary" onClick={() => onEdit(asset)}>
-            Edit details
-          </button>
-        </div>
+        <button type="button" className="btn btn--primary" onClick={() => onEdit(asset)}>
+          Edit details
+        </button>
       </footer>
     </Modal>
   );
