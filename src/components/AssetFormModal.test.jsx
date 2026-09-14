@@ -25,16 +25,26 @@ describe('AssetFormModal validation', () => {
     const { onSubmit } = setup();
     await user.click(screen.getByRole('button', { name: /add asset/i }));
     expect(screen.getByText('Asset Ref is required.')).toBeInTheDocument();
-    expect(screen.getByText('User is required.')).toBeInTheDocument();
     expect(screen.getByText('Department is required.')).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('accepts a blank User - that is how an asset is marked unassigned', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = setup();
+    await user.type(screen.getByLabelText(/asset ref/i), 'LAP-900');
+    await user.type(screen.getByLabelText(/department/i), 'IT');
+    await user.click(screen.getByRole('button', { name: /add asset/i }));
+    expect(screen.queryByText(/user is required/i)).not.toBeInTheDocument();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0].owner_name).toBe('');
   });
 
   it('rejects a duplicate Asset Ref via assetRefExists', async () => {
     const user = userEvent.setup();
     const { onSubmit } = setup({ assetRefExists: () => true });
     await user.type(screen.getByLabelText(/asset ref/i), 'LAP-001');
-    await user.type(screen.getByLabelText(/^user \*/i), 'Alice');
+    await user.type(screen.getByLabelText(/^user$/i), 'Alice');
     await user.type(screen.getByLabelText(/department/i), 'IT');
     await user.click(screen.getByRole('button', { name: /add asset/i }));
     expect(screen.getByText(/already uses this asset ref/i)).toBeInTheDocument();
@@ -46,7 +56,7 @@ describe('AssetFormModal validation', () => {
     const future = addMonthsIso(todayIso(), 1);
     const { onSubmit } = setup();
     await user.type(screen.getByLabelText(/asset ref/i), 'LAP-777');
-    await user.type(screen.getByLabelText(/^user \*/i), 'Bob');
+    await user.type(screen.getByLabelText(/^user$/i), 'Bob');
     await user.type(screen.getByLabelText(/department/i), 'Finance');
     // Laptop is the default device type, so cleaning fields are present.
     const dateInput = screen.getByLabelText(/date cleaned/i);
@@ -66,7 +76,7 @@ describe('AssetFormModal validation', () => {
     await user.selectOptions(screen.getByLabelText(/device type/i), 'Monitor');
     // Cleaning fields disappear for non-laptop/desktop
     expect(screen.queryByLabelText(/cleaned by/i)).not.toBeInTheDocument();
-    await user.type(screen.getByLabelText(/^user \*/i), 'Shared Desk');
+    await user.type(screen.getByLabelText(/^user$/i), 'Shared Desk');
     await user.type(screen.getByLabelText(/department/i), 'Ops');
     await user.click(screen.getByRole('button', { name: /add asset/i }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -78,7 +88,7 @@ describe('AssetFormModal validation', () => {
     const onSubmit = vi.fn().mockRejectedValue(new Error('Asset Ref "LAP-9" already exists.'));
     render(<AssetFormModal onSubmit={onSubmit} onClose={vi.fn()} assetRefExists={() => false} />);
     await user.type(screen.getByLabelText(/asset ref/i), 'LAP-9');
-    await user.type(screen.getByLabelText(/^user \*/i), 'Carol');
+    await user.type(screen.getByLabelText(/^user$/i), 'Carol');
     await user.type(screen.getByLabelText(/department/i), 'IT');
     await user.click(screen.getByRole('button', { name: /add asset/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/already exists/i);

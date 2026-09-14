@@ -463,6 +463,8 @@ code {
 .cell-muted { color: var(--slate-500); }
 .cell-block { display: block; }
 .cell-flag { color: var(--red-700); font-weight: 600; }
+/* An asset nobody holds - stated, rather than left as an empty cell. */
+.cell-unassigned { color: var(--slate-500); font-style: italic; }
 
 .note-flag {
   display: inline-block;

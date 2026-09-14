@@ -61,9 +61,6 @@ function validate(values, { assetRefExists, ignoreId }) {
   if (!DEVICE_TYPES.includes(values.device_type)) {
     errors.device_type = 'Choose a device type.';
   }
-  if (!values.owner_name.trim()) {
-    errors.owner_name = 'User is required.';
-  }
   if (!values.department.trim()) {
     errors.department = 'Department is required.';
   }
@@ -198,7 +195,7 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
           </div>
 
           <div className="field">
-            <label className="field__label" htmlFor="owner_name">User *</label>
+            <label className="field__label" htmlFor="owner_name">User</label>
             <input
               id="owner_name"
               className={`input${errors.owner_name ? ' input--error' : ''}`}
@@ -208,7 +205,11 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
               placeholder="Person, or a shared location"
               disabled={busy}
             />
-            {errors.owner_name ? <span className="field__error">{errors.owner_name}</span> : null}
+            {errors.owner_name ? (
+              <span className="field__error">{errors.owner_name}</span>
+            ) : (
+              <span className="field__hint">Leave blank if nobody has it yet — it'll be listed as unassigned.</span>
+            )}
           </div>
 
           <div className="field">

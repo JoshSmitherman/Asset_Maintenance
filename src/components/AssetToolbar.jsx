@@ -19,9 +19,13 @@ export default function AssetToolbar({ filters, onChange, departments, onAddAsse
             onChange={(event) => update({ search: event.target.value })}
           />
         </div>
-        <button type="button" className="btn btn--primary" onClick={onAddAsset}>
-          + Add asset
-        </button>
+        {/* Only the register creates assets. The cleaning side records work
+            against kit that already exists, so it passes no handler. */}
+        {onAddAsset ? (
+          <button type="button" className="btn btn--primary" onClick={onAddAsset}>
+            + Add asset
+          </button>
+        ) : null}
       </div>
 
       <div className="toolbar__row toolbar__row--filters">
