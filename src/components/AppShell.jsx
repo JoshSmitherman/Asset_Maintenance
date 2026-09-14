@@ -221,13 +221,15 @@ export default function AppShell() {
                     Every device we own, with its user, location and purchase details.
                   </p>
                 </div>
+                <button type="button" className="btn btn--primary" onClick={() => setFormState({})}>
+                  + Add asset
+                </button>
               </div>
 
               <AssetToolbar
                 filters={filters}
                 onChange={setFilters}
                 departments={departments}
-                onAddAsset={() => setFormState({})}
                 resultCount={visibleAssets.length}
                 totalCount={sourceAssets.length}
               />
@@ -241,27 +243,26 @@ export default function AppShell() {
               />
             </section>
 
-            {unassignedAssets.length > 0 ? (
-              <section className="card">
-                <div className="card__header">
-                  <div>
-                    <h2 className="card__title">Unassigned Assets</h2>
-                    <p className="card__subtitle">
-                      Nobody is recorded as using these — spare kit, or waiting to be issued.
-                    </p>
-                  </div>
-                  <span className="pill">{unassignedAssets.length}</span>
+            <section className="card">
+              <div className="card__header">
+                <div>
+                  <h2 className="card__title">Unassigned Assets</h2>
+                  <p className="card__subtitle">
+                    Nobody is recorded as using these — spare kit, or waiting to be issued.
+                  </p>
                 </div>
+                <span className="pill">{unassignedAssets.length}</span>
+              </div>
 
-                <AssetTable
-                  assets={unassignedAssets}
-                  sort={sort}
-                  onSortChange={setSort}
-                  variant="full"
-                  onViewDetails={setDetailsTarget}
-                />
-              </section>
-            ) : null}
+              <AssetTable
+                assets={unassignedAssets}
+                sort={sort}
+                onSortChange={setSort}
+                variant="full"
+                onViewDetails={setDetailsTarget}
+                emptyMessage="Nothing spare — every asset in this view has a user."
+              />
+            </section>
           </>
         )}
 

@@ -61,7 +61,15 @@ function SortIndicator({ active, direction }) {
   return <span className="sort-indicator sort-indicator--active" aria-hidden="true">{direction === 'asc' ? '↑' : '↓'}</span>;
 }
 
-export default function AssetTable({ assets, sort, onSortChange, onViewDetails, onRecordClean, variant = 'full' }) {
+export default function AssetTable({
+  assets,
+  sort,
+  onSortChange,
+  onViewDetails,
+  onRecordClean,
+  variant = 'full',
+  emptyMessage = 'No assets match the current search and filters.'
+}) {
   const columns = variant === 'cleaning' ? CLEANING_COLUMNS : FULL_COLUMNS;
   const shown = new Map(columns.map((item) => [item.key, item]));
   const classOf = (key) => shown.get(key)?.className;
@@ -74,7 +82,7 @@ export default function AssetTable({ assets, sort, onSortChange, onViewDetails, 
   };
 
   if (assets.length === 0) {
-    return <p className="empty-state">No assets match the current search and filters.</p>;
+    return <p className="empty-state">{emptyMessage}</p>;
   }
 
   return (

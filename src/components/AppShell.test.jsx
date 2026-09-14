@@ -48,6 +48,28 @@ async function openDetails(user) {
   await user.click(screen.getByRole('button', { name: /view details for AST-0041/i }));
 }
 
+describe('AppShell asset register', () => {
+  it('keeps the unassigned list on the page when nothing is spare', async () => {
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Assets' }));
+
+    // The only asset in the mock register belongs to someone.
+    expect(screen.getByRole('heading', { name: /unassigned assets/i })).toBeInTheDocument();
+    expect(screen.getByText(/every asset in this view has a user/i)).toBeInTheDocument();
+  });
+
+  it('puts Add asset with the register heading, not in the toolbar', async () => {
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Assets' }));
+
+    const addAsset = screen.getByRole('button', { name: /add asset/i });
+    expect(addAsset.closest('.card__header')).not.toBeNull();
+    expect(addAsset.closest('.toolbar')).toBeNull();
+  });
+});
+
 describe('AppShell details view', () => {
   beforeEach(() => vi.clearAllMocks());
 

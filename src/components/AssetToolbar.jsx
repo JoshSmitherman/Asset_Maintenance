@@ -1,7 +1,7 @@
 import { CLEANERS, DEVICE_TYPES, LOCATIONS, STATUS_FILTER_VALUES } from '../lib/constants';
 import { EMPTY_FILTERS } from '../lib/assetQueries';
 
-export default function AssetToolbar({ filters, onChange, departments, onAddAsset, resultCount, totalCount }) {
+export default function AssetToolbar({ filters, onChange, departments, resultCount, totalCount }) {
   const update = (patch) => onChange({ ...filters, ...patch });
   const isFiltered = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
 
@@ -19,13 +19,6 @@ export default function AssetToolbar({ filters, onChange, departments, onAddAsse
             onChange={(event) => update({ search: event.target.value })}
           />
         </div>
-        {/* Only the register creates assets. The cleaning side records work
-            against kit that already exists, so it passes no handler. */}
-        {onAddAsset ? (
-          <button type="button" className="btn btn--primary" onClick={onAddAsset}>
-            + Add asset
-          </button>
-        ) : null}
       </div>
 
       <div className="toolbar__row toolbar__row--filters">
