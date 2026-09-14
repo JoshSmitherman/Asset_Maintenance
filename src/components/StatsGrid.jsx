@@ -4,13 +4,22 @@ const CARDS = [
   { key: 'total', label: 'Total assets', tone: 'neutral', filterValue: 'all' },
   { key: STATUS.OVERDUE, label: 'Overdue', tone: 'overdue', filterValue: STATUS.OVERDUE },
   { key: STATUS.DUE_SOON, label: 'Due soon (30 days)', tone: 'due-soon', filterValue: STATUS.DUE_SOON },
-  { key: STATUS.NEVER_CLEANED, label: 'Never cleaned', tone: 'never', filterValue: STATUS.NEVER_CLEANED },
-  { key: STATUS.OK, label: 'OK', tone: 'ok', filterValue: STATUS.OK }
+  { key: STATUS.OK, label: 'OK', tone: 'ok', filterValue: STATUS.OK },
+  { key: STATUS.NEVER_CLEANED, label: 'Never cleaned', tone: 'never', filterValue: STATUS.NEVER_CLEANED }
 ];
 
 export default function StatsGrid({ summary, activeStatus, onSelectStatus, totalValue }) {
   return (
     <section className="stat-grid" aria-label="Fleet summary">
+      {totalValue === undefined ? null : (
+        <div className="stat stat--value">
+          <span className="stat__value stat__value--currency">
+            {formatCurrency(totalValue) ?? '£0.00'}
+          </span>
+          <span className="stat__label">Total value</span>
+        </div>
+      )}
+
       {CARDS.map((card) => {
         const isActive = activeStatus === card.filterValue;
         return (
@@ -26,15 +35,6 @@ export default function StatsGrid({ summary, activeStatus, onSelectStatus, total
           </button>
         );
       })}
-
-      {totalValue === undefined ? null : (
-        <div className="stat stat--value">
-          <span className="stat__value stat__value--currency">
-            {formatCurrency(totalValue) ?? '£0.00'}
-          </span>
-          <span className="stat__label">Total value</span>
-        </div>
-      )}
     </section>
   );
 }
