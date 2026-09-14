@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   toIsoDate, parseIsoDate, isValidIsoDate, addMonthsIso, daysBetween,
-  formatDate, describeDayOffset
+  formatDate, describeDayOffset,
+  monthBoundsIso
 } from '../dates';
 
 describe('addMonthsIso — month-end clamping (mirrors Postgres)', () => {
@@ -67,5 +68,22 @@ describe('formatDate', () => {
   it('formats to en-GB and dashes on invalid', () => {
     expect(formatDate('2026-09-13')).toMatch(/^13 Sept? 2026$/);
     expect(formatDate(null)).toBe('—');
+  });
+});
+
+describe('monthBoundsIso', () => {
+  it('gives the first and last day of the month a date falls in', () => {
+    expect(monthBoundsIso('2026-09-14')).toEqual({ start: '2026-09-01', end: '2026-09-30' });
+    expect(monthBoundsIso('2026-12-31')).toEqual({ start: '2026-12-01', end: '2026-12-31' });
+  });
+
+  it('knows February', () => {
+    expect(monthBoundsIso('2026-02-14').end).toBe('2026-02-28');
+    expect(monthBoundsIso('2024-02-01').end).toBe('2024-02-29');
+  });
+
+  it('returns null for a date it cannot read', () => {
+    expect(monthBoundsIso('')).toBeNull();
+    expect(monthBoundsIso('not-a-date')).toBeNull();
   });
 });

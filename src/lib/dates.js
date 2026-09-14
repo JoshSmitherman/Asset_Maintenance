@@ -39,6 +39,20 @@ export function addMonthsIso(iso, months) {
   return toIsoDate(target);
 }
 
+/**
+ * First and last day of the month containing `iso`, as plain date strings.
+ * Both ends are inclusive, so "due by the end of this month" is a simple
+ * string comparison against `end`.
+ */
+export function monthBoundsIso(iso) {
+  const date = parseIsoDate(iso);
+  if (!date) return null;
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  // Day 0 of the next month is the last day of this one, leap years included.
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  return { start: toIsoDate(start), end: toIsoDate(end) };
+}
+
 /** Whole days from `fromIso` to `toIso` (negative when toIso is in the past). */
 export function daysBetween(fromIso, toIso) {
   const from = parseIsoDate(fromIso);

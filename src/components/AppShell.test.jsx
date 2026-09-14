@@ -142,6 +142,33 @@ describe('AppShell cleaning history', () => {
 });
 
 describe('AppShell reports', () => {
+  it('is the only place anything is exported from', async () => {
+    const user = userEvent.setup();
+    render(<AppShell />);
+
+    await user.click(screen.getByRole('button', { name: 'Assets' }));
+    expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^cleaning/i }));
+    expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: /history/i }));
+    expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Reports' }));
+    expect(screen.getByRole('button', { name: /export csv/i })).toBeInTheDocument();
+  });
+
+  it('lists what is due for cleaning this month', async () => {
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Reports' }));
+    await user.selectOptions(screen.getByLabelText(/report/i), 'due_this_month');
+
+    // The mock asset is overdue, so it is due by the end of any month.
+    expect(screen.getByText('AST-0041')).toBeInTheDocument();
+    expect(screen.getByText(/1 row/)).toBeInTheDocument();
+  });
+
   it('builds a report from the register', async () => {
     const user = userEvent.setup();
     render(<AppShell />);

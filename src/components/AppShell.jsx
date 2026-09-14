@@ -21,8 +21,6 @@ import Toast from './Toast';
 import { useAssets } from '../hooks/useAssets';
 import { useCleaningLog } from '../hooks/useCleaningLog';
 import { DEFAULT_PAGE_SIZE, usePagination } from '../hooks/usePagination';
-import { exportCsv } from '../lib/csv';
-import { REGISTER_CSV_COLUMNS, CLEANING_CSV_COLUMNS } from '../lib/assetCsv';
 import { summariseAssets } from '../lib/assetStatus';
 import { totalPurchaseValue } from '../lib/dashboardStats';
 import { specSuggestions } from '../lib/specs';
@@ -336,7 +334,6 @@ export default function AppShell() {
                   departments={departments}
                   resultCount={visibleAssets.length}
                   totalCount={sourceAssets.length}
-                  onExport={() => exportCsv('cleaning-queue', CLEANING_CSV_COLUMNS, visibleAssets)}
                 />
 
                 <BulkActionBar
@@ -387,7 +384,6 @@ export default function AppShell() {
                 departments={departments}
                 resultCount={visibleAssets.length}
                 totalCount={sourceAssets.length}
-                onExport={() => exportCsv('asset-register', REGISTER_CSV_COLUMNS, visibleAssets)}
               />
 
               <BulkActionBar

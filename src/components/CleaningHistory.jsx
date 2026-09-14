@@ -2,19 +2,13 @@ import { useMemo, useState } from 'react';
 import Pagination from './Pagination';
 import { usePagination } from '../hooks/usePagination';
 import { formatDate } from '../lib/dates';
-import { exportCsv } from '../lib/csv';
-
-const COLUMNS = [
-  { key: 'asset_ref', label: 'Asset Ref' },
-  { key: 'cleaned_on', label: 'Date of clean', format: (row) => formatDate(row.cleaned_on) },
-  { key: 'cleaned_by', label: 'Cleaned by' }
-];
 
 /**
  * Every clean ever recorded, newest first.
  *
  * The register only holds each asset's most recent clean; this is the log
- * behind it, so "what did we do last month" is answerable.
+ * behind it, so "what did we do last month" is answerable. Exporting it is
+ * the Reports page's job, as it is for everything else.
  */
 export default function CleaningHistory({ entries, loading, error, pageSize, onPageSizeChange }) {
   const [search, setSearch] = useState('');
@@ -54,14 +48,6 @@ export default function CleaningHistory({ entries, loading, error, pageSize, onP
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <button
-            type="button"
-            className="btn btn--ghost"
-            onClick={() => exportCsv('cleaning-history', COLUMNS, filtered)}
-            disabled={filtered.length === 0}
-          >
-            Export CSV
-          </button>
         </div>
       </div>
 

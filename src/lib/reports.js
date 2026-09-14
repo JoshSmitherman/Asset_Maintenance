@@ -1,5 +1,6 @@
 import { formatCurrency, isCleaningTracked, STATUS } from './constants';
-import { formatMonth } from './dates';
+import { formatDate, formatMonth, monthBoundsIso, todayIso } from './dates';
+import { CLEANING_CSV_COLUMNS, REGISTER_CSV_COLUMNS } from './assetCsv';
 
 const NOT_RECORDED = 'Not recorded';
 
@@ -129,6 +130,32 @@ export const REPORTS = [
     }
   },
   {
+    id: 'due_this_month',
+    label: 'Cleaning due this month',
+    description:
+      'Every laptop and desktop needing a clean by the end of this month, soonest first. Includes anything already overdue, because it still needs doing.',
+    build: ({ assets }) => {
+      const { end } = monthBoundsIso(todayIso());
+
+      return {
+        columns: [
+          { key: 'asset_ref', label: 'Asset Ref' },
+          { key: 'device_type', label: 'Type' },
+          { key: 'owner_name', label: 'User', format: (row) => row.owner_name ?? 'Unassigned' },
+          { key: 'department', label: 'Department' },
+          { key: 'next_clean_due', label: 'Clean due', format: (row) => formatDate(row.next_clean_due) },
+          { key: 'status', label: 'Status' }
+        ],
+        // Dates are plain YYYY-MM-DD, so comparing them as text is the same as
+        // comparing them as dates, without any timezone to get wrong. An asset
+        // never cleaned has no due date at all and belongs to its own report.
+        rows: assets
+          .filter((asset) => asset.next_clean_due && asset.next_clean_due <= end)
+          .sort((a, b) => String(a.next_clean_due).localeCompare(String(b.next_clean_due)))
+      };
+    }
+  },
+  {
     id: 'cleaning_month',
     label: 'Cleans by month',
     description: 'Cleaning activity from the history log. Only covers cleans recorded since the history was added.',
@@ -189,6 +216,53 @@ export const REPORTS = [
       ],
       rows: assets
         .filter((asset) => isCleaningTracked(asset.device_type) && !asset.date_cleaned)
+        .sort((a, b) => String(a.asset_ref).localeCompare(String(b.asset_ref), 'en-GB', { numeric: true }))
+    })
+  },
+  {
+    id: 'cleaning_log',
+    label: 'Cleaning history (every clean)',
+    description: 'The full log, one row per clean, newest first — rather than the monthly and per-person summaries above.',
+    needsLog: true,
+    build: ({ log }) => ({
+      columns: [
+        { key: 'asset_ref', label: 'Asset Ref' },
+        { key: 'cleaned_on', label: 'Date of clean', format: (row) => formatDate(row.cleaned_on) },
+        { key: 'cleaned_by', label: 'Cleaned by' }
+      ],
+      rows: log
+    })
+  },
+  {
+    id: 'full_register',
+    label: 'Full asset register',
+    description: 'Every asset with everything recorded against it. The whole register, not a summary of it.',
+    build: ({ assets }) => ({
+      columns: REGISTER_CSV_COLUMNS,
+      rows: [...assets].sort((a, b) =>
+        String(a.asset_ref).localeCompare(String(b.asset_ref), 'en-GB', { numeric: true })
+      )
+    })
+  },
+  {
+    id: 'unassigned',
+    label: 'Unassigned assets',
+    description: 'Everything nobody is recorded as using — spare kit, or waiting to be issued.',
+    build: ({ assets }) => ({
+      columns: REGISTER_CSV_COLUMNS,
+      rows: assets
+        .filter((asset) => !asset.owner_name)
+        .sort((a, b) => String(a.asset_ref).localeCompare(String(b.asset_ref), 'en-GB', { numeric: true }))
+    })
+  },
+  {
+    id: 'cleaning_queue',
+    label: 'Cleaning queue (full list)',
+    description: 'Every laptop and desktop with its cleaning dates and status, whether or not anything is due.',
+    build: ({ assets }) => ({
+      columns: CLEANING_CSV_COLUMNS,
+      rows: assets
+        .filter((asset) => isCleaningTracked(asset.device_type))
         .sort((a, b) => String(a.asset_ref).localeCompare(String(b.asset_ref), 'en-GB', { numeric: true }))
     })
   }

@@ -242,7 +242,7 @@ place.
 │   │   ├── BulkActionBar.jsx      actions for the ticked rows
 │   │   ├── CleaningHistory.jsx    every clean recorded, newest first
 │   │   ├── Pagination.jsx         page controls shared by every list
-│   │   ├── ReportsPage.jsx        summaries of the register, each exportable
+│   │   ├── ReportsPage.jsx        every report, and the only place CSVs are exported
 │   │   ├── AssetFormModal.jsx     add/edit form + validation + live due-date preview
 │   │   ├── AssetTable.jsx         sortable register
 │   │   ├── AssetToolbar.jsx       search and filters
