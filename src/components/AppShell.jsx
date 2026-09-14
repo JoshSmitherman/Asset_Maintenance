@@ -187,29 +187,6 @@ export default function AppShell() {
         ) : (
           /* The register: everything owned, and what we know about it. */
           <>
-            {unassignedAssets.length > 0 ? (
-              <section className="card">
-                <div className="card__header">
-                  <div>
-                    <h2 className="card__title">Unassigned devices</h2>
-                    <p className="card__subtitle">
-                      Nobody is recorded as using these — spare kit, or waiting to be issued.
-                    </p>
-                  </div>
-                  <span className="pill">{unassignedAssets.length}</span>
-                </div>
-
-                <AssetTable
-                  assets={unassignedAssets}
-                  sort={sort}
-                  onSortChange={setSort}
-                  variant="full"
-                  onEdit={(asset) => setFormState({ asset })}
-                  onDelete={(asset) => setPendingDelete(asset)}
-                />
-              </section>
-            ) : null}
-
             <section className="card">
               <div className="card__header">
                 <div>
@@ -238,6 +215,29 @@ export default function AppShell() {
                 onDelete={(asset) => setPendingDelete(asset)}
               />
             </section>
+
+            {unassignedAssets.length > 0 ? (
+              <section className="card">
+                <div className="card__header">
+                  <div>
+                    <h2 className="card__title">Unassigned Assets</h2>
+                    <p className="card__subtitle">
+                      Nobody is recorded as using these — spare kit, or waiting to be issued.
+                    </p>
+                  </div>
+                  <span className="pill">{unassignedAssets.length}</span>
+                </div>
+
+                <AssetTable
+                  assets={unassignedAssets}
+                  sort={sort}
+                  onSortChange={setSort}
+                  variant="full"
+                  onEdit={(asset) => setFormState({ asset })}
+                  onDelete={(asset) => setPendingDelete(asset)}
+                />
+              </section>
+            ) : null}
           </>
         )}
 
