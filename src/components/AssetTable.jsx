@@ -68,8 +68,16 @@ export default function AssetTable({
   onViewDetails,
   onRecordClean,
   variant = 'full',
-  emptyMessage = 'No assets match the current search and filters.'
+  emptyMessage = 'No assets match the current search and filters.',
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll
 }) {
+  // Selection is opt-in: a page passes the handlers when it offers bulk
+  // actions, and the column simply is not there otherwise.
+  const selectable = Boolean(onToggleSelect && onToggleSelectAll);
+  const selectedOnPage = selectable ? assets.filter((asset) => selectedIds.has(asset.id)).length : 0;
+  const allOnPageSelected = selectable && assets.length > 0 && selectedOnPage === assets.length;
   const columns = variant === 'cleaning' ? CLEANING_COLUMNS : FULL_COLUMNS;
   const shown = new Map(columns.map((item) => [item.key, item]));
   const classOf = (key) => shown.get(key)?.className;
@@ -90,6 +98,21 @@ export default function AssetTable({
       <table className={`table table--${variant}`}>
         <thead>
           <tr>
+            {selectable ? (
+              <th scope="col" className="table__select">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={allOnPageSelected}
+                  ref={(node) => {
+                    // Part of the page selected reads as neither on nor off.
+                    if (node) node.indeterminate = selectedOnPage > 0 && !allOnPageSelected;
+                  }}
+                  onChange={(event) => onToggleSelectAll(assets.map((asset) => asset.id), event.target.checked)}
+                  aria-label={allOnPageSelected ? 'Clear selection on this page' : 'Select every asset on this page'}
+                />
+              </th>
+            ) : null}
             {columns.map((col) => {
               const isActive = sort.key === col.key;
               return (
@@ -111,7 +134,24 @@ export default function AssetTable({
         </thead>
         <tbody>
           {assets.map((asset) => (
-            <tr key={asset.id} className={asset.status === STATUS.OVERDUE ? 'row--overdue' : undefined}>
+            <tr
+              key={asset.id}
+              className={[
+                asset.status === STATUS.OVERDUE ? 'row--overdue' : '',
+                selectable && selectedIds.has(asset.id) ? 'row--selected' : ''
+              ].filter(Boolean).join(' ') || undefined}
+            >
+              {selectable ? (
+                <td className="table__select">
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={selectedIds.has(asset.id)}
+                    onChange={() => onToggleSelect(asset.id)}
+                    aria-label={`Select ${asset.asset_ref}`}
+                  />
+                </td>
+              ) : null}
               <td className="cell-strong">
                 {asset.asset_ref}
                 {asset.notes ? (

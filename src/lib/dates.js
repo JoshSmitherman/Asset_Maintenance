@@ -81,3 +81,11 @@ export function describeDayOffset(days) {
   if (days === -1) return 'yesterday';
   return days > 0 ? `in ${days} days` : `${Math.abs(days)} days ago`;
 }
+
+const monthFormatter = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+
+/** "2026-09" as "September 2026", for the cleaning reports. */
+export function formatMonth(yearMonth) {
+  const date = parseIsoDate(`${yearMonth}-01`);
+  return date ? monthFormatter.format(date) : '—';
+}

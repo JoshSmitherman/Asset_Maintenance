@@ -314,6 +314,8 @@ code {
 /* ---------------------------------------------------------------- Fields */
 .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .field--inline { flex: 0 1 170px; }
+/* Report names are sentences, not single words, so this one gets room. */
+.field--wide { flex: 0 1 280px; }
 .field--full { grid-column: 1 / -1; }
 
 .field__label { font-size: 12px; font-weight: 600; color: var(--slate-700); }
@@ -1022,11 +1024,88 @@ code {
 .detail__label { font-size: 12.5px; font-weight: 600; color: var(--slate-500); }
 .detail__value { margin: 0; font-size: 14px; color: var(--slate-900); word-break: break-word; }
 
+/* ------------------------------------------------ Selection and bulk work */
+
+.table__select { width: 36px; padding-right: 0 !important; }
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand-purple);
+  cursor: pointer;
+  margin: 0;
+  vertical-align: middle;
+}
+.row--selected { background: var(--brand-purple-025); }
+.row--selected:hover { background: var(--brand-purple-050); }
+
+/* Sits between the filters and the table, so what is about to happen and
+   what it happens to are next to each other. */
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 10px 20px;
+  background: var(--brand-purple-025);
+  border-bottom: 1px solid var(--brand-purple-100);
+}
+.bulk-bar__count { font-size: 13.5px; color: var(--slate-700); display: flex; align-items: center; gap: 10px; }
+.bulk-bar__actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.bulk-bar__link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--brand-purple);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.bulk-bar__link:hover { color: var(--brand-purple-dark); }
+
+/* ----------------------------------------------------------- Pagination */
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--slate-200);
+  font-size: 13px;
+  color: var(--slate-500);
+}
+.pager__controls { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.pager__page { font-size: 13px; color: var(--slate-700); }
+/* The arrow is two gradients, so both positions have to move with it. */
+.select--small {
+  padding: 5px 24px 5px 9px;
+  font-size: 12.5px;
+  background-position: calc(100% - 14px) 52%, calc(100% - 9px) 52%;
+}
+
+/* The quantity stepper on the add form. */
+.quantity { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.quantity__value {
+  min-width: 34px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--slate-900);
+}
+.quantity .field__hint { flex: 1 1 100%; }
+
+@media (max-width: 720px) {
+  .bulk-bar, .pager { padding-left: 12px; padding-right: 12px; }
+  .bulk-bar__actions, .pager__controls { margin-left: 0; width: 100%; }
+}
+
 /* ------------------------------------------------- Modal tabs and combos */
 
-/* Specification sits on its own page of the modal rather than making an
-   already long form longer. */
-.modal__tabs {
+/* Used under a modal header and under a card header alike: the
+   specification page of an asset, and the cleaning page's queue and
+   history. */
+.tabs {
   flex: 0 0 auto;
   display: flex;
   gap: 4px;
@@ -1035,7 +1114,7 @@ code {
   background: var(--slate-050);
 }
 
-.modal__tab {
+.tab {
   appearance: none;
   border: none;
   background: none;
@@ -1050,8 +1129,8 @@ code {
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
 }
-.modal__tab:hover { color: var(--slate-900); }
-.modal__tab--active { color: var(--brand-purple); border-bottom-color: var(--brand-purple); }
+.tab:hover { color: var(--slate-900); }
+.tab--active { color: var(--brand-purple); border-bottom-color: var(--brand-purple); }
 
 /* The "Add new" side of a dropdown: a text box with the way back underneath. */
 .combo { display: grid; gap: 5px; }

@@ -1,7 +1,8 @@
 const PAGES = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'assets', label: 'Assets' },
-  { key: 'cleaning', label: 'Cleaning' }
+  { key: 'cleaning', label: 'Cleaning' },
+  { key: 'reports', label: 'Reports' }
 ];
 
 export default function AppNav({ page, onChange, counts = {} }) {

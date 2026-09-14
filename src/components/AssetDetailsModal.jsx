@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
-import ModalTabs from './ModalTabs';
+import TabStrip from './TabStrip';
 import StatusBadge from './StatusBadge';
 import { formatCurrency, isCleaningTracked } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
@@ -39,7 +39,7 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onClose }) 
       onClose={onClose}
     >
       {showSpecs ? (
-        <ModalTabs
+        <TabStrip
           tabs={[
             { id: 'details', label: 'Details' },
             { id: 'specs', label: 'Specification' }

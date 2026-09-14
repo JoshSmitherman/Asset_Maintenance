@@ -1,7 +1,7 @@
 import { CLEANERS, DEVICE_TYPES, LOCATIONS, STATUS_FILTER_VALUES } from '../lib/constants';
 import { EMPTY_FILTERS } from '../lib/assetQueries';
 
-export default function AssetToolbar({ filters, onChange, departments, resultCount, totalCount }) {
+export default function AssetToolbar({ filters, onChange, departments, resultCount, totalCount, onExport }) {
   const update = (patch) => onChange({ ...filters, ...patch });
   const isFiltered = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
 
@@ -19,6 +19,13 @@ export default function AssetToolbar({ filters, onChange, departments, resultCou
             onChange={(event) => update({ search: event.target.value })}
           />
         </div>
+        {/* Exports exactly what the filters above leave on screen, so any
+            view of the register is a report without one being built. */}
+        {onExport ? (
+          <button type="button" className="btn btn--ghost" onClick={onExport} disabled={resultCount === 0}>
+            Export CSV
+          </button>
+        ) : null}
       </div>
 
       <div className="toolbar__row toolbar__row--filters">

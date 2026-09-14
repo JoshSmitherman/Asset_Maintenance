@@ -145,6 +145,46 @@ describe('AssetFormModal validation', () => {
     expect(screen.getByText(/brand must be 60 characters or fewer/i)).toBeInTheDocument();
   });
 
+  it('adds several identical assets, one reference each', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = setup();
+
+    await user.type(screen.getByLabelText(/asset ref \*/i), 'LAP-010');
+    await addNew(user, /department/i, 'IT');
+    await user.click(screen.getByRole('button', { name: /one more/i }));
+    await user.click(screen.getByRole('button', { name: /one more/i }));
+
+    await user.type(screen.getByLabelText(/asset ref 2/i), 'LAP-011');
+    await user.type(screen.getByLabelText(/asset ref 3/i), 'LAP-012');
+
+    await user.click(screen.getByRole('button', { name: /add 3 assets/i }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      asset_ref: 'LAP-010',
+      extra_refs: ['LAP-011', 'LAP-012']
+    });
+  });
+
+  it('will not let a batch repeat a reference', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = setup();
+
+    await user.type(screen.getByLabelText(/asset ref \*/i), 'LAP-010');
+    await addNew(user, /department/i, 'IT');
+    await user.click(screen.getByRole('button', { name: /one more/i }));
+    await user.type(screen.getByLabelText(/asset ref 2/i), 'LAP-010');
+
+    await user.click(screen.getByRole('button', { name: /add 2 assets/i }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    // Both boxes are flagged: either one of them is the duplicate.
+    expect(screen.getAllByText(/repeated in this batch/i)).toHaveLength(2);
+  });
+
+  it('offers no quantity when editing - an edit is always one asset', () => {
+    setup({ asset: { id: 'a1', asset_ref: 'LAP-1', device_type: 'Laptop', department: 'IT', version: 1 } });
+    expect(screen.queryByRole('button', { name: /one more/i })).not.toBeInTheDocument();
+  });
+
   it('surfaces a server error thrown by onSubmit without closing', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockRejectedValue(new Error('Asset Ref "LAP-9" already exists.'));

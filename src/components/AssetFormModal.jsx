@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
-import ModalTabs from './ModalTabs';
+import TabStrip from './TabStrip';
 import ComboSelect from './ComboSelect';
 import StatusBadge from './StatusBadge';
 import {
@@ -12,6 +12,9 @@ import {
 } from '../lib/constants';
 import { SPEC_COLUMNS, SPEC_FIELDS, hasSpecs, specsFor } from '../lib/specs';
 import { previewNextCleanDue, statusFor } from '../lib/assetStatus';
+
+/** Enough for a delivery, few enough that a typo cannot create a thousand. */
+const MAX_BATCH = 20;
 import { formatDate, isValidIsoDate, todayIso } from '../lib/dates';
 
 /** Every spec starts empty; the form keeps them as text and converts on save. */
@@ -26,6 +29,8 @@ function specValuesFromAsset(asset) {
 function blankValues(prefill = {}) {
   return {
     ...BLANK_SPECS,
+    /** One entry per extra copy when adding several identical assets. */
+    extra_refs: [],
     asset_ref: '',
     device_type: DEVICE_TYPES[0],
     owner_name: '',
@@ -44,6 +49,7 @@ function blankValues(prefill = {}) {
 function valuesFromAsset(asset, prefill = {}) {
   return {
     ...specValuesFromAsset(asset),
+    extra_refs: [],
     asset_ref: asset.asset_ref ?? '',
     device_type: asset.device_type ?? DEVICE_TYPES[0],
     owner_name: asset.owner_name ?? '',
@@ -59,6 +65,18 @@ function valuesFromAsset(asset, prefill = {}) {
   };
 }
 
+/** The same rules the first Asset Ref box gets, for one of the extra copies. */
+function refError(ref, { assetRefExists, others }) {
+  const text = ref.trim();
+  if (!text) return 'Asset Ref is required.';
+  if (text.length > 40) return 'Asset Ref must be 40 characters or fewer.';
+  if (assetRefExists(text, null)) return 'Another asset already uses this Asset Ref.';
+  if (others.filter((other) => other.trim().toUpperCase() === text.toUpperCase()).length > 1) {
+    return 'This Asset Ref is repeated in this batch.';
+  }
+  return null;
+}
+
 function validate(values, { assetRefExists, ignoreId }) {
   const errors = {};
   const today = todayIso();
@@ -70,6 +88,18 @@ function validate(values, { assetRefExists, ignoreId }) {
     errors.asset_ref = 'Asset Ref must be 40 characters or fewer.';
   } else if (assetRefExists(values.asset_ref, ignoreId)) {
     errors.asset_ref = 'Another asset already uses this Asset Ref.';
+  }
+
+  // Adding several at once: every copy needs its own reference, and no two
+  // of them may clash with each other or with the register.
+  const allRefs = [values.asset_ref, ...(values.extra_refs ?? [])];
+  (values.extra_refs ?? []).forEach((ref, index) => {
+    const problem = refError(ref, { assetRefExists, others: allRefs });
+    if (problem) errors[`extra_ref_${index}`] = problem;
+  });
+  if (allRefs.length > 1 && !errors.asset_ref) {
+    const first = refError(values.asset_ref, { assetRefExists, others: allRefs });
+    if (first) errors.asset_ref = first;
   }
 
   if (!DEVICE_TYPES.includes(values.device_type)) {
@@ -159,6 +189,17 @@ export default function AssetFormModal({
     });
   };
 
+  const setExtraRefs = (next) => {
+    setValues((current) => ({ ...current, extra_refs: next }));
+    // Errors are keyed by position, so they have to go when the list changes.
+    setErrors((current) => {
+      const kept = Object.fromEntries(
+        Object.entries(current).filter(([key]) => !key.startsWith('extra_ref_'))
+      );
+      return kept;
+    });
+  };
+
   const tracked = isCleaningTracked(values.device_type);
 
   // Only computers and monitors have a specification to fill in; for anything
@@ -210,7 +251,7 @@ export default function AssetFormModal({
     >
       <form onSubmit={handleSubmit} noValidate>
         {showSpecs ? (
-          <ModalTabs
+          <TabStrip
             tabs={[
               { id: 'details', label: 'Details' },
               { id: 'specs', label: 'Specification' }
@@ -276,6 +317,67 @@ export default function AssetFormModal({
             />
             {errors.asset_ref ? <span className="field__error">{errors.asset_ref}</span> : null}
           </div>
+
+          {/* Several identical machines usually arrive together. Fill the form
+              once, add a reference for each, and they are created in one go.
+              Editing an existing asset is always one asset. */}
+          {isEditing ? null : (
+            <div className="field">
+              <span className="field__label">Quantity</span>
+              <div className="quantity">
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--small"
+                  onClick={() => setExtraRefs(values.extra_refs.slice(0, -1))}
+                  disabled={busy || values.extra_refs.length === 0}
+                  aria-label="One fewer"
+                >
+                  −
+                </button>
+                <span className="quantity__value" aria-live="polite">
+                  {values.extra_refs.length + 1}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--small"
+                  onClick={() => setExtraRefs([...values.extra_refs, ''])}
+                  disabled={busy || values.extra_refs.length + 1 >= MAX_BATCH}
+                  aria-label="One more"
+                >
+                  +
+                </button>
+                <span className="field__hint">
+                  {values.extra_refs.length === 0
+                    ? 'All the details below are shared by every copy.'
+                    : `${values.extra_refs.length + 1} assets, identical apart from their references.`}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {values.extra_refs.map((ref, index) => (
+            <div className="field" key={`extra-${index}`}>
+              <label className="field__label" htmlFor={`extra_ref_${index}`}>
+                Asset Ref {index + 2} *
+              </label>
+              <input
+                id={`extra_ref_${index}`}
+                className={`input${errors[`extra_ref_${index}`] ? ' input--error' : ''}`}
+                value={ref}
+                onChange={(event) => {
+                  const next = [...values.extra_refs];
+                  next[index] = event.target.value;
+                  setExtraRefs(next);
+                }}
+                placeholder="e.g. LAP-0143"
+                maxLength={40}
+                disabled={busy}
+              />
+              {errors[`extra_ref_${index}`] ? (
+                <span className="field__error">{errors[`extra_ref_${index}`]}</span>
+              ) : null}
+            </div>
+          ))}
 
           <div className="field">
             <label className="field__label" htmlFor="device_type">Device Type *</label>
@@ -470,7 +572,13 @@ export default function AssetFormModal({
         <footer className="modal__footer">
           <button type="button" className="btn btn--ghost" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className="btn btn--primary" disabled={busy}>
-            {busy ? 'Saving…' : isEditing ? 'Save changes' : 'Add asset'}
+            {busy
+              ? 'Saving…'
+              : isEditing
+                ? 'Save changes'
+                : values.extra_refs.length > 0
+                  ? `Add ${values.extra_refs.length + 1} assets`
+                  : 'Add asset'}
           </button>
         </footer>
       </form>

@@ -1,10 +1,11 @@
 /**
- * The strip of tabs under a modal's header. Kept separate so the view and the
- * edit form present the same two pages in the same order.
+ * A strip of tabs: under a modal's header, or under a card's. Kept in one
+ * place so the view, the edit form and the cleaning page all present their
+ * pages the same way.
  */
-export default function ModalTabs({ tabs, active, onChange }) {
+export default function TabStrip({ tabs, active, onChange }) {
   return (
-    <div className="modal__tabs" role="tablist">
+    <div className="tabs" role="tablist">
       {tabs.map((tab) => {
         const selected = tab.id === active;
         return (
@@ -15,7 +16,7 @@ export default function ModalTabs({ tabs, active, onChange }) {
             id={`tab-${tab.id}`}
             aria-selected={selected}
             aria-controls={`panel-${tab.id}`}
-            className={`modal__tab${selected ? ' modal__tab--active' : ''}`}
+            className={`tab${selected ? ' tab--active' : ''}`}
             onClick={() => onChange(tab.id)}
           >
             {tab.label}

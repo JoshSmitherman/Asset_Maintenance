@@ -84,6 +84,7 @@ safe to run again, and the app expects all of them:
 | [`supabase/migration-001-asset-management.sql`](supabase/migration-001-asset-management.sql) | General asset management: device types, location, purchase date and cost |
 | [`supabase/migration-002-unassigned-assets.sql`](supabase/migration-002-unassigned-assets.sql) | Lets an asset have no user, so spare kit can be listed as unassigned |
 | [`supabase/migration-003-device-specs.sql`](supabase/migration-003-device-specs.sql) | Hardware specification for computers and monitors |
+| [`supabase/migration-004-cleaning-history.sql`](supabase/migration-004-cleaning-history.sql) | Append-only log of every clean, behind the Cleaning page's History tab |
 
 ### 3. (Optional) Load the sample data
 
@@ -232,11 +233,16 @@ place.
 │   ├── migration-001-…            general asset management columns
 │   ├── migration-002-…            unassigned assets
 │   ├── migration-003-…            hardware specification columns
+│   ├── migration-004-…            cleaning history log + trigger
 │   └── seed.sql                   sample data for testing
 ├── src/
 │   ├── components/
 │   │   ├── AppShell.jsx           signed-in layout and all state wiring
 │   │   ├── AssetDetailsModal.jsx  read-only view, with the specification tab
+│   │   ├── BulkActionBar.jsx      actions for the ticked rows
+│   │   ├── CleaningHistory.jsx    every clean recorded, newest first
+│   │   ├── Pagination.jsx         page controls shared by every list
+│   │   ├── ReportsPage.jsx        summaries of the register, each exportable
 │   │   ├── AssetFormModal.jsx     add/edit form + validation + live due-date preview
 │   │   ├── AssetTable.jsx         sortable register
 │   │   ├── AssetToolbar.jsx       search and filters

@@ -191,6 +191,72 @@ export function useAssets() {
     [load]
   );
 
+  /**
+   * Creates several assets in one request - the quantity box on the add form.
+   * Postgres applies the insert as a single statement, so either every copy
+   * lands or none does, and a duplicate reference cannot leave half a batch
+   * behind.
+   */
+  const createAssets = useCallback(
+    async (rows) => {
+      const payloads = rows.map((values) => toWritePayload(values));
+      const { data, error: insertError } = await supabase
+        .from(ASSETS_TABLE)
+        .insert(payloads)
+        .select('id');
+
+      if (insertError) {
+        throw new Error(describeDatabaseError(insertError, { assetRef: payloads[0]?.asset_ref }));
+      }
+      await load({ quiet: true });
+      return data;
+    },
+    [load]
+  );
+
+  /**
+   * Applies one change to many rows.
+   *
+   * Unlike a single edit this does not check each row's version: a bulk action
+   * is a deliberate "do this to all of these", and failing the lot because a
+   * colleague touched one of them would be worse than applying it. The rows
+   * are reloaded afterwards either way.
+   */
+  const bulkUpdate = useCallback(
+    async (ids, payload) => {
+      const { data, error: writeError } = await supabase
+        .from(ASSETS_TABLE)
+        .update(payload)
+        .in('id', ids)
+        .select('id');
+
+      if (writeError) throw new Error(describeDatabaseError(writeError));
+      await load({ quiet: true });
+      return data?.length ?? 0;
+    },
+    [load]
+  );
+
+  const bulkAssign = useCallback(
+    (ids, ownerName) => bulkUpdate(ids, { owner_name: ownerName?.trim() ? ownerName.trim() : null }),
+    [bulkUpdate]
+  );
+
+  const bulkRecordClean = useCallback(
+    (ids, { date_cleaned, cleaned_by }) => bulkUpdate(ids, { date_cleaned, cleaned_by }),
+    [bulkUpdate]
+  );
+
+  const bulkDelete = useCallback(
+    async (ids) => {
+      const { error: deleteError } = await supabase.from(ASSETS_TABLE).delete().in('id', ids);
+      if (deleteError) throw new Error(describeDatabaseError(deleteError));
+      await load({ quiet: true });
+      return ids.length;
+    },
+    [load]
+  );
+
   const deleteAsset = useCallback(
     async (id) => {
       const { error: deleteError } = await supabase.from(ASSETS_TABLE).delete().eq('id', id);
@@ -220,11 +286,19 @@ export function useAssets() {
       lastSyncedAt,
       refresh: () => load({ quiet: true }),
       createAsset,
+      createAssets,
       updateAsset,
       recordClean,
+      bulkAssign,
+      bulkRecordClean,
+      bulkDelete,
       deleteAsset,
       assetRefExists
     }),
-    [assets, loading, refreshing, error, lastSyncedAt, load, createAsset, updateAsset, recordClean, deleteAsset, assetRefExists]
+    [
+      assets, loading, refreshing, error, lastSyncedAt, load,
+      createAsset, createAssets, updateAsset, recordClean,
+      bulkAssign, bulkRecordClean, bulkDelete, deleteAsset, assetRefExists
+    ]
   );
 }
