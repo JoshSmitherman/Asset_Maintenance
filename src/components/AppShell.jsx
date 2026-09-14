@@ -46,6 +46,10 @@ export default function AppShell() {
   const [cleaningTarget, setCleaningTarget] = useState(null);
   const [detailsTarget, setDetailsTarget] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
+  // Edit and Delete are both launched from the details view. Dialogs never
+  // stack - details closes as one opens - so this remembers where the user
+  // came from, to hand them back there if they change their mind.
+  const [returnToDetails, setReturnToDetails] = useState(null);
   const [toast, setToast] = useState(null);
 
   const summary = useMemo(() => summariseAssets(assets), [assets]);
@@ -95,6 +99,20 @@ export default function AppShell() {
     setSort(next === 'cleaning' ? { key: 'status', direction: 'asc' } : { ...DEFAULT_SORT });
   };
 
+  // Reopen the details the user came from, with whatever the register now
+  // holds for that asset rather than the copy captured when it was opened.
+  const backToDetails = () => {
+    if (!returnToDetails) return;
+    setDetailsTarget(assets.find((asset) => asset.id === returnToDetails) ?? null);
+    setReturnToDetails(null);
+  };
+
+  const openFromDetails = (asset, open) => {
+    setReturnToDetails(asset.id);
+    setDetailsTarget(null);
+    open(asset);
+  };
+
   const handleCreate = async (values) => {
     await createAsset(values);
     setFormState(null);
@@ -104,6 +122,7 @@ export default function AppShell() {
   const handleUpdate = async (asset, values) => {
     await updateAsset(asset.id, asset.version, values);
     setFormState(null);
+    setReturnToDetails(null);
     setToast({ tone: 'success', message: `Asset ${values.asset_ref.trim()} updated.` });
   };
 
@@ -118,6 +137,7 @@ export default function AppShell() {
     const asset = pendingDelete;
     await deleteAsset(asset.id);
     setPendingDelete(null);
+    setReturnToDetails(null);
     setToast({ tone: 'success', message: `Asset ${asset.asset_ref} deleted.` });
   };
 
@@ -263,7 +283,10 @@ export default function AppShell() {
           asset={formState.asset}
           prefill={formState.prefill}
           assetRefExists={assetRefExists}
-          onClose={() => setFormState(null)}
+          onClose={() => {
+            setFormState(null);
+            backToDetails();
+          }}
           onSubmit={(values) =>
             formState.asset ? handleUpdate(formState.asset, values) : handleCreate(values)
           }
@@ -274,14 +297,8 @@ export default function AppShell() {
         <AssetDetailsModal
           asset={detailsTarget}
           onClose={() => setDetailsTarget(null)}
-          onEdit={(asset) => {
-            setDetailsTarget(null);
-            setFormState({ asset });
-          }}
-          onDelete={(asset) => {
-            setDetailsTarget(null);
-            setPendingDelete(asset);
-          }}
+          onEdit={(asset) => openFromDetails(asset, (item) => setFormState({ asset: item }))}
+          onDelete={(asset) => openFromDetails(asset, setPendingDelete)}
         />
       ) : null}
 
@@ -299,7 +316,10 @@ export default function AppShell() {
           message={`Delete ${pendingDelete.asset_ref} (${pendingDelete.owner_name ?? 'unassigned'})? This removes it for everyone and cannot be undone.`}
           confirmLabel="Delete asset"
           onConfirm={handleDelete}
-          onCancel={() => setPendingDelete(null)}
+          onCancel={() => {
+            setPendingDelete(null);
+            backToDetails();
+          }}
         />
       ) : null}
 
