@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import CloseIcon from './CloseIcon';
 
 export default function Toast({ toast, onDismiss }) {
   useEffect(() => {
@@ -13,7 +14,7 @@ export default function Toast({ toast, onDismiss }) {
     <div className={`toast toast--${toast.tone ?? 'success'}`} role="status" aria-live="polite">
       <span>{toast.message}</span>
       <button type="button" className="icon-button icon-button--light" onClick={onDismiss} aria-label="Dismiss">
-        &times;
+        <CloseIcon />
       </button>
     </div>
   );

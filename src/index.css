@@ -391,14 +391,12 @@ code {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 1px solid var(--slate-300);
   border-radius: var(--radius-sm);
   background: #fff;
-  font-size: 19px;
-  line-height: 1;
   color: var(--slate-500);
   cursor: pointer;
 }
@@ -414,9 +412,8 @@ code {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.35);
   color: rgba(255, 255, 255, 0.85);
-  width: 26px;
-  height: 26px;
-  font-size: 17px;
+  width: 28px;
+  height: 28px;
 }
 .icon-button--light:hover {
   background: rgba(255, 255, 255, 0.12);

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import CloseIcon from './CloseIcon';
 
 export default function Modal({ title, description, onClose, children, size = 'md' }) {
   const dialogRef = useRef(null);
@@ -46,7 +47,7 @@ export default function Modal({ title, description, onClose, children, size = 'm
             {description ? <p className="modal__description">{description}</p> : null}
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
-            &times;
+            <CloseIcon />
           </button>
         </header>
         {children}
