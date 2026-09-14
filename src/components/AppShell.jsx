@@ -14,6 +14,7 @@ import Toast from './Toast';
 import { useAssets } from '../hooks/useAssets';
 import { summariseAssets } from '../lib/assetStatus';
 import { totalPurchaseValue } from '../lib/dashboardStats';
+import { specSuggestions } from '../lib/specs';
 import {
   DEFAULT_SORT,
   EMPTY_FILTERS,
@@ -56,6 +57,9 @@ export default function AppShell() {
   const departments = useMemo(() => uniqueDepartments(assets), [assets]);
   const users = useMemo(() => uniqueUsers(assets), [assets]);
   const totalValue = useMemo(() => totalPurchaseValue(assets), [assets]);
+  // Spec dropdowns offer what is already on the register as well as the
+  // built-in suggestions, so the lists grow with the fleet.
+  const specOptions = useMemo(() => specSuggestions(assets), [assets]);
 
   // The cleaning section only ever sees laptops and desktops.
   const cleaningAssets = useMemo(
@@ -269,20 +273,14 @@ export default function AppShell() {
         </span>
       </footer>
 
-      {/* Suggestions for the department and user fields in the asset form. */}
-      <datalist id="department-options">
-        {departments.map((department) => <option key={department} value={department} />)}
-      </datalist>
-
-      <datalist id="user-options">
-        {users.map((user) => <option key={user} value={user} />)}
-      </datalist>
-
       {formState ? (
         <AssetFormModal
           asset={formState.asset}
           prefill={formState.prefill}
           assetRefExists={assetRefExists}
+          departments={departments}
+          users={users}
+          specOptions={specOptions}
           onClose={() => {
             setFormState(null);
             backToDetails();

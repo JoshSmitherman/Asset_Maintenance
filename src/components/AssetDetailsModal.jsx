@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import Modal from './Modal';
+import ModalTabs from './ModalTabs';
 import StatusBadge from './StatusBadge';
 import { formatCurrency, isCleaningTracked } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
+import { SPEC_FIELDS, hasSpecs, specsFor } from '../lib/specs';
 
 function Row({ label, children }) {
   return (
@@ -21,6 +24,13 @@ const EMPTY = <span className="cell-muted">—</span>;
  */
 export default function AssetDetailsModal({ asset, onEdit, onDelete, onClose }) {
   const tracked = isCleaningTracked(asset.device_type);
+  const specKeys = specsFor(asset.device_type);
+  const [tab, setTab] = useState('details');
+
+  // Only computers and monitors have a specification; everything else is
+  // inventory-only and shows no second tab at all.
+  const showSpecs = hasSpecs(asset.device_type);
+  const activeTab = showSpecs ? tab : 'details';
 
   return (
     <Modal
@@ -28,60 +38,88 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onClose }) 
       description={`${asset.device_type}${asset.owner_name ? ` · ${asset.owner_name}` : ' · Unassigned'}`}
       onClose={onClose}
     >
-      <div className="modal__body">
-        <dl className="detail-list">
-          <Row label="Asset Ref">{asset.asset_ref}</Row>
-          <Row label="Device type">{asset.device_type}</Row>
-          <Row label="User">
-            {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
-          </Row>
-          <Row label="Department">{asset.department}</Row>
-          <Row label="Location">{asset.location ?? EMPTY}</Row>
-          <Row label="Purchase date">
-            {asset.purchase_date ? formatDate(asset.purchase_date) : EMPTY}
-          </Row>
-          <Row label="Purchase cost">{formatCurrency(asset.purchase_cost) ?? EMPTY}</Row>
+      {showSpecs ? (
+        <ModalTabs
+          tabs={[
+            { id: 'details', label: 'Details' },
+            { id: 'specs', label: 'Specification' }
+          ]}
+          active={activeTab}
+          onChange={setTab}
+        />
+      ) : null}
 
-          <Row label="Status">
-            <StatusBadge status={asset.status} />
-          </Row>
-
-          {tracked ? (
-            <>
-              <Row label="Date cleaned">
-                {asset.date_cleaned ? (
-                  formatDate(asset.date_cleaned)
-                ) : (
-                  <span className="cell-flag">Never cleaned</span>
-                )}
+      <div
+        className="modal__body"
+        role={showSpecs ? 'tabpanel' : undefined}
+        id={showSpecs ? `panel-${activeTab}` : undefined}
+        aria-labelledby={showSpecs ? `tab-${activeTab}` : undefined}
+      >
+        {activeTab === 'specs' ? (
+          <dl className="detail-list">
+            {specKeys.map((key) => (
+              <Row key={key} label={SPEC_FIELDS[key].label}>
+                {asset[key] === null || asset[key] === undefined || asset[key] === ''
+                  ? EMPTY
+                  : String(asset[key])}
               </Row>
-              <Row label="Cleaned by">{asset.cleaned_by ?? EMPTY}</Row>
-              <Row label="Cleaning interval">{asset.cleaning_interval_months} months</Row>
-              <Row label="Next clean due">
-                {asset.next_clean_due ? (
-                  <>
-                    {formatDate(asset.next_clean_due)}{' '}
-                    <span className="cell-muted">({describeDayOffset(asset.daysUntilDue)})</span>
-                  </>
-                ) : (
-                  EMPTY
-                )}
-              </Row>
-            </>
-          ) : (
-            <Row label="Cleaning">
-              <span className="cell-muted">
-                Not tracked — only laptops and desktops are in the cleaning rota.
-              </span>
+            ))}
+          </dl>
+        ) : (
+          <dl className="detail-list">
+            <Row label="Asset Ref">{asset.asset_ref}</Row>
+            <Row label="Device type">{asset.device_type}</Row>
+            <Row label="User">
+              {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
             </Row>
-          )}
+            <Row label="Department">{asset.department}</Row>
+            <Row label="Location">{asset.location ?? EMPTY}</Row>
+            <Row label="Purchase date">
+              {asset.purchase_date ? formatDate(asset.purchase_date) : EMPTY}
+            </Row>
+            <Row label="Purchase cost">{formatCurrency(asset.purchase_cost) ?? EMPTY}</Row>
 
-          <Row label="Notes">{asset.notes ?? EMPTY}</Row>
-          <Row label="Last updated">
-            <span className="cell-block">{formatTimestamp(asset.updated_at)}</span>
-            <span className="cell-muted cell-block">{asset.updated_by_email || 'unknown user'}</span>
-          </Row>
-        </dl>
+            <Row label="Status">
+              <StatusBadge status={asset.status} />
+            </Row>
+
+            {tracked ? (
+              <>
+                <Row label="Date cleaned">
+                  {asset.date_cleaned ? (
+                    formatDate(asset.date_cleaned)
+                  ) : (
+                    <span className="cell-flag">Never cleaned</span>
+                  )}
+                </Row>
+                <Row label="Cleaned by">{asset.cleaned_by ?? EMPTY}</Row>
+                <Row label="Cleaning interval">{asset.cleaning_interval_months} months</Row>
+                <Row label="Next clean due">
+                  {asset.next_clean_due ? (
+                    <>
+                      {formatDate(asset.next_clean_due)}{' '}
+                      <span className="cell-muted">({describeDayOffset(asset.daysUntilDue)})</span>
+                    </>
+                  ) : (
+                    EMPTY
+                  )}
+                </Row>
+              </>
+            ) : (
+              <Row label="Cleaning">
+                <span className="cell-muted">
+                  Not tracked — only laptops and desktops are in the cleaning rota.
+                </span>
+              </Row>
+            )}
+
+            <Row label="Notes">{asset.notes ?? EMPTY}</Row>
+            <Row label="Last updated">
+              <span className="cell-block">{formatTimestamp(asset.updated_at)}</span>
+              <span className="cell-muted cell-block">{asset.updated_by_email || 'unknown user'}</span>
+            </Row>
+          </dl>
+        )}
       </div>
 
       {/* No Close button: the header's x does that, and repeating it here only

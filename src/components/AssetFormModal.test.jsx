@@ -19,6 +19,15 @@ function setup(overrides = {}) {
   return { onSubmit, onClose };
 }
 
+/**
+ * Department and User are dropdowns of names already on the register. A test
+ * register is empty, so every value in here arrives through "Add new".
+ */
+async function addNew(user, label, text) {
+  await user.selectOptions(screen.getByLabelText(label), '__add_new__');
+  await user.type(screen.getByLabelText(label), text);
+}
+
 describe('AssetFormModal validation', () => {
   it('shows required-field errors and does not submit when empty', async () => {
     const user = userEvent.setup();
@@ -33,7 +42,7 @@ describe('AssetFormModal validation', () => {
     const user = userEvent.setup();
     const { onSubmit } = setup();
     await user.type(screen.getByLabelText(/asset ref/i), 'LAP-900');
-    await user.type(screen.getByLabelText(/department/i), 'IT');
+    await addNew(user, /department/i, 'IT');
     await user.click(screen.getByRole('button', { name: /add asset/i }));
     expect(screen.queryByText(/user is required/i)).not.toBeInTheDocument();
     expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -44,8 +53,8 @@ describe('AssetFormModal validation', () => {
     const user = userEvent.setup();
     const { onSubmit } = setup({ assetRefExists: () => true });
     await user.type(screen.getByLabelText(/asset ref/i), 'LAP-001');
-    await user.type(screen.getByLabelText(/^user$/i), 'Alice');
-    await user.type(screen.getByLabelText(/department/i), 'IT');
+    await addNew(user, /^user$/i, 'Alice');
+    await addNew(user, /department/i, 'IT');
     await user.click(screen.getByRole('button', { name: /add asset/i }));
     expect(screen.getByText(/already uses this asset ref/i)).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
@@ -56,8 +65,8 @@ describe('AssetFormModal validation', () => {
     const future = addMonthsIso(todayIso(), 1);
     const { onSubmit } = setup();
     await user.type(screen.getByLabelText(/asset ref/i), 'LAP-777');
-    await user.type(screen.getByLabelText(/^user$/i), 'Bob');
-    await user.type(screen.getByLabelText(/department/i), 'Finance');
+    await addNew(user, /^user$/i, 'Bob');
+    await addNew(user, /department/i, 'Finance');
     // Laptop is the default device type, so cleaning fields are present.
     const dateInput = screen.getByLabelText(/date cleaned/i);
     await user.clear(dateInput);
@@ -76,11 +85,64 @@ describe('AssetFormModal validation', () => {
     await user.selectOptions(screen.getByLabelText(/device type/i), 'Monitor');
     // Cleaning fields disappear for non-laptop/desktop
     expect(screen.queryByLabelText(/cleaned by/i)).not.toBeInTheDocument();
-    await user.type(screen.getByLabelText(/^user$/i), 'Shared Desk');
-    await user.type(screen.getByLabelText(/department/i), 'Ops');
+    await addNew(user, /^user$/i, 'Shared Desk');
+    await addNew(user, /department/i, 'Ops');
     await user.click(screen.getByRole('button', { name: /add asset/i }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0][0]).toMatchObject({ asset_ref: 'MON-042', device_type: 'Monitor' });
+  });
+
+  it('records a specification from the second tab', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = setup({ specOptions: { spec_ram: ['8 GB', '16 GB'] } });
+
+    await user.type(screen.getByLabelText(/asset ref/i), 'LAP-123');
+    await addNew(user, /department/i, 'IT');
+
+    await user.click(screen.getByRole('tab', { name: /specification/i }));
+    await user.selectOptions(screen.getByLabelText(/^ram$/i), '16 GB');
+    await addNew(user, /model/i, 'Latitude 5540');
+
+    await user.click(screen.getByRole('button', { name: /add asset/i }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      asset_ref: 'LAP-123',
+      spec_ram: '16 GB',
+      spec_model: 'Latitude 5540'
+    });
+  });
+
+  it('offers the specification tab only to computers and monitors', async () => {
+    const user = userEvent.setup();
+    setup();
+    // Laptop is the default.
+    expect(screen.getByRole('tab', { name: /specification/i })).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/device type/i), 'Monitor');
+    await user.click(screen.getByRole('tab', { name: /specification/i }));
+    expect(screen.getByLabelText(/hdmi ports/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/battery type/i)).not.toBeInTheDocument();
+
+    // Device Type lives on the details tab, so go back before changing it.
+    await user.click(screen.getByRole('tab', { name: /details/i }));
+    await user.selectOptions(screen.getByLabelText(/device type/i), 'Printer');
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/asset ref/i)).toBeInTheDocument();
+  });
+
+  it('opens the tab an error is hiding on', async () => {
+    const user = userEvent.setup();
+    // The Brand box caps typing at 60, so an over-long value can only arrive
+    // from outside the form - which is exactly the case worth covering.
+    const { onSubmit } = setup({ prefill: { spec_brand: 'D'.repeat(61) } });
+    await user.type(screen.getByLabelText(/asset ref/i), 'LAP-500');
+    await addNew(user, /department/i, 'IT');
+    // Still on the details tab, so the error would otherwise be out of sight.
+    await user.click(screen.getByRole('button', { name: /add asset/i }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole('tab', { name: /specification/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText(/brand must be 60 characters or fewer/i)).toBeInTheDocument();
   });
 
   it('surfaces a server error thrown by onSubmit without closing', async () => {
@@ -88,8 +150,8 @@ describe('AssetFormModal validation', () => {
     const onSubmit = vi.fn().mockRejectedValue(new Error('Asset Ref "LAP-9" already exists.'));
     render(<AssetFormModal onSubmit={onSubmit} onClose={vi.fn()} assetRefExists={() => false} />);
     await user.type(screen.getByLabelText(/asset ref/i), 'LAP-9');
-    await user.type(screen.getByLabelText(/^user$/i), 'Carol');
-    await user.type(screen.getByLabelText(/department/i), 'IT');
+    await addNew(user, /^user$/i, 'Carol');
+    await addNew(user, /department/i, 'IT');
     await user.click(screen.getByRole('button', { name: /add asset/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/already exists/i);
   });

@@ -76,6 +76,15 @@ This creates the `assets` table, the `assets_with_status` view, indexes, all
 constraints, the audit trigger, the Row Level Security policies, and enables
 Realtime so open browser tabs update when a colleague saves a change.
 
+Then run the migrations, in the same way and **in this order**. Each one is
+safe to run again, and the app expects all of them:
+
+| File | What it adds |
+| --- | --- |
+| [`supabase/migration-001-asset-management.sql`](supabase/migration-001-asset-management.sql) | General asset management: device types, location, purchase date and cost |
+| [`supabase/migration-002-unassigned-assets.sql`](supabase/migration-002-unassigned-assets.sql) | Lets an asset have no user, so spare kit can be listed as unassigned |
+| [`supabase/migration-003-device-specs.sql`](supabase/migration-003-device-specs.sql) | Hardware specification for computers and monitors |
+
 ### 3. (Optional) Load the sample data
 
 Run [`supabase/seed.sql`](supabase/seed.sql) the same way. It inserts 14 sample
@@ -220,10 +229,14 @@ place.
 ├── public/favicon.svg
 ├── supabase/
 │   ├── schema.sql                 tables, view, indexes, constraints, trigger, RLS
+│   ├── migration-001-…            general asset management columns
+│   ├── migration-002-…            unassigned assets
+│   ├── migration-003-…            hardware specification columns
 │   └── seed.sql                   sample data for testing
 ├── src/
 │   ├── components/
 │   │   ├── AppShell.jsx           signed-in layout and all state wiring
+│   │   ├── AssetDetailsModal.jsx  read-only view, with the specification tab
 │   │   ├── AssetFormModal.jsx     add/edit form + validation + live due-date preview
 │   │   ├── AssetTable.jsx         sortable register
 │   │   ├── AssetToolbar.jsx       search and filters

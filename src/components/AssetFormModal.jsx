@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
+import ModalTabs from './ModalTabs';
+import ComboSelect from './ComboSelect';
 import StatusBadge from './StatusBadge';
 import {
   CLEANERS,
@@ -8,11 +10,22 @@ import {
   isCleaningTracked,
   LOCATIONS
 } from '../lib/constants';
+import { SPEC_COLUMNS, SPEC_FIELDS, hasSpecs, specsFor } from '../lib/specs';
 import { previewNextCleanDue, statusFor } from '../lib/assetStatus';
 import { formatDate, isValidIsoDate, todayIso } from '../lib/dates';
 
+/** Every spec starts empty; the form keeps them as text and converts on save. */
+const BLANK_SPECS = Object.fromEntries(SPEC_COLUMNS.map((key) => [key, '']));
+
+function specValuesFromAsset(asset) {
+  return Object.fromEntries(
+    SPEC_COLUMNS.map((key) => [key, asset[key] === null || asset[key] === undefined ? '' : String(asset[key])])
+  );
+}
+
 function blankValues(prefill = {}) {
   return {
+    ...BLANK_SPECS,
     asset_ref: '',
     device_type: DEVICE_TYPES[0],
     owner_name: '',
@@ -30,6 +43,7 @@ function blankValues(prefill = {}) {
 
 function valuesFromAsset(asset, prefill = {}) {
   return {
+    ...specValuesFromAsset(asset),
     asset_ref: asset.asset_ref ?? '',
     device_type: asset.device_type ?? DEVICE_TYPES[0],
     owner_name: asset.owner_name ?? '',
@@ -104,11 +118,30 @@ function validate(values, { assetRefExists, ignoreId }) {
     errors.notes = 'Notes must be 2000 characters or fewer.';
   }
 
+  // Specs are all optional, but a value long enough to break the layout is
+  // almost certainly a paste gone wrong.
+  for (const key of specsFor(values.device_type)) {
+    const text = String(values[key] ?? '').trim();
+    if (text.length > 60) {
+      errors[key] = `${SPEC_FIELDS[key].label} must be 60 characters or fewer.`;
+    }
+  }
+
   return errors;
 }
 
-export default function AssetFormModal({ asset, prefill, onSubmit, onClose, assetRefExists }) {
+export default function AssetFormModal({
+  asset,
+  prefill,
+  onSubmit,
+  onClose,
+  assetRefExists,
+  departments = [],
+  users = [],
+  specOptions = {}
+}) {
   const isEditing = Boolean(asset);
+  const [tab, setTab] = useState('details');
   const [values, setValues] = useState(() =>
     isEditing ? valuesFromAsset(asset, prefill) : blankValues(prefill)
   );
@@ -128,6 +161,12 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
 
   const tracked = isCleaningTracked(values.device_type);
 
+  // Only computers and monitors have a specification to fill in; for anything
+  // else the form stays a single page.
+  const showSpecs = hasSpecs(values.device_type);
+  const activeTab = showSpecs ? tab : 'details';
+  const specKeys = specsFor(values.device_type);
+
   const preview = useMemo(() => {
     const nextCleanDue = previewNextCleanDue(values.date_cleaned, values.cleaning_interval_months);
     return {
@@ -142,7 +181,13 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
 
     const nextErrors = validate(values, { assetRefExists, ignoreId: asset?.id ?? null });
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
+    const failed = Object.keys(nextErrors);
+    if (failed.length > 0) {
+      // An error on the tab you cannot see would look like nothing happened.
+      const onSpecs = failed.every((key) => specKeys.includes(key));
+      setTab(onSpecs ? 'specs' : 'details');
+      return;
+    }
 
     setBusy(true);
     try {
@@ -164,7 +209,59 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
       onClose={busy ? () => {} : onClose}
     >
       <form onSubmit={handleSubmit} noValidate>
-        <div className="modal__body form-grid">
+        {showSpecs ? (
+          <ModalTabs
+            tabs={[
+              { id: 'details', label: 'Details' },
+              { id: 'specs', label: 'Specification' }
+            ]}
+            active={activeTab}
+            onChange={setTab}
+          />
+        ) : null}
+
+        <div
+          className="modal__body form-grid"
+          role={showSpecs ? 'tabpanel' : undefined}
+          id={showSpecs ? `panel-${activeTab}` : undefined}
+          aria-labelledby={showSpecs ? `tab-${activeTab}` : undefined}
+        >
+          {activeTab === 'specs' ? (
+            specKeys.map((key) => {
+              const field = SPEC_FIELDS[key];
+              return (
+                <div className="field" key={key}>
+                  <label className="field__label" htmlFor={key}>{field.label}</label>
+                  {field.kind === 'count' ? (
+                    <select
+                      id={key}
+                      className="select"
+                      value={values[key]}
+                      onChange={(event) => setField(key, event.target.value)}
+                      disabled={busy}
+                    >
+                      <option value="">— Not recorded —</option>
+                      {Array.from({ length: field.max + 1 }, (_, count) => (
+                        <option key={count} value={String(count)}>{count}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <ComboSelect
+                      id={key}
+                      value={values[key]}
+                      options={specOptions[key] ?? field.suggestions}
+                      onChange={(next) => setField(key, next)}
+                      placeholder={field.placeholder}
+                      invalid={Boolean(errors[key])}
+                      disabled={busy}
+                    />
+                  )}
+                  {errors[key] ? <span className="field__error">{errors[key]}</span> : null}
+                </div>
+              );
+            })
+          ) : (
+            <>
           <div className="field">
             <label className="field__label" htmlFor="asset_ref">Asset Ref *</label>
             <input
@@ -196,13 +293,15 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
 
           <div className="field">
             <label className="field__label" htmlFor="owner_name">User</label>
-            <input
+            <ComboSelect
               id="owner_name"
-              className={`input${errors.owner_name ? ' input--error' : ''}`}
               value={values.owner_name}
-              onChange={(event) => setField('owner_name', event.target.value)}
-              list="user-options"
+              options={users}
+              onChange={(next) => setField('owner_name', next)}
               placeholder="Person, or a shared location"
+              blankLabel="— Unassigned —"
+              addLabel="+ Add someone new…"
+              invalid={Boolean(errors.owner_name)}
               disabled={busy}
             />
             {errors.owner_name ? (
@@ -214,13 +313,15 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
 
           <div className="field">
             <label className="field__label" htmlFor="department">Department *</label>
-            <input
+            <ComboSelect
               id="department"
-              className={`input${errors.department ? ' input--error' : ''}`}
               value={values.department}
-              onChange={(event) => setField('department', event.target.value)}
-              list="department-options"
+              options={departments}
+              onChange={(next) => setField('department', next)}
               placeholder="e.g. Finance"
+              blankLabel="— Choose a department —"
+              addLabel="+ Add a new department…"
+              invalid={Boolean(errors.department)}
               disabled={busy}
             />
             {errors.department ? <span className="field__error">{errors.department}</span> : null}
@@ -358,6 +459,8 @@ export default function AssetFormModal({ asset, prefill, onSubmit, onClose, asse
             />
             {errors.notes ? <span className="field__error">{errors.notes}</span> : null}
           </div>
+            </>
+          )}
 
           {submitError ? (
             <p className="form-error field--full" role="alert">{submitError}</p>

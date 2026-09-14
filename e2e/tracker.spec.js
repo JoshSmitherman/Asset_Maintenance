@@ -47,11 +47,27 @@ test.describe('Hardware Maintenance Tracker — end to end (mocked Supabase)', (
     await page.getByRole('button', { name: /add asset/i }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel(/asset ref/i).fill('LAP-999');
+    // User and Department are dropdowns of names already on the register, so a
+    // new one arrives through "Add new".
+    await dialog.getByLabel(/^user$/i).selectOption('__add_new__');
     await dialog.getByLabel(/^user$/i).fill('Dana');
+    await dialog.getByLabel(/department/i).selectOption('__add_new__');
     await dialog.getByLabel(/department/i).fill('IT');
+
+    // The specification lives on the second tab.
+    await dialog.getByRole('tab', { name: /specification/i }).click();
+    await dialog.getByLabel(/^ram$/i).selectOption('16 GB');
+    await dialog.getByLabel(/^brand$/i).selectOption('Dell');
+
     await dialog.getByRole('button', { name: /add asset/i }).click();
 
     await expect.poll(() => state.inserted.length).toBe(1);
-    expect(state.inserted[0]).toMatchObject({ asset_ref: 'LAP-999', device_type: 'Laptop', owner_name: 'Dana' });
+    expect(state.inserted[0]).toMatchObject({
+      asset_ref: 'LAP-999',
+      device_type: 'Laptop',
+      owner_name: 'Dana',
+      spec_ram: '16 GB',
+      spec_brand: 'Dell'
+    });
   });
 });

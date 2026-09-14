@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { ASSETS_TABLE, ASSETS_VIEW, isCleaningTracked } from '../lib/constants';
 import { decorateAsset } from '../lib/assetStatus';
+import { specPayload } from '../lib/specs';
 import { describeDatabaseError } from '../lib/errors';
 import { todayIso } from '../lib/dates';
 
@@ -16,6 +17,9 @@ function toWritePayload(values) {
   const cost = String(values.purchase_cost ?? '').trim();
 
   return {
+    // Specs follow the same rule as the cleaning fields: only the ones that
+    // apply to this device type are written.
+    ...specPayload(values.device_type, values),
     asset_ref: values.asset_ref.trim(),
     device_type: values.device_type,
     // Blank means unassigned, stored as null so there is one representation
