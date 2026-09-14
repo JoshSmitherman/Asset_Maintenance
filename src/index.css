@@ -677,20 +677,23 @@ code {
 .config-list { margin: 0; padding-left: 18px; font-size: 13px; color: var(--slate-700); display: grid; gap: 8px; }
 
 /* ----------------------------------------------------------- Responsive */
-@media (max-width: 1180px) {
-  .col-hide-lg { display: none; }
-}
+/* Table columns shed on their own schedule, ahead of the layout breakpoints
+   below, so neither the register nor the cleaning queue ever has to be
+   scrolled sideways to be read. */
+@media (max-width: 1180px) { .col-hide-lg { display: none; } }
+@media (max-width: 1000px) { .col-hide-md { display: none; } }
+@media (max-width: 860px)  { .col-hide-sm { display: none; } }
+@media (max-width: 640px)  { .col-hide-xs { display: none; } }
+
 
 @media (max-width: 1000px) {
   .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .col-hide-md { display: none; }
   .form-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 720px) {
   .container { padding: 16px 12px 36px; }
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .col-hide-sm { display: none; }
   .app-header__inner { padding: 12px; }
   .app-header__actions { width: 100%; justify-content: space-between; }
   .toolbar__meta { margin-left: 0; width: 100%; justify-content: space-between; }
@@ -904,9 +907,28 @@ code {
 
 /* A wide data table scrolls sideways rather than crushing its columns,
    which is what hid the purchase details on narrower screens. */
-.table--full { min-width: 1060px; }
-.table--cleaning { min-width: 880px; }
+/* No min-width: columns drop off at the breakpoints below rather than
+   forcing a sideways scroll. The scroll container stays as a safety net for
+   very narrow screens. */
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Tighter cells and breakable text keep the last few columns on screen at
+   phone widths, where even four columns would otherwise overflow. */
+@media (max-width: 640px) {
+  .table { font-size: 12.5px; }
+  .table th, .table td { padding: 9px 8px; overflow-wrap: break-word; }
+  /* An asset reference is one long hyphenated code with nowhere natural to
+     wrap, so it alone may break anywhere. Names wrap at their spaces. */
+  .table td.cell-strong { overflow-wrap: anywhere; }
+  .table thead th { font-size: 11px; letter-spacing: 0.03em; }
+}
+
+/* On the narrowest phones even four columns will not hold a long surname
+   whole. Breaking a word mid-way is the lesser evil against a table that has
+   to be dragged sideways to be read. */
+@media (max-width: 430px) {
+  .table th, .table td { padding: 8px 6px; overflow-wrap: anywhere; }
+}
 
 @media (max-width: 720px) {
   .app-nav__inner { padding: 0 12px; }
@@ -927,4 +949,56 @@ code {
 @media (max-width: 720px) {
   .app-chrome { position: static; }
   .app-nav { position: sticky; top: 0; z-index: 40; }
+}
+
+
+/* ------------------------------------------------- Row action: view details */
+.icon-action {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--slate-300);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--slate-500);
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.icon-action:hover {
+  color: var(--brand-purple);
+  border-color: var(--brand-purple);
+  background: var(--brand-purple-050);
+}
+.icon-action:focus-visible { outline: 2px solid var(--brand-purple); outline-offset: 2px; }
+
+/* ------------------------------------------------------ Asset detail view */
+.detail-list {
+  margin: 0;
+  display: grid;
+  gap: 0;
+}
+
+.detail {
+  display: grid;
+  grid-template-columns: minmax(130px, 200px) 1fr;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--slate-100);
+}
+.detail:last-child { border-bottom: none; }
+
+.detail__label { font-size: 12.5px; font-weight: 600; color: var(--slate-500); }
+.detail__value { margin: 0; font-size: 14px; color: var(--slate-900); word-break: break-word; }
+
+/* Delete sits apart from the confirm-style actions so it is not clicked by
+   reflex on the way to Edit. */
+.modal__footer--split { justify-content: space-between; }
+.modal__footer-actions { display: flex; gap: 10px; }
+
+@media (max-width: 480px) {
+  .detail { grid-template-columns: 1fr; gap: 2px; }
+  .modal__footer--split { flex-direction: column-reverse; align-items: stretch; }
+  .modal__footer-actions { justify-content: flex-end; }
 }

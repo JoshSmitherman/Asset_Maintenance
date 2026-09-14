@@ -8,6 +8,7 @@ import AssetToolbar from './AssetToolbar';
 import AssetTable from './AssetTable';
 import AssetFormModal from './AssetFormModal';
 import RecordCleanModal from './RecordCleanModal';
+import AssetDetailsModal from './AssetDetailsModal';
 import ConfirmDialog from './ConfirmDialog';
 import Toast from './Toast';
 import { useAssets } from '../hooks/useAssets';
@@ -43,6 +44,7 @@ export default function AppShell() {
   const [sort, setSort] = useState({ ...DEFAULT_SORT });
   const [formState, setFormState] = useState(null); // { asset?, prefill? }
   const [cleaningTarget, setCleaningTarget] = useState(null);
+  const [detailsTarget, setDetailsTarget] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -211,8 +213,7 @@ export default function AppShell() {
                 sort={sort}
                 onSortChange={setSort}
                 variant="full"
-                onEdit={(asset) => setFormState({ asset })}
-                onDelete={(asset) => setPendingDelete(asset)}
+                onViewDetails={setDetailsTarget}
               />
             </section>
 
@@ -233,8 +234,7 @@ export default function AppShell() {
                   sort={sort}
                   onSortChange={setSort}
                   variant="full"
-                  onEdit={(asset) => setFormState({ asset })}
-                  onDelete={(asset) => setPendingDelete(asset)}
+                  onViewDetails={setDetailsTarget}
                 />
               </section>
             ) : null}
@@ -267,6 +267,21 @@ export default function AppShell() {
           onSubmit={(values) =>
             formState.asset ? handleUpdate(formState.asset, values) : handleCreate(values)
           }
+        />
+      ) : null}
+
+      {detailsTarget ? (
+        <AssetDetailsModal
+          asset={detailsTarget}
+          onClose={() => setDetailsTarget(null)}
+          onEdit={(asset) => {
+            setDetailsTarget(null);
+            setFormState({ asset });
+          }}
+          onDelete={(asset) => {
+            setDetailsTarget(null);
+            setPendingDelete(asset);
+          }}
         />
       ) : null}
 
