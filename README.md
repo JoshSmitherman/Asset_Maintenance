@@ -76,6 +76,12 @@ This creates the `assets` table, the `assets_with_status` view, indexes, all
 constraints, the audit trigger, the Row Level Security policies, and enables
 Realtime so open browser tabs update when a colleague saves a change.
 
+> **Setting up a brand-new project?** Run
+> [`supabase/setup.sql`](supabase/setup.sql) instead and skip the rest of this
+> section — it is the whole database in one script, and the only one you need.
+> The files below are the history of how an older database reached the same
+> state.
+
 Then run the migrations, in the same way and **in this order**. Each one is
 safe to run again, and the app expects all of them:
 
@@ -229,6 +235,7 @@ place.
 ├── .github/workflows/deploy.yml   GitHub Pages build & deploy
 ├── public/favicon.svg
 ├── supabase/
+│   ├── setup.sql                  the whole database in one script (new projects)
 │   ├── schema.sql                 tables, view, indexes, constraints, trigger, RLS
 │   ├── migration-001-…            general asset management columns
 │   ├── migration-002-…            unassigned assets
