@@ -23,6 +23,16 @@ export function describeDatabaseError(error, context = {}) {
   if (message.includes('Date Cleaned cannot be in the future')) {
     return 'Date Cleaned cannot be in the future.';
   }
+  // PostgREST cannot see the table at all. Either the database was never set
+  // up, or its schema cache is stale - both are setup problems, and the raw
+  // wording ("in the schema cache") sends people looking in the wrong place.
+  if (code === 'PGRST205' || code === '42P01' || message.includes('schema cache')) {
+    return (
+      'The database tables are missing. Run supabase/setup.sql in the Supabase ' +
+      'SQL Editor, then reload this page. If you have already run it, the schema ' +
+      "cache may be stale - run: notify pgrst, 'reload schema';"
+    );
+  }
   if (code === '42501' || message.toLowerCase().includes('row-level security')) {
     return 'You do not have permission to do that. Try signing out and back in.';
   }
