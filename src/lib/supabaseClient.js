@@ -1,7 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
+import { normaliseSupabaseUrl, urlNeededFixing } from './supabaseUrl';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const configuredUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseUrl = normaliseSupabaseUrl(configuredUrl);
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (urlNeededFixing(configuredUrl)) {
+  // Corrected rather than failed, but say so: the setting itself is wrong and
+  // somebody should fix it at source.
+  // eslint-disable-next-line no-console
+  console.warn(
+    `VITE_SUPABASE_URL should be just the project URL. Using "${supabaseUrl}" ` +
+      `instead of "${String(configuredUrl).trim()}".`
+  );
+}
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
