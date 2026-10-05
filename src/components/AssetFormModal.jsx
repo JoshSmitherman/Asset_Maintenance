@@ -332,6 +332,10 @@ export default function AssetFormModal({
               values={values}
               disabled={busy}
               onChange={(mode, found) => {
+                if (mode === 'set') {
+                  setValues((current) => ({ ...current, ...found }));
+                  return 0;
+                }
                 if (mode === 'replace') {
                   setValues((current) => replaceSpecs(current.device_type, current, found));
                   return 0;

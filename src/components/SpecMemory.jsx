@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { matchKnownModel, specSnapshot, specsFor } from '../lib/specs';
+import { similarKnownModels } from '../lib/modelNames';
 
 const describeRefs = (refs) =>
   refs.slice(0, 3).join(', ') + (refs.length > 3 ? ` and ${refs.length - 3} more` : '');
@@ -12,7 +13,8 @@ const describeRefs = (refs) =>
  * The model list is always there. Picking a model replaces the spec boxes
  * with that model's - pick another to switch, Undo to go back, Clear to start
  * again. When the Brand and Model typed match a known model, it also offers
- * to fill just the boxes still empty.
+ * to fill just the boxes still empty; when they nearly match one, it asks
+ * whether that was meant, so a typo does not start a second entry.
  */
 export default function SpecMemory({ deviceType, models = [], values, onChange, disabled }) {
   const [message, setMessage] = useState(null);
@@ -20,6 +22,9 @@ export default function SpecMemory({ deviceType, models = [], values, onChange, 
   const [previous, setPrevious] = useState(null);
 
   const match = matchKnownModel(models, values.spec_brand, values.spec_model);
+  // Typed something close to a known model but not quite it: probably a typo,
+  // which would otherwise start a second entry for the same machine.
+  const lookalikes = match ? [] : similarKnownModels(models, values.spec_brand, values.spec_model);
   const keys = specsFor(deviceType);
   const isBlank = (key) => String(values[key] ?? '').trim() === '';
   const anyFilled = keys.some((key) => !isBlank(key));
@@ -111,6 +116,26 @@ export default function SpecMemory({ deviceType, models = [], values, onChange, 
           Once a model's specification is recorded here, adding another of the same model can copy it.
         </p>
       )}
+
+      {lookalikes.length > 0 ? (
+        <div className="spec-memory__match spec-memory__match--warn" role="alert">
+          <span>
+            Did you mean <strong>{lookalikes[0].label}</strong>? It is already on the register (
+            {lookalikes[0].count}) - using the same spelling keeps them together.
+          </span>
+          <button
+            type="button"
+            className="btn btn--brand-light btn--small"
+            onClick={() => {
+              onChange('set', { spec_brand: lookalikes[0].brand, spec_model: lookalikes[0].model });
+              setMessage(`Spelling changed to ${lookalikes[0].label}.`);
+            }}
+            disabled={disabled}
+          >
+            Use that spelling
+          </button>
+        </div>
+      ) : null}
 
       {match && emptyItCouldFill.length > 0 ? (
         <div className="spec-memory__match">

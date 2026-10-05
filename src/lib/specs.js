@@ -231,6 +231,7 @@ export function knownModels(assets) {
       label: [sample.spec_brand, sample.spec_model].filter((part) => part && String(part).trim()).join(' '),
       count: group.assets.length,
       refs: newestFirst.map((asset) => asset.asset_ref),
+      ids: newestFirst.map((asset) => asset.id),
       specs
     });
   }

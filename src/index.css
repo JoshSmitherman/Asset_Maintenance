@@ -1400,4 +1400,28 @@ code {
   flex-wrap: wrap;
   font-size: 13.5px;
 }
+.spec-memory__match--warn {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--amber-100);
+  border: 1px solid var(--amber-border);
+  color: var(--text);
+}
 .spec-memory__result { margin: 0; font-size: 12.5px; color: var(--slate-700); }
+
+/* ------------------------------------------------------ Tidy model names */
+.tidy-list { list-style: none; margin: 0; padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 12px; }
+.tidy-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+}
+.tidy-group__choices { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tidy-group__legend { padding: 0; margin-bottom: 4px; font-size: 12px; font-weight: 700; color: var(--slate-500); text-transform: uppercase; letter-spacing: 0.04em; }
+.tidy-group__choice { display: flex; align-items: baseline; gap: 8px; font-size: 14px; cursor: pointer; }
+.tidy-group__actions { display: flex; gap: 8px; flex-wrap: wrap; }

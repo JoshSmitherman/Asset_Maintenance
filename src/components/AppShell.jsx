@@ -49,6 +49,7 @@ export default function AppShell() {
     updateAsset,
     recordClean,
     bulkAssign,
+    bulkRenameModel,
     bulkRecordClean,
     bulkDelete,
     deleteAsset,
@@ -270,7 +271,7 @@ export default function AppShell() {
         ) : null}
 
         {page === 'admin' && isAdmin ? (
-          <AdminPage onToast={setToast} />
+          <AdminPage onToast={setToast} specMemory={specMemory} onMergeModels={bulkRenameModel} />
         ) : loading ? (
           <p className="empty-state">Loading assets…</p>
         ) : page === 'dashboard' ? (

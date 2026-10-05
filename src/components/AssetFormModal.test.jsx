@@ -309,4 +309,14 @@ describe('AssetFormModal spec memory', () => {
     expect(screen.getByLabelText('RAM')).toHaveValue('32 GB');
     expect(screen.getByLabelText('Model')).toHaveValue('latitude 5540');
   });
+
+  it('asks "did you mean" for a near miss, and switches to the known spelling', async () => {
+    const user = userEvent.setup();
+    await openSpecs(user, { prefill: { spec_brand: 'Dell', spec_model: 'Lattitude 5540' } });
+    expect(screen.getByRole('alert')).toHaveTextContent(/did you mean dell latitude 5540/i);
+    await user.click(screen.getByRole('button', { name: /use that spelling/i }));
+    expect(screen.getByLabelText('Model')).toHaveValue('Latitude 5540');
+    // Now an exact match, so the fill offer replaces the warning.
+    expect(screen.getByRole('button', { name: /fill the empty boxes/i })).toBeInTheDocument();
+  });
 });

@@ -247,6 +247,16 @@ export function useAssets() {
     [bulkUpdate]
   );
 
+  /** One spelling for a model across many assets, from the tidy-up tool. */
+  const bulkRenameModel = useCallback(
+    (ids, { brand, model }) =>
+      bulkUpdate(ids, {
+        spec_brand: brand?.trim() ? brand.trim() : null,
+        spec_model: model?.trim() ? model.trim() : null
+      }),
+    [bulkUpdate]
+  );
+
   const bulkDelete = useCallback(
     async (ids) => {
       const { error: deleteError } = await supabase.from(ASSETS_TABLE).delete().in('id', ids);
@@ -290,6 +300,7 @@ export function useAssets() {
       updateAsset,
       recordClean,
       bulkAssign,
+      bulkRenameModel,
       bulkRecordClean,
       bulkDelete,
       deleteAsset,
@@ -298,7 +309,7 @@ export function useAssets() {
     [
       assets, loading, refreshing, error, lastSyncedAt, load,
       createAsset, createAssets, updateAsset, recordClean,
-      bulkAssign, bulkRecordClean, bulkDelete, deleteAsset, assetRefExists
+      bulkAssign, bulkRenameModel, bulkRecordClean, bulkDelete, deleteAsset, assetRefExists
     ]
   );
 }

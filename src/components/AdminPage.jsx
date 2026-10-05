@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
+import ModelNameTidy from './ModelNameTidy';
 import { callFunction } from '../lib/edgeFunctions';
 import { formatTimestamp } from '../lib/dates';
 
@@ -170,7 +171,7 @@ function ResetPasswordModal({ account, onClose, onDone }) {
  * live in Supabase Auth; this page drives them through the admin-users Edge
  * Function, which re-checks that the caller is an admin every time.
  */
-export default function AdminPage({ onToast }) {
+export default function AdminPage({ onToast, specMemory = {}, onMergeModels }) {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -210,6 +211,7 @@ export default function AdminPage({ onToast }) {
   };
 
   return (
+    <>
     <section className="card">
       <div className="card__header">
         <div>
@@ -324,5 +326,10 @@ export default function AdminPage({ onToast }) {
         />
       ) : null}
     </section>
+
+    {onMergeModels ? (
+      <ModelNameTidy specMemory={specMemory} onMerge={onMergeModels} onToast={onToast} />
+    ) : null}
+    </>
   );
 }
