@@ -7,6 +7,51 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.3.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.3.0) - 2026-10-05
+
+_Page-By-Page Improvements_
+
+### Dashboard
+
+**Needs Attention**
+
+- **Added:** **Open cleaning queue** button, straight to the machines that need doing
+- **Fixed:** On a phone the list squeezed names and types until words split in half; it now drops the less important columns instead
+
+### Assets
+
+**Asset Register**
+
+- **Changed:** The register is listed in asset reference order, rather than by a clean date it does not show
+
+**Asset Details**
+
+- **Added:** **Record clean** button for laptops and desktops, so a clean can be logged without leaving the asset
+
+### Cleaning
+
+**Cleaning Queue**
+
+- **Added:** **Needs attention** and **All laptops and desktops** switch. The queue now opens on what needs doing
+- **Removed:** The red "Never cleaned" in the date column, which repeated the status badge beside it
+
+**Record Clean**
+
+- **Fixed:** The date started on the last clean rather than today, so saving straight away recorded nothing new. It now starts on today, with the last clean shown underneath
+- **Changed:** Cleaned by starts empty, so a clean is not credited to whoever did the previous one
+
+**Cleaning History**
+
+- **Added:** Device type, and who recorded each clean and when
+
+### General
+
+**Layout**
+
+- **Fixed:** The light and dark mode button no longer covers buttons at the bottom of a page
+- **Fixed:** On a phone the Admin tab ran off the edge of the screen
+- **Changed:** The sign-in page now says to ask an admin for an account or a new password
+
 ## [2.2.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.2.0) - 2026-10-05
 
 _Reports Reorganised_

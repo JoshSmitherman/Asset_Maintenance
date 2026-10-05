@@ -3,7 +3,7 @@ import { describeDayOffset, formatDate } from '../lib/dates';
 import { sortByUrgency } from '../lib/assetQueries';
 import StatusBadge from './StatusBadge';
 
-export default function AttentionPanel({ assets, onRecordClean }) {
+export default function AttentionPanel({ assets, onRecordClean, onOpenQueue }) {
   const needsAttention = sortByUrgency(assets.filter((asset) => ATTENTION_STATUSES.includes(asset.status)));
 
   // Worst case first: red once anything is overdue or was never cleaned,
@@ -20,7 +20,14 @@ export default function AttentionPanel({ assets, onRecordClean }) {
           <h2 className="card__title">Needs attention</h2>
           <p className="card__subtitle">Overdue first, then never cleaned, then due within 30 days.</p>
         </div>
-        <span className={`pill${pillTone ? ` ${pillTone}` : ''}`}>{needsAttention.length}</span>
+        <div className="card__header-actions">
+          {onOpenQueue && needsAttention.length > 0 ? (
+            <button type="button" className="btn btn--ghost btn--small" onClick={onOpenQueue}>
+              Open cleaning queue
+            </button>
+          ) : null}
+          <span className={`pill${pillTone ? ` ${pillTone}` : ''}`}>{needsAttention.length}</span>
+        </div>
       </div>
 
       {needsAttention.length === 0 ? (
@@ -33,10 +40,10 @@ export default function AttentionPanel({ assets, onRecordClean }) {
             <thead>
               <tr>
                 <th scope="col">Asset Ref</th>
-                <th scope="col">Type</th>
-                <th scope="col">User</th>
+                <th scope="col" className="col-hide-sm">Type</th>
+                <th scope="col" className="col-hide-xs">User</th>
                 <th scope="col" className="col-hide-md">Department</th>
-                <th scope="col">Next Clean Due</th>
+                <th scope="col" className="col-hide-xs">Next Clean Due</th>
                 <th scope="col">Status</th>
                 <th scope="col" className="table__actions-header">Action</th>
               </tr>
@@ -45,12 +52,12 @@ export default function AttentionPanel({ assets, onRecordClean }) {
               {needsAttention.map((asset) => (
                 <tr key={asset.id}>
                   <td className="cell-strong">{asset.asset_ref}</td>
-                  <td>{asset.device_type}</td>
-                  <td>
+                  <td className="col-hide-sm">{asset.device_type}</td>
+                  <td className="col-hide-xs">
                     {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
                   </td>
                   <td className="col-hide-md">{asset.department}</td>
-                  <td>
+                  <td className="col-hide-xs">
                     {asset.status === STATUS.NEVER_CLEANED ? (
                       <span className="cell-muted">No clean recorded</span>
                     ) : (

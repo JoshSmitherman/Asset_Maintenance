@@ -7,6 +7,80 @@
 
 export const RELEASES = [
   {
+    version: '2.3.0',
+    title: 'Page-By-Page Improvements',
+    date: '2026-10-05',
+    sections: [
+      {
+        area: 'Dashboard',
+        groups: [
+          {
+            heading: 'Needs Attention',
+            items: [
+              { type: 'added', text: '**Open cleaning queue** button, straight to the machines that need doing' },
+              { type: 'fixed', text: 'On a phone the list squeezed names and types until words split in half; it now drops the less important columns instead' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Assets',
+        groups: [
+          {
+            heading: 'Asset Register',
+            items: [
+              { type: 'changed', text: 'The register is listed in asset reference order, rather than by a clean date it does not show' }
+            ]
+          },
+          {
+            heading: 'Asset Details',
+            items: [
+              { type: 'added', text: '**Record clean** button for laptops and desktops, so a clean can be logged without leaving the asset' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Cleaning',
+        groups: [
+          {
+            heading: 'Cleaning Queue',
+            items: [
+              { type: 'added', text: '**Needs attention** and **All laptops and desktops** switch. The queue now opens on what needs doing' },
+              { type: 'removed', text: 'The red "Never cleaned" in the date column, which repeated the status badge beside it' }
+            ]
+          },
+          {
+            heading: 'Record Clean',
+            items: [
+              { type: 'fixed', text: 'The date started on the last clean rather than today, so saving straight away recorded nothing new. It now starts on today, with the last clean shown underneath' },
+              { type: 'changed', text: 'Cleaned by starts empty, so a clean is not credited to whoever did the previous one' }
+            ]
+          },
+          {
+            heading: 'Cleaning History',
+            items: [
+              { type: 'added', text: 'Device type, and who recorded each clean and when' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'General',
+        groups: [
+          {
+            heading: 'Layout',
+            items: [
+              { type: 'fixed', text: 'The light and dark mode button no longer covers buttons at the bottom of a page' },
+              { type: 'fixed', text: 'On a phone the Admin tab ran off the edge of the screen' },
+              { type: 'changed', text: 'The sign-in page now says to ask an admin for an account or a new password' }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.2.0',
     title: 'Reports Reorganised',
     date: '2026-10-05',

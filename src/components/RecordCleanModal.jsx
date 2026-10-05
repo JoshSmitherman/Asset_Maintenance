@@ -12,8 +12,10 @@ import { formatDate, isValidIsoDate, todayIso } from '../lib/dates';
  */
 export default function RecordCleanModal({ asset, onSubmit, onClose }) {
   const [values, setValues] = useState(() => ({
-    date_cleaned: asset.date_cleaned ?? todayIso(),
-    cleaned_by: asset.cleaned_by ?? '',
+    // A new clean is today's, by whoever does it. Pre-filling the last clean
+    // meant pressing Save recorded nothing new.
+    date_cleaned: todayIso(),
+    cleaned_by: '',
     cleaning_interval_months: String(asset.cleaning_interval_months ?? defaultIntervalFor(asset.device_type)),
     notes: asset.notes ?? ''
   }));
@@ -109,7 +111,11 @@ export default function RecordCleanModal({ asset, onSubmit, onClose }) {
             {errors.date_cleaned ? (
               <span className="field__error">{errors.date_cleaned}</span>
             ) : (
-              <span className="field__hint">Clear both this and Cleaned by to remove the record.</span>
+              <span className="field__hint">
+                {asset.date_cleaned
+                  ? `Last cleaned ${formatDate(asset.date_cleaned)}${asset.cleaned_by ? ` by ${asset.cleaned_by}` : ''}.`
+                  : 'No clean recorded before.'}
+              </span>
             )}
           </div>
 

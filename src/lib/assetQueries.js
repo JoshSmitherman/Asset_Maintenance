@@ -9,7 +9,7 @@ export const EMPTY_FILTERS = {
   status: 'all'
 };
 
-export const DEFAULT_SORT = { key: 'next_clean_due', direction: 'asc' };
+export const DEFAULT_SORT = { key: 'asset_ref', direction: 'asc' };
 
 function matchesSearch(asset, term) {
   if (!term) return true;

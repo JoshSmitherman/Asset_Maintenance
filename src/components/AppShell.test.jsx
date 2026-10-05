@@ -265,3 +265,44 @@ describe('AppShell details view', () => {
     expect(screen.queryByText('Purchase cost')).not.toBeInTheDocument();
   });
 });
+
+describe('AppShell cleaning queue', () => {
+  const fine = { ...asset, id: 'ok-1', asset_ref: 'AST-0099', status: STATUS.OK, daysUntilDue: 120, next_clean_due: '2027-01-30' };
+
+  it('opens on what needs doing, and All lists every laptop and desktop', async () => {
+    hook.assets = [asset, fine];
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: /^cleaning/i }));
+
+    expect(screen.getByRole('button', { name: /needs attention \(1\)/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('AST-0041')).toBeInTheDocument();
+    expect(screen.queryByText('AST-0099')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /all laptops and desktops \(2\)/i }));
+    expect(screen.getByText('AST-0099')).toBeInTheDocument();
+  });
+});
+
+describe('AppShell record clean', () => {
+  it('starts on today, with the cleaner to choose and the last clean shown', async () => {
+    hook.assets = [asset];
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Assets' }));
+    await user.click(screen.getByRole('button', { name: /view details for AST-0041/i }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /record clean/i }));
+
+    const dialog = screen.getByRole('dialog');
+    const today = new Date();
+    const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    expect(within(dialog).getByLabelText(/date cleaned/i)).toHaveValue(iso);
+    expect(within(dialog).getByLabelText(/cleaned by/i)).toHaveValue('');
+    expect(within(dialog).getByText(/last cleaned 14 feb 2026 by josh smitherman/i)).toBeInTheDocument();
+
+    // Cancelling hands back to the details it came from.
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('AST-0041');
+    expect(screen.getByRole('tab', { name: /history/i })).toBeInTheDocument();
+  });
+});

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import Pagination from './Pagination';
 import { usePagination } from '../hooks/usePagination';
-import { formatDate } from '../lib/dates';
+import { formatDate, formatTimestamp } from '../lib/dates';
 
 /**
  * Every clean ever recorded, newest first.
@@ -66,16 +66,29 @@ export default function CleaningHistory({ entries, loading, error, pageSize, onP
               <thead>
                 <tr>
                   <th scope="col">Asset Ref</th>
+                  <th scope="col" className="col-hide-sm">Type</th>
                   <th scope="col">Date of clean</th>
                   <th scope="col">Cleaned by</th>
+                  <th scope="col" className="col-hide-md">Recorded by</th>
                 </tr>
               </thead>
               <tbody>
                 {pager.pageItems.map((entry) => (
                   <tr key={entry.id}>
                     <td className="cell-strong">{entry.asset_ref}</td>
+                    <td className="col-hide-sm">{entry.device_type ?? <span className="cell-muted">—</span>}</td>
                     <td>{formatDate(entry.cleaned_on)}</td>
                     <td>{entry.cleaned_by}</td>
+                    <td className="col-hide-md cell-muted">
+                      {entry.logged_by_email ? (
+                        <>
+                          {entry.logged_by_email}
+                          <span className="cell-block">{formatTimestamp(entry.logged_at)}</span>
+                        </>
+                      ) : (
+                        'Imported'
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

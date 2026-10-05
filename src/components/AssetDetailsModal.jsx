@@ -24,7 +24,7 @@ const EMPTY = <span className="cell-muted">—</span>;
  * and deleting are launched from here rather than crowding every table row
  * with buttons.
  */
-export default function AssetDetailsModal({ asset, onEdit, onDelete, onClose }) {
+export default function AssetDetailsModal({ asset, onEdit, onDelete, onRecordClean, onClose }) {
   const tracked = isCleaningTracked(asset.device_type);
   const specKeys = specsFor(asset.device_type);
   const [tab, setTab] = useState('details');
@@ -132,9 +132,16 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onClose }) 
         <button type="button" className="btn btn--danger-ghost" onClick={() => onDelete(asset)}>
           Delete asset
         </button>
-        <button type="button" className="btn btn--primary" onClick={() => onEdit(asset)}>
-          Edit details
-        </button>
+        <div className="modal__footer-group">
+          {tracked && onRecordClean ? (
+            <button type="button" className="btn btn--brand-light" onClick={() => onRecordClean(asset)}>
+              Record clean
+            </button>
+          ) : null}
+          <button type="button" className="btn btn--primary" onClick={() => onEdit(asset)}>
+            Edit details
+          </button>
+        </div>
       </footer>
     </Modal>
   );

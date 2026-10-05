@@ -78,8 +78,8 @@ export default function LoginPage() {
         </button>
 
         <p className="login__hint">
-          Accounts are created by an administrator in the Supabase dashboard
-          (Authentication → Users). There is no self-service sign-up.
+          No account, or forgotten your password? Ask an admin - they can add
+          you or set a new password from the Admin page.
         </p>
       </form>
     </div>

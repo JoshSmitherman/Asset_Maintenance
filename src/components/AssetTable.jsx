@@ -179,7 +179,8 @@ export default function AssetTable({
                   ) : asset.date_cleaned ? (
                     formatDate(asset.date_cleaned)
                   ) : (
-                    <span className="cell-flag">Never cleaned</span>
+                    // The status badge already says Never Cleaned.
+                    <span className="cell-muted">—</span>
                   )}
                 </td>
               ) : null}

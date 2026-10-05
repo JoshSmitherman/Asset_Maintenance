@@ -121,7 +121,18 @@ export default function AppShell() {
     [cleaningAssets]
   );
 
-  const sourceAssets = page === 'cleaning' ? cleaningAssets : assets;
+  // The queue opens on what needs doing; "All" shows every laptop and
+  // desktop. A status picked on the dashboard always searches them all.
+  const [queueScope, setQueueScope] = useState('attention');
+  const queueAssets = useMemo(
+    () =>
+      queueScope === 'attention'
+        ? cleaningAssets.filter((asset) => ATTENTION_STATUSES.includes(asset.status))
+        : cleaningAssets,
+    [cleaningAssets, queueScope]
+  );
+
+  const sourceAssets = page === 'cleaning' ? queueAssets : assets;
 
   const visibleAssets = useMemo(() => {
     const filtered = filterAssets(sourceAssets, filters);
@@ -257,6 +268,7 @@ export default function AppShell() {
     const asset = cleaningTarget;
     await recordClean(asset.id, asset.version, values);
     setCleaningTarget(null);
+    setReturnToDetails(null);
     setToast({ tone: 'success', message: `Clean recorded for ${asset.asset_ref}.` });
   };
 
@@ -307,6 +319,7 @@ export default function AppShell() {
               activeStatus={filters.status}
               onSelectStatus={(status) => {
                 setFilters((current) => ({ ...current, status }));
+                setQueueScope('all');
                 goToPage(status === 'all' ? 'assets' : 'cleaning');
               }}
               totalValue={totalValue}
@@ -314,7 +327,16 @@ export default function AppShell() {
 
             <Dashboard assets={assets} />
 
-            <AttentionPanel assets={cleaningAssets} onRecordClean={setCleaningTarget} />
+            <AttentionPanel
+              assets={cleaningAssets}
+              onRecordClean={setCleaningTarget}
+              onOpenQueue={() => {
+                setFilters({ ...EMPTY_FILTERS });
+                setQueueScope('attention');
+                setCleaningTab('queue');
+                goToPage('cleaning');
+              }}
+            />
           </>
         ) : page === 'reports' ? (
           <ReportsPage
@@ -367,6 +389,28 @@ export default function AppShell() {
               />
             ) : (
               <>
+                <div className="queue-scope">
+                  <div className="segmented" role="group" aria-label="Which machines to list">
+                    {[
+                      { id: 'attention', label: `Needs attention (${attentionCount})` },
+                      { id: 'all', label: `All laptops and desktops (${cleaningAssets.length})` }
+                    ].map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={`segmented__option${queueScope === option.id ? ' segmented__option--active' : ''}`}
+                        aria-pressed={queueScope === option.id}
+                        onClick={() => {
+                          setQueueScope(option.id);
+                          clearSelection();
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <AssetToolbar
                   filters={filters}
                   onChange={onFiltersChange}
@@ -510,13 +554,17 @@ export default function AppShell() {
           onClose={() => setDetailsTarget(null)}
           onEdit={(asset) => openFromDetails(asset, (item) => setFormState({ asset: item }))}
           onDelete={(asset) => openFromDetails(asset, setPendingDelete)}
+          onRecordClean={(asset) => openFromDetails(asset, setCleaningTarget)}
         />
       ) : null}
 
       {cleaningTarget ? (
         <RecordCleanModal
           asset={cleaningTarget}
-          onClose={() => setCleaningTarget(null)}
+          onClose={() => {
+            setCleaningTarget(null);
+            backToDetails();
+          }}
           onSubmit={handleRecordClean}
         />
       ) : null}
