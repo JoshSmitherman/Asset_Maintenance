@@ -29,7 +29,7 @@ export function changelogMarkdown(releases) {
   const parts = [
     '# Changelog',
     '',
-    'Every change people using the tracker will notice, newest first. The same',
+    'Every change people using Orbit will notice, newest first. The same',
     'notes appear in the app (click the version next to the title) and on each',
     `[GitHub Release](${REPO_URL}/releases).`,
     '',

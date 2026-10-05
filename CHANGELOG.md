@@ -1,11 +1,24 @@
 # Changelog
 
-Every change people using the tracker will notice, newest first. The same
+Every change people using Orbit will notice, newest first. The same
 notes appear in the app (click the version next to the title) and on each
 [GitHub Release](https://github.com/JoshSmitherman/Asset_Maintenance/releases).
 
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
+
+## [2.9.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.9.0) - 2026-10-05
+
+_Say Hello to Orbit_
+
+### General
+
+**New Name**
+
+- **Changed:** The Hardware Maintenance Tracker is now called **Orbit**
+  - The new name is in the header, on the sign-in page and on the browser tab
+  - Everything else works as before: same address, same sign-in, same assets
+- **Changed:** A new orbit icon on the browser tab and in bookmarks
 
 ## [2.8.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.8.0) - 2026-10-05
 

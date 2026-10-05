@@ -1,6 +1,11 @@
-# IT Hardware Maintenance Tracker
+# Orbit
 
-A shared cleaning/maintenance register for a small internal IT support team.
+Orbit is the IT asset management site for a small internal IT support team:
+every device, who has it, and when it was last cleaned or repaired. (The
+GitHub repository is still called `Asset_Maintenance`, so the live address
+ends `/Asset_Maintenance/`.)
+
+It is a shared cleaning/maintenance register.
 Every signed-in technician sees and edits the same data, and the "when is this
 due" logic lives in the database rather than in the browser.
 
@@ -97,7 +102,7 @@ saved — the database owns the dates and the constraints.
 ### 1. Create the Supabase project
 
 1. Go to <https://supabase.com/dashboard> and select **New project**.
-2. Give it a name (for example `it-hardware-tracker`), set a strong database
+2. Give it a name (for example `orbit`), set a strong database
    password, choose the region closest to your team, and create the project.
 3. Wait for provisioning to finish (about a minute).
 
@@ -209,7 +214,7 @@ tested with.
 ```bash
 git init
 git add .
-git commit -m "IT Hardware Maintenance Tracker"
+git commit -m "Orbit"
 git branch -M main
 git remote add origin https://github.com/<your-user>/<your-repo>.git
 git push -u origin main

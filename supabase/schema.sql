@@ -1,5 +1,5 @@
 -- =====================================================================
--- IT Hardware Maintenance Tracker - database schema
+-- Orbit (IT asset management) - database schema
 -- Run this ONCE in the Supabase SQL Editor (Dashboard -> SQL Editor -> New query).
 -- Safe to re-run: every statement is idempotent.
 -- =====================================================================

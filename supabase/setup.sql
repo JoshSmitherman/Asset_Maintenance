@@ -1,5 +1,5 @@
 -- =====================================================================
--- IT Hardware Maintenance Tracker — complete database setup
+-- Orbit (IT asset management) — complete database setup
 --
 -- ONE script that builds the whole database: tables, generated columns,
 -- constraints, indexes, status logic, audit triggers, the cleaning history

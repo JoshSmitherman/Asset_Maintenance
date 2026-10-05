@@ -8,6 +8,32 @@
 
 export const RELEASES = [
   {
+    version: '2.9.0',
+    title: 'Say Hello to Orbit',
+    date: '2026-10-05',
+    sections: [
+      {
+        area: 'General',
+        groups: [
+          {
+            heading: 'New Name',
+            items: [
+              {
+                type: 'changed',
+                text: 'The Hardware Maintenance Tracker is now called **Orbit**',
+                details: [
+                  'The new name is in the header, on the sign-in page and on the browser tab',
+                  'Everything else works as before: same address, same sign-in, same assets'
+                ]
+              },
+              { type: 'changed', text: 'A new orbit icon on the browser tab and in bookmarks' }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.8.0',
     title: 'Release Notes, Ascend Style',
     date: '2026-10-05',

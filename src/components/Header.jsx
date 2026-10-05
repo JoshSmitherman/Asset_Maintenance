@@ -34,7 +34,7 @@ export default function Header({ lastSyncedAt, onOpenReleaseNotes, hasUnseenRele
           <BrandLogo className="app-header__logo" />
           <div>
             <div className="app-header__title-row">
-              <h1 className="app-header__title">Hardware Maintenance Tracker</h1>
+              <h1 className="app-header__title">Orbit</h1>
               {/* The version, as on Ascend: click it for what changed. */}
               <button
                 type="button"

@@ -1,4 +1,4 @@
-// Which copy of the tracker this is, so nobody mistakes a test copy for the
+// Which copy of Orbit this is, so nobody mistakes a test copy for the
 // live site (or the other way round). The live site shows nothing; anything
 // else gets a banner across the top and a tag on the browser tab.
 //
@@ -24,7 +24,7 @@ export function detectEnvironment({ hostname, isDev, override } = {}) {
     return {
       kind: 'custom',
       label: named.toUpperCase(),
-      description: 'A test copy of the tracker, not the live site.'
+      description: 'A test copy of Orbit, not the live site.'
     };
   }
   if (named) return { kind: 'live', label: 'LIVE', description: '' };

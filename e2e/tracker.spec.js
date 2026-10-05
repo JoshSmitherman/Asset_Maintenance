@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { mockSupabase, signIn, gotoAssets } from './support.js';
 
-test.describe('Hardware Maintenance Tracker — end to end (mocked Supabase)', () => {
+test.describe('Orbit — end to end (mocked Supabase)', () => {
   test('shows the login screen to an unauthenticated visitor', async ({ page }) => {
     await mockSupabase(page);
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /hardware maintenance tracker/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^orbit$/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
   });
 

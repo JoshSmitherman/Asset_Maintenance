@@ -38,8 +38,8 @@ export default function LoginPage() {
         <div className="login__brand">
           <BrandLogo className="login__logo" />
           <div>
-            <h1 className="login__title">Hardware Maintenance Tracker</h1>
-            <p className="login__subtitle">Internal IT support team</p>
+            <h1 className="login__title">Orbit</h1>
+            <p className="login__subtitle">IT asset management · Internal IT support team</p>
           </div>
         </div>
 

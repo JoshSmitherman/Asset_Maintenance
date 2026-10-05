@@ -1,9 +1,9 @@
 {
-  "name": "it-hardware-maintenance-tracker",
+  "name": "orbit",
   "private": true,
-  "version": "2.8.0",
+  "version": "2.9.0",
   "type": "module",
-  "description": "Shared IT hardware cleaning/maintenance tracker built with React, Vite and Supabase.",
+  "description": "Orbit: IT asset management for an internal IT team, built with React, Vite and Supabase.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

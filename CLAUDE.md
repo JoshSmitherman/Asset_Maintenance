@@ -1,6 +1,7 @@
-# IT Hardware Maintenance Tracker
+# Orbit
 
-React + Vite front end on GitHub Pages, Supabase (Postgres, Auth, Edge
+Orbit is the team's IT asset management site (formerly the IT Hardware
+Maintenance Tracker). React + Vite front end on GitHub Pages, Supabase (Postgres, Auth, Edge
 Functions) behind it. See README.md for setup and structure.
 
 ## Release notes - update them with every change
