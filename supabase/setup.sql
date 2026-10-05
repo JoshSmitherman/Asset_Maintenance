@@ -81,6 +81,18 @@ create table if not exists public.assets (
   spec_hdmi_ports          smallint,
   spec_dp_ports            smallint,
 
+  -- Retirement. Kit at end of life is retired rather than deleted: it leaves
+  -- the lists but keeps its record, and an admin can restore it.
+  retired_on               date,
+  retired_reason           text,
+  retired_notes            text,
+  retired_by               uuid references auth.users(id) on delete set null,
+  retired_by_email         text,
+  -- Whether the drive was wiped before it left, and who did it.
+  data_wiped               boolean not null default false,
+  data_wiped_by            uuid references auth.users(id) on delete set null,
+  data_wiped_by_email      text,
+
   -- Optimistic-concurrency token, bumped by the trigger on every write.
   version                  integer not null default 1,
 
@@ -115,6 +127,14 @@ alter table public.assets add column if not exists spec_charger_type text;
 alter table public.assets add column if not exists spec_resolution   text;
 alter table public.assets add column if not exists spec_hdmi_ports   smallint;
 alter table public.assets add column if not exists spec_dp_ports     smallint;
+alter table public.assets add column if not exists retired_on          date;
+alter table public.assets add column if not exists retired_reason      text;
+alter table public.assets add column if not exists retired_notes       text;
+alter table public.assets add column if not exists retired_by          uuid references auth.users(id) on delete set null;
+alter table public.assets add column if not exists retired_by_email    text;
+alter table public.assets add column if not exists data_wiped          boolean not null default false;
+alter table public.assets add column if not exists data_wiped_by       uuid references auth.users(id) on delete set null;
+alter table public.assets add column if not exists data_wiped_by_email text;
 
 -- An older database required a user on every asset. It no longer does.
 alter table public.assets alter column owner_name drop not null;
@@ -233,6 +253,28 @@ alter table public.assets add  constraint assets_spec_ports_sane check (
   and (spec_dp_ports   is null or (spec_dp_ports   between 0 and 6))
 );
 
+-- A retired asset says when and why; an active one carries no retirement
+-- details at all, so "is it retired?" has exactly one answer: retired_on.
+-- The reasons mirror RETIRE_REASONS in src/lib/constants.js.
+alter table public.assets drop constraint if exists assets_retirement_complete;
+alter table public.assets add  constraint assets_retirement_complete check (
+  (retired_on is null and retired_reason is null and retired_notes is null and not data_wiped)
+  -- "is not null" is spelt out: "in (...)" on a null reason is unknown, not
+  -- false, and a check lets unknown through.
+  or (retired_on is not null and retired_reason is not null and retired_reason in (
+        'End of life', 'Beyond repair', 'Replaced', 'Lost', 'Stolen', 'Other'))
+);
+
+alter table public.assets drop constraint if exists assets_retired_notes_length;
+alter table public.assets add  constraint assets_retired_notes_length
+  check (retired_notes is null or char_length(retired_notes) <= 500);
+
+-- "Wiped by" only means something once the wipe is confirmed.
+alter table public.assets drop constraint if exists assets_wipe_complete;
+alter table public.assets add  constraint assets_wipe_complete check (
+  data_wiped or (data_wiped_by is null and data_wiped_by_email is null)
+);
+
 
 -- =====================================================================
 -- 3. Indexes
@@ -317,6 +359,48 @@ begin
   if new.date_cleaned is not null and new.date_cleaned > current_date then
     raise exception 'Date Cleaned cannot be in the future (%).', new.date_cleaned
       using errcode = 'check_violation';
+  end if;
+
+  -- Retirement. Anyone may retire kit - it is the safe, reversible way out of
+  -- the register - but only an admin may bring it back.
+  new.retired_notes := nullif(btrim(coalesce(new.retired_notes, '')), '');
+
+  if new.retired_on is not null and new.retired_on > current_date then
+    raise exception 'The retirement date cannot be in the future (%).', new.retired_on
+      using errcode = 'check_violation';
+  end if;
+
+  if tg_op = 'UPDATE' and old.retired_on is not null and new.retired_on is null
+     and not public.is_admin() then
+    raise exception 'Only an admin can restore retired kit.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if new.retired_on is null then
+    -- Restored, or never retired: no trace of a retirement left behind.
+    new.retired_reason      := null;
+    new.retired_notes       := null;
+    new.retired_by          := null;
+    new.retired_by_email    := null;
+    new.data_wiped          := false;
+    new.data_wiped_by       := null;
+    new.data_wiped_by_email := null;
+  elsif tg_op = 'INSERT' or old.retired_on is null then
+    -- Who retired it is whoever is signed in, whatever the client says.
+    new.retired_by       := auth.uid();
+    new.retired_by_email := auth.jwt() ->> 'email';
+  else
+    new.retired_by       := old.retired_by;
+    new.retired_by_email := old.retired_by_email;
+  end if;
+
+  -- Who wiped it is chosen from the team; the email is looked up rather than
+  -- trusted from the client, so it always matches a real account.
+  if not new.data_wiped then
+    new.data_wiped_by       := null;
+    new.data_wiped_by_email := null;
+  elsif new.data_wiped_by is not null then
+    select u.email into new.data_wiped_by_email from auth.users u where u.id = new.data_wiped_by;
   end if;
 
   if tg_op = 'INSERT' then
@@ -455,7 +539,8 @@ comment on table public.asset_events is 'Append-only change history per asset. W
 
 alter table public.asset_events drop constraint if exists asset_events_type_valid;
 alter table public.asset_events add  constraint asset_events_type_valid check (
-  event_type in ('created', 'tracking_started', 'owner', 'department', 'location', 'device_type', 'asset_ref')
+  event_type in ('created', 'tracking_started', 'owner', 'department', 'location', 'device_type', 'asset_ref',
+                 'retired', 'restored')
 );
 
 create index if not exists asset_events_asset_idx on public.asset_events (asset_id, happened_at);
@@ -498,6 +583,18 @@ begin
     insert into public.asset_events (asset_id, asset_ref, event_type, old_value, new_value, actor_id, actor_email)
     values (new.id, new.asset_ref, 'asset_ref', old.asset_ref, new.asset_ref, who_id, who_email);
   end if;
+  if old.retired_on is null and new.retired_on is not null then
+    insert into public.asset_events (asset_id, asset_ref, event_type, details, actor_id, actor_email)
+    values (new.id, new.asset_ref, 'retired',
+            jsonb_build_object('retired_on', new.retired_on, 'reason', new.retired_reason,
+                               'notes', new.retired_notes, 'data_wiped', new.data_wiped,
+                               'data_wiped_by', new.data_wiped_by_email),
+            who_id, who_email);
+  end if;
+  if old.retired_on is not null and new.retired_on is null then
+    insert into public.asset_events (asset_id, asset_ref, event_type, actor_id, actor_email)
+    values (new.id, new.asset_ref, 'restored', who_id, who_email);
+  end if;
 
   return null;
 end;
@@ -530,7 +627,10 @@ create view public.assets_with_status
 with (security_invoker = on) as
 select
   a.*,
-  public.asset_status(a.device_type, a.date_cleaned, a.next_clean_due) as status,
+  case
+    when a.retired_on is not null then 'Retired'
+    else public.asset_status(a.device_type, a.date_cleaned, a.next_clean_due)
+  end                                                                  as status,
   (a.next_clean_due - current_date)                                    as days_until_due
 from public.assets a;
 
@@ -566,15 +666,9 @@ create policy "assets_update_authenticated"
   using (true)
   with check (true);
 
+-- Deleting is for admins only, and its policy is in section 10 because it
+-- needs is_admin(). This removes the older everyone-can-delete policy.
 drop policy if exists "assets_delete_authenticated" on public.assets;
-create policy "assets_delete_authenticated"
-  on public.assets for delete
-  to authenticated
-  using (true);
-
--- Optional hardening: to restrict deletes to named admins, replace the delete
--- policy above with something like
---   using (auth.jwt() ->> 'email' in ('alice@example.com', 'bob@example.com'));
 
 -- History is readable by everyone signed in and written only by the trigger
 -- above, which runs as its owner. Nobody edits or deletes history through the
@@ -622,9 +716,9 @@ alter table public.assets replica identity full;
 
 -- =====================================================================
 -- 10. Admins and users
---     Every account is either an admin or a user. Both can do everything
---     with assets; only admins can add, remove and manage accounts, from the
---     Admin page. Creating an account needs Supabase's service-role key,
+--     Every account is either an admin or a user. Both can add, edit, clean,
+--     repair and retire assets; only admins can delete an asset, restore
+--     retired kit, and add, remove and manage accounts from the Admin page. Creating an account needs Supabase's service-role key,
 --     which must never reach a browser, so the Admin page talks to the
 --     admin-users Edge Function (supabase/functions/admin-users), and that
 --     checks this table before doing anything.
@@ -665,6 +759,15 @@ revoke all on public.user_roles from anon, authenticated;
 grant select on public.user_roles to authenticated;
 grant execute on function public.is_admin() to authenticated;
 
+-- Only admins delete assets. Everyone else retires kit instead, which keeps
+-- the record and can be undone; a delete cannot. A delete by anyone else
+-- simply matches no rows.
+drop policy if exists "assets_delete_admin" on public.assets;
+create policy "assets_delete_admin"
+  on public.assets for delete
+  to authenticated
+  using (public.is_admin());
+
 -- Somebody has to be the first admin. If there is none yet, it is the
 -- oldest account - in practice whoever set the project up. To choose a
 -- different one, run:
@@ -678,6 +781,306 @@ where not exists (select 1 from public.user_roles where role = 'admin')
 order by u.created_at
 limit 1
 on conflict (user_id) do update set role = 'admin';
+
+
+-- =====================================================================
+-- 11. Repairs
+--     In-house fixes: what was wrong, who fixed it, when, and each part
+--     replaced with its cost. The parts are one list on the repair, so a
+--     repair and its parts are saved together or not at all, and the total
+--     is worked out here rather than trusted from the browser.
+-- =====================================================================
+create table if not exists public.repairs (
+  id               uuid primary key default gen_random_uuid(),
+  asset_id         uuid not null references public.assets(id) on delete cascade,
+  repaired_on      date not null,
+  fault            text not null,
+  -- [{"part": "Battery", "cost": 45.00}, ...]
+  parts            jsonb not null default '[]'::jsonb,
+  total_cost       numeric(12, 2) not null default 0,
+  fixed_by         uuid references auth.users(id) on delete set null,
+  fixed_by_email   text,
+  notes            text,
+  created_at       timestamptz not null default now(),
+  created_by       uuid references auth.users(id) on delete set null,
+  created_by_email text,
+  updated_at       timestamptz not null default now(),
+  updated_by_email text
+);
+
+comment on table public.repairs is 'In-house repairs per asset, with itemised parts. Deleting is for admins.';
+
+alter table public.repairs drop constraint if exists repairs_fault_valid;
+alter table public.repairs add  constraint repairs_fault_valid
+  check (btrim(fault) <> '' and char_length(fault) <= 500);
+
+alter table public.repairs drop constraint if exists repairs_notes_length;
+alter table public.repairs add  constraint repairs_notes_length
+  check (notes is null or char_length(notes) <= 2000);
+
+alter table public.repairs drop constraint if exists repairs_parts_is_list;
+alter table public.repairs add  constraint repairs_parts_is_list
+  check (jsonb_typeof(parts) = 'array');
+
+alter table public.repairs drop constraint if exists repairs_total_valid;
+alter table public.repairs add  constraint repairs_total_valid check (total_cost >= 0);
+
+create index if not exists repairs_asset_idx on public.repairs (asset_id, repaired_on desc);
+create index if not exists repairs_date_idx  on public.repairs (repaired_on desc);
+
+create or replace function public.handle_repair_write()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth, pg_temp
+as $$
+declare
+  part      jsonb;
+  total     numeric(12, 2) := 0;
+  fixer     text;
+begin
+  new.fault := btrim(coalesce(new.fault, ''));
+  new.notes := nullif(btrim(coalesce(new.notes, '')), '');
+
+  if new.repaired_on > current_date then
+    raise exception 'The repair date cannot be in the future (%).', new.repaired_on
+      using errcode = 'check_violation';
+  end if;
+
+  -- Every part needs a name and a cost; the total is their sum.
+  if jsonb_typeof(new.parts) <> 'array' then
+    raise exception 'Parts must be a list.' using errcode = 'check_violation';
+  end if;
+  if jsonb_array_length(new.parts) > 30 then
+    raise exception 'A repair can list at most 30 parts.' using errcode = 'check_violation';
+  end if;
+  for part in select value from jsonb_array_elements(new.parts) loop
+    if jsonb_typeof(part) <> 'object'
+       or jsonb_typeof(part -> 'part') is distinct from 'string'
+       or btrim(part ->> 'part') = ''
+       or char_length(part ->> 'part') > 80
+       or jsonb_typeof(part -> 'cost') is distinct from 'number'
+       or (part ->> 'cost')::numeric < 0
+       or (part ->> 'cost')::numeric > 100000 then
+      raise exception 'Each part needs a name and a cost between £0 and £100,000.'
+        using errcode = 'check_violation';
+    end if;
+    total := total + round((part ->> 'cost')::numeric, 2);
+  end loop;
+
+  -- Stored tidily: trimmed names, costs to the penny, nothing else.
+  new.parts := coalesce(
+    (select jsonb_agg(jsonb_build_object('part', btrim(t.p ->> 'part'),
+                                         'cost', round((t.p ->> 'cost')::numeric, 2))
+                      order by t.ord)
+     from jsonb_array_elements(new.parts) with ordinality as t(p, ord)),
+    '[]'::jsonb);
+  new.total_cost := total;
+
+  -- Who fixed it: chosen from the team, defaulting to whoever logs it. The
+  -- email is looked up, never trusted from the browser.
+  if tg_op = 'INSERT' and new.fixed_by is null then
+    new.fixed_by := auth.uid();
+  end if;
+  if new.fixed_by is not null then
+    select u.email into fixer from auth.users u where u.id = new.fixed_by;
+    if fixer is null then
+      raise exception 'Choose who fixed it from the team.' using errcode = 'check_violation';
+    end if;
+    new.fixed_by_email := fixer;
+  elsif tg_op = 'UPDATE' then
+    -- Their account has since been removed; keep the name on the record.
+    new.fixed_by_email := old.fixed_by_email;
+  end if;
+
+  if tg_op = 'INSERT' then
+    new.created_at       := now();
+    new.created_by       := auth.uid();
+    new.created_by_email := auth.jwt() ->> 'email';
+  else
+    -- A repair belongs to one asset for good, and its creation is history.
+    new.asset_id         := old.asset_id;
+    new.created_at       := old.created_at;
+    new.created_by       := old.created_by;
+    new.created_by_email := old.created_by_email;
+  end if;
+  new.updated_at       := now();
+  new.updated_by_email := auth.jwt() ->> 'email';
+
+  return new;
+end;
+$$;
+
+drop trigger if exists repairs_write_trigger on public.repairs;
+create trigger repairs_write_trigger
+  before insert or update on public.repairs
+  for each row execute function public.handle_repair_write();
+
+alter table public.repairs enable row level security;
+
+drop policy if exists "repairs_select_authenticated" on public.repairs;
+create policy "repairs_select_authenticated"
+  on public.repairs for select to authenticated using (true);
+
+drop policy if exists "repairs_insert_authenticated" on public.repairs;
+create policy "repairs_insert_authenticated"
+  on public.repairs for insert to authenticated with check (true);
+
+drop policy if exists "repairs_update_authenticated" on public.repairs;
+create policy "repairs_update_authenticated"
+  on public.repairs for update to authenticated using (true) with check (true);
+
+drop policy if exists "repairs_delete_admin" on public.repairs;
+create policy "repairs_delete_admin"
+  on public.repairs for delete to authenticated using (public.is_admin());
+
+revoke all on public.repairs from anon;
+grant select, insert, update, delete on public.repairs to authenticated;
+
+
+-- =====================================================================
+-- 12. Attachments: invoices, receipts and photos
+--     The files live in a PRIVATE Storage bucket - nobody can open one
+--     without being signed in, even with its address - and this table
+--     records what each file is and what it belongs to: an asset, and
+--     optionally one of its repairs.
+--
+--     Files are kept under the asset's own folder (<asset id>/...), so a
+--     row can only ever point at a file belonging to its own asset.
+--     Anyone signed in can add files; the person who added one, or an
+--     admin, can remove it. Uses the Supabase Free plan's 1 GB of storage.
+-- =====================================================================
+create table if not exists public.attachments (
+  id                uuid primary key default gen_random_uuid(),
+  asset_id          uuid not null references public.assets(id) on delete cascade,
+  repair_id         uuid references public.repairs(id) on delete cascade,
+  storage_path      text not null,
+  file_name         text not null,
+  content_type      text not null,
+  size_bytes        integer not null,
+  uploaded_at       timestamptz not null default now(),
+  uploaded_by       uuid references auth.users(id) on delete set null,
+  uploaded_by_email text
+);
+
+comment on table public.attachments is 'Files attached to an asset or one of its repairs. The files themselves are in the asset-files bucket.';
+
+create unique index if not exists attachments_path_unique on public.attachments (storage_path);
+create index if not exists attachments_asset_idx  on public.attachments (asset_id, uploaded_at);
+create index if not exists attachments_repair_idx on public.attachments (repair_id);
+
+-- The types and the 10 MB limit mirror the bucket below and
+-- ATTACHMENT_TYPES in src/lib/attachments.js.
+alter table public.attachments drop constraint if exists attachments_file_valid;
+alter table public.attachments add  constraint attachments_file_valid check (
+      size_bytes between 1 and 10485760
+  and content_type in ('image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf')
+  and char_length(btrim(file_name)) between 1 and 200
+  and storage_path like (asset_id::text || '/%')
+);
+
+create or replace function public.handle_attachment_write()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth, pg_temp
+as $$
+begin
+  if new.repair_id is not null and not exists (
+    select 1 from public.repairs r where r.id = new.repair_id and r.asset_id = new.asset_id
+  ) then
+    raise exception 'That repair belongs to a different asset.' using errcode = 'check_violation';
+  end if;
+
+  new.file_name         := btrim(new.file_name);
+  new.uploaded_at       := now();
+  new.uploaded_by       := auth.uid();
+  new.uploaded_by_email := auth.jwt() ->> 'email';
+  return new;
+end;
+$$;
+
+drop trigger if exists attachments_write_trigger on public.attachments;
+create trigger attachments_write_trigger
+  before insert on public.attachments
+  for each row execute function public.handle_attachment_write();
+
+alter table public.attachments enable row level security;
+
+drop policy if exists "attachments_select_authenticated" on public.attachments;
+create policy "attachments_select_authenticated"
+  on public.attachments for select to authenticated using (true);
+
+drop policy if exists "attachments_insert_authenticated" on public.attachments;
+create policy "attachments_insert_authenticated"
+  on public.attachments for insert to authenticated with check (true);
+
+drop policy if exists "attachments_delete_own_or_admin" on public.attachments;
+create policy "attachments_delete_own_or_admin"
+  on public.attachments for delete to authenticated
+  using (uploaded_by = auth.uid() or public.is_admin());
+
+-- No update: a file is replaced by removing it and adding the new one.
+revoke all on public.attachments from anon;
+grant select, insert, delete on public.attachments to authenticated;
+
+-- The bucket. Private: files are opened through short-lived signed links.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('asset-files', 'asset-files', false, 10485760,
+        array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'])
+on conflict (id) do update
+  set public             = false,
+      file_size_limit    = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "asset_files_read" on storage.objects;
+create policy "asset_files_read"
+  on storage.objects for select to authenticated
+  using (bucket_id = 'asset-files');
+
+drop policy if exists "asset_files_upload" on storage.objects;
+create policy "asset_files_upload"
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'asset-files');
+
+-- Removing a file: whoever added it, or an admin. A file with no record
+-- (an upload whose record never got saved) may be tidied up by anyone.
+drop policy if exists "asset_files_delete" on storage.objects;
+create policy "asset_files_delete"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'asset-files' and (
+      public.is_admin()
+      or exists (select 1 from public.attachments a
+                 where a.storage_path = objects.name and a.uploaded_by = auth.uid())
+      or not exists (select 1 from public.attachments a where a.storage_path = objects.name)
+    )
+  );
+
+
+-- =====================================================================
+-- 13. The team, for "who fixed it" and "who wiped it"
+--     Signed-in people may see who else has an account - just the id and
+--     email - so those choices can offer the whole team. Anonymous
+--     visitors get nothing.
+-- =====================================================================
+create or replace function public.team_members()
+returns table (id uuid, email text)
+language sql
+stable
+security definer
+set search_path = public, auth, pg_temp
+as $$
+  select u.id, u.email::text
+  from auth.users u
+  where auth.uid() is not null
+    and u.email is not null
+    and u.deleted_at is null
+  order by u.email;
+$$;
+
+revoke all on function public.team_members() from public, anon;
+grant execute on function public.team_members() to authenticated;
 
 
 -- =====================================================================

@@ -60,8 +60,13 @@ export const STATUS = {
   DUE_SOON: 'Due Soon',
   OK: 'OK',
   /** Not a laptop or desktop: inventory-only, never in the cleaning rota. */
-  NOT_TRACKED: 'Not Tracked'
+  NOT_TRACKED: 'Not Tracked',
+  /** At end of life: out of every list and the cleaning rota, record kept. */
+  RETIRED: 'Retired'
 };
+
+/** Why kit was retired. Mirrors assets_retirement_complete in setup.sql. */
+export const RETIRE_REASONS = ['End of life', 'Beyond repair', 'Replaced', 'Lost', 'Stolen', 'Other'];
 
 /** The cleaning statuses. Deliberately excludes NOT_TRACKED so that
  *  inventory-only assets are not counted on the cleaning dashboard. */

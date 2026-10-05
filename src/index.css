@@ -562,6 +562,8 @@ code {
 .badge--ok       { background: var(--green-100); color: var(--green-700); border-color: var(--green-border); }
 .badge--never    { background: var(--slate-100); color: var(--slate-700); border-color: var(--slate-300); }
 .badge--not-tracked { background: transparent; color: var(--slate-500); border-color: var(--slate-200); border-style: dashed; }
+/* Out of service: the warm tint of the retired banner, kept quiet. */
+.badge--retired { background: var(--amber-100); color: var(--slate-500); border-color: var(--amber-border); }
 
 /* ------------------------------------------------------ Empty and alerts */
 .empty-state {
@@ -1803,3 +1805,169 @@ body.no-scroll .theme-toggle { display: none; }
   .purchases__label { font-size: 10px; }
 }
 @media (max-width: 900px) { .dashboard { grid-template-columns: 1fr; } }
+
+/* ------------------------------------------------ Tabs on narrow screens */
+/* An asset can have five tabs; on a phone they scroll sideways rather than
+   wrapping into a ragged second row or pushing the window wider. */
+.tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab { white-space: nowrap; flex: 0 0 auto; }
+
+/* ------------------------------------------------------------- Retiring */
+.checkbox-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.retired-banner {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--amber-border);
+  border-left: 4px solid var(--chart-due-soon);
+  border-radius: var(--radius-md);
+  background: var(--amber-100);
+  color: var(--text);
+}
+.retired-banner__title { display: block; font-size: 14px; color: var(--amber-700); }
+.retired-banner__note { margin: 6px 0 0; font-size: 13.5px; }
+.retired-banner__meta { margin: 6px 0 0; font-size: 12.5px; color: var(--slate-500); }
+
+/* -------------------------------------------------------------- Repairs */
+.repairs__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.repairs__summary { margin: 0; font-size: 13.5px; color: var(--slate-500); }
+
+.repairs__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+
+.repair {
+  padding: 14px 16px;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.repair__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.repair__fault { margin: 0; font-size: 14.5px; font-weight: 600; color: var(--text); }
+.repair__meta { margin: 3px 0 0; font-size: 12.5px; color: var(--slate-500); }
+.repair__total { font-size: 15px; color: var(--heading); white-space: nowrap; }
+
+.repair__parts {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.repair__parts td { padding: 5px 0; border-top: 1px dashed var(--slate-200); color: var(--slate-700); }
+.repair__part-cost { text-align: right; font-variant-numeric: tabular-nums; }
+.repair__no-parts { margin: 8px 0 0; font-size: 12.5px; color: var(--slate-500); }
+.repair__notes { margin: 8px 0 0; font-size: 13px; color: var(--slate-700); white-space: pre-wrap; }
+
+.repair__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--slate-200);
+}
+.repair__confirm-text { font-size: 12.5px; color: var(--red-700); }
+
+/* The form takes the list's place inside the tab. */
+.repair-form { display: grid; gap: 16px; }
+.repair-form__title { margin: 0; font-size: 15px; color: var(--heading); }
+.repair-form__actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+.parts {
+  margin: 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.parts legend { padding: 0 6px; }
+.parts__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 32px;
+  gap: 8px;
+  align-items: start;
+}
+.parts__cost .input { text-align: right; font-variant-numeric: tabular-nums; }
+.parts__remove { margin-top: 3px; font-size: 18px; }
+.parts__footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.parts__total { font-size: 14px; color: var(--slate-700); font-variant-numeric: tabular-nums; }
+.parts__total strong { color: var(--heading); margin-left: 6px; }
+
+/* ---------------------------------------------------------- Attachments */
+.attachments { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.attachments__list { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; gap: 6px; }
+.attachments__empty { margin: 0; width: 100%; font-size: 12.5px; color: var(--slate-500); }
+.attachments__hint { margin: 0; }
+.attachments .form-error { width: 100%; margin: 0; }
+
+.attachment {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-sm);
+  background: var(--slate-050);
+  min-width: 0;
+}
+.attachment__kind {
+  flex: 0 0 auto;
+  width: 34px;
+  padding: 3px 0;
+  border-radius: 4px;
+  background: var(--brand-purple-050);
+  color: var(--accent-text);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+.attachment__body { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+.attachment__name {
+  justify-self: start;
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent-text);
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attachment__name:hover { color: var(--accent-text-hover); }
+.attachment__meta { font-size: 12px; color: var(--slate-500); overflow-wrap: anywhere; }
+.attachment__confirm { display: inline-flex; gap: 6px; flex: 0 0 auto; }
+
+.asset-files__title { margin: 0 0 2px; font-size: 14px; color: var(--heading); }
+.asset-files__title:not(:first-child) { margin-top: 22px; }
+
+@media (max-width: 480px) {
+  .parts__row { grid-template-columns: minmax(0, 1fr) 92px 30px; }
+  .attachment { flex-wrap: wrap; }
+}

@@ -82,8 +82,22 @@ export function seedEvents() {
   ];
 }
 
+/** The team, as public.team_members() returns it. */
+export const TEAM = [
+  { id: 'user-456', email: 'colleague@example.com' },
+  { id: 'user-123', email: 'tech@example.com' }
+];
+
+/** PostgREST filters arrive as "eq.a1" or "in.(a1,a2)". */
+function idsFrom(value) {
+  if (!value) return [];
+  if (value.startsWith('eq.')) return [value.slice(3)];
+  const inList = value.match(/^in\.\((.*)\)$/);
+  return inList ? inList[1].split(',').map((id) => id.replace(/"/g, '')) : [];
+}
+
 export async function mockSupabase(page, { assets = seedAssets(), events = seedEvents(), role = 'user' } = {}) {
-  const state = { assets: [...assets], inserted: [] };
+  const state = { assets: [...assets], inserted: [], repairs: [], attachments: [], uploads: [] };
 
   await page.route('https://stub.supabase.co/**', async (route) => {
     const req = route.request();
@@ -130,7 +144,96 @@ export async function mockSupabase(page, { assets = seedAssets(), events = seedE
         state.inserted.push(body);
         return json(201, [row]);
       }
+      const ids = idsFrom(url.searchParams.get('id'));
+      if (method === 'PATCH') {
+        const body = JSON.parse(req.postData() || '{}');
+        if ('retired_on' in body && body.retired_on === null && role !== 'admin') {
+          return json(403, { code: '42501', message: 'Only an admin can restore retired kit.' });
+        }
+        const touched = [];
+        state.assets = state.assets.map((asset) => {
+          if (!ids.includes(asset.id)) return asset;
+          const next = { ...asset, ...body };
+          if (body.retired_on) {
+            next.status = 'Retired';
+            next.retired_by_email = USER.email;
+            next.data_wiped_by_email = body.data_wiped
+              ? TEAM.find((member) => member.id === body.data_wiped_by)?.email ?? null
+              : null;
+          }
+          touched.push({ id: asset.id });
+          return next;
+        });
+        return json(200, touched);
+      }
+      if (method === 'DELETE') {
+        // Row Level Security: anyone but an admin deletes nothing.
+        if (role !== 'admin') return json(200, []);
+        const gone = state.assets.filter((asset) => ids.includes(asset.id));
+        state.assets = state.assets.filter((asset) => !ids.includes(asset.id));
+        return json(200, gone.map((asset) => ({ id: asset.id })));
+      }
       return json(200, []);
+    }
+
+    // --- Repairs: the total is worked out by the "database" ---
+    if (url.pathname === '/rest/v1/repairs') {
+      const assetId = idsFrom(url.searchParams.get('asset_id'))[0];
+      if (method === 'POST') {
+        const body = JSON.parse(req.postData() || '{}');
+        const total = (body.parts ?? []).reduce((sum, part) => sum + Math.round(part.cost * 100), 0) / 100;
+        const fixer = TEAM.find((member) => member.id === body.fixed_by);
+        const row = {
+          id: `rep-${state.repairs.length + 1}`,
+          ...body,
+          total_cost: total,
+          fixed_by_email: fixer?.email ?? USER.email,
+          created_at: new Date().toISOString()
+        };
+        state.repairs.unshift(row);
+        return json(201, { id: row.id });
+      }
+      if (method === 'DELETE') {
+        if (role !== 'admin') return json(200, []);
+        const ids = idsFrom(url.searchParams.get('id'));
+        state.repairs = state.repairs.filter((repair) => !ids.includes(repair.id));
+        return json(200, ids.map((id) => ({ id })));
+      }
+      return json(200, assetId ? state.repairs.filter((repair) => repair.asset_id === assetId) : state.repairs);
+    }
+
+    // --- Attachments: the record, and the private bucket behind it ---
+    if (url.pathname === '/rest/v1/attachments') {
+      if (method === 'POST') {
+        const body = JSON.parse(req.postData() || '{}');
+        state.attachments.unshift({
+          id: `file-${state.attachments.length + 1}`,
+          ...body,
+          uploaded_at: new Date().toISOString(),
+          uploaded_by: USER.id,
+          uploaded_by_email: USER.email
+        });
+        return json(201, []);
+      }
+      const assetId = idsFrom(url.searchParams.get('asset_id'))[0];
+      const repairId = idsFrom(url.searchParams.get('repair_id'))[0];
+      return json(200, state.attachments.filter((file) =>
+        (assetId ? file.asset_id === assetId : true) && (repairId ? file.repair_id === repairId : true)));
+    }
+    if (url.pathname.startsWith('/storage/v1/object/sign/asset-files/')) {
+      return json(200, { signedURL: `/object/sign/asset-files/stub?token=stub` });
+    }
+    if (url.pathname.startsWith('/storage/v1/object/asset-files/') && method === 'POST') {
+      state.uploads.push(decodeURIComponent(url.pathname.replace('/storage/v1/object/asset-files/', '')));
+      return json(200, { Key: url.pathname });
+    }
+    if (url.pathname === '/storage/v1/object/asset-files' && method === 'DELETE') {
+      return json(200, []);
+    }
+
+    // --- The team, for "who fixed it" ---
+    if (url.pathname === '/rest/v1/rpc/team_members') {
+      return json(200, TEAM);
     }
 
     if (url.pathname === '/rest/v1/asset_events') {

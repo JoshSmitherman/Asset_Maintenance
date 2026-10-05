@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { REPORT_MENU, REPORT_MENU_ITEMS, reportById } from '../lib/reports';
 import { exportCsv } from '../lib/csv';
+import { uniqueUsers } from '../lib/assetQueries';
 
 /**
  * Summaries of what the register already holds, in three groups - assets,
@@ -9,7 +10,16 @@ import { exportCsv } from '../lib/csv';
  * a single menu item with a switch between views. Every report is a table,
  * and every table exports to CSV.
  */
-export default function ReportsPage({ assets, log, logLoading, logError }) {
+export default function ReportsPage({
+  assets,
+  retiredAssets = [],
+  log,
+  logLoading,
+  logError,
+  repairs = [],
+  repairsLoading = false,
+  repairsError = null
+}) {
   const [itemId, setItemId] = useState(REPORT_MENU_ITEMS[0].id);
   // The view chosen for each item, so switching away and back keeps it.
   const [viewByItem, setViewByItem] = useState({});
@@ -17,9 +27,17 @@ export default function ReportsPage({ assets, log, logLoading, logError }) {
   const item = REPORT_MENU_ITEMS.find((entry) => entry.id === itemId) ?? REPORT_MENU_ITEMS[0];
   const viewId = viewByItem[item.id] ?? item.views[0].reportId;
   const report = reportById(viewId);
-  const { columns, rows } = useMemo(() => report.build({ assets, log }), [report, assets, log]);
+  // The person the "By person" report is showing; empty means everyone.
+  const [person, setPerson] = useState('');
+  const people = useMemo(() => uniqueUsers(assets), [assets]);
+  const { columns, rows } = useMemo(
+    () => report.build({ assets, retired: retiredAssets, log, repairs, person }),
+    [report, assets, retiredAssets, log, repairs, person]
+  );
 
   const waitingForLog = report.needsLog && logLoading;
+  const waitingForRepairs = report.needsRepairs && repairsLoading && repairs.length === 0;
+  const loadError = (report.needsLog && logError) || (report.needsRepairs && repairsError) || null;
 
   return (
     <div className="reports">
@@ -57,7 +75,13 @@ export default function ReportsPage({ assets, log, logLoading, logError }) {
           <button
             type="button"
             className="btn btn--primary"
-            onClick={() => exportCsv(`report-${report.id}`, columns, rows)}
+            onClick={() =>
+              exportCsv(
+                person && report.parameter ? `report-${report.id}-${person.replace(/\W+/g, '-')}` : `report-${report.id}`,
+                columns,
+                rows
+              )
+            }
             disabled={rows.length === 0}
           >
             Export CSV
@@ -85,6 +109,21 @@ export default function ReportsPage({ assets, log, logLoading, logError }) {
               </select>
             </div>
 
+            {report.parameter?.kind === 'person' ? (
+              <div className="field field--inline field--wide">
+                <label className="field__label" htmlFor="report-person">{report.parameter.label}</label>
+                <select
+                  id="report-person"
+                  className="select"
+                  value={person}
+                  onChange={(event) => setPerson(event.target.value)}
+                >
+                  <option value="">{report.parameter.everyone}</option>
+                  {people.map((name) => <option key={name} value={name}>{name}</option>)}
+                </select>
+              </div>
+            ) : null}
+
             {item.views.length > 1 ? (
               <div className="reports__views" role="group" aria-label={item.viewLabel}>
                 <span className="field__label">{item.viewLabel}</span>
@@ -110,10 +149,12 @@ export default function ReportsPage({ assets, log, logLoading, logError }) {
           </div>
         </div>
 
-        {report.needsLog && logError ? (
-          <div className="alert alert--error" role="alert"><span>{logError}</span></div>
+        {loadError ? (
+          <div className="alert alert--error" role="alert"><span>{loadError}</span></div>
         ) : waitingForLog ? (
           <p className="empty-state">Loading the cleaning history…</p>
+        ) : waitingForRepairs ? (
+          <p className="empty-state">Loading repairs…</p>
         ) : rows.length === 0 ? (
           <p className="empty-state">Nothing to report on yet.</p>
         ) : (

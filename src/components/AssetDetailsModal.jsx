@@ -3,11 +3,17 @@ import Modal from './Modal';
 import TabStrip from './TabStrip';
 import StatusBadge from './StatusBadge';
 import AssetHistory from './AssetHistory';
+import AssetRepairs from './AssetRepairs';
+import AssetFiles from './AssetFiles';
 import { useAssetHistory } from '../hooks/useAssetHistory';
+import { useRepairs } from '../hooks/useRepairs';
+import { useAttachments } from '../hooks/useAttachments';
 import { formatCurrency, isCleaningTracked } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import { SPEC_FIELDS, hasSpecs, specsFor } from '../lib/specs';
 import { assetLink } from '../lib/assetLinks';
+import { isRetired } from '../lib/assetStatus';
+import { displayNameFromEmail } from '../lib/accountName';
 
 function Row({ label, children }) {
   return (
@@ -58,16 +64,52 @@ function TagLink({ assetRef }) {
  * and deleting are launched from here rather than crowding every table row
  * with buttons.
  */
-export default function AssetDetailsModal({ asset, onEdit, onDelete, onRecordClean, onClose }) {
-  const tracked = isCleaningTracked(asset.device_type);
+/** What was recorded when the kit was retired, above everything else. */
+function RetiredBanner({ asset }) {
+  return (
+    <div className="retired-banner" role="note">
+      <strong className="retired-banner__title">
+        Retired {formatDate(asset.retired_on)} — {asset.retired_reason}
+      </strong>
+      {asset.retired_notes ? <p className="retired-banner__note">{asset.retired_notes}</p> : null}
+      <p className="retired-banner__meta">
+        {asset.data_wiped
+          ? `Data wiped by ${asset.data_wiped_by_email ? displayNameFromEmail(asset.data_wiped_by_email) : 'someone no longer on the team'}.`
+          : 'No data wipe recorded.'}
+        {asset.retired_by_email ? ` Retired by ${displayNameFromEmail(asset.retired_by_email)}.` : ''}
+      </p>
+    </div>
+  );
+}
+
+export default function AssetDetailsModal({
+  asset,
+  isAdmin = false,
+  onEdit,
+  onDelete,
+  onRecordClean,
+  onRetire,
+  onRestore,
+  onToast,
+  onClose
+}) {
+  const retired = isRetired(asset);
+  // Retired kit is out of the cleaning rota, so there is nothing to record.
+  const tracked = isCleaningTracked(asset.device_type) && !retired;
   const specKeys = specsFor(asset.device_type);
   const [tab, setTab] = useState('details');
+  const [writingRepair, setWritingRepair] = useState(false);
 
   // Only computers and monitors have a specification; every asset has a
   // history.
   const showSpecs = hasSpecs(asset.device_type);
   const activeTab = !showSpecs && tab === 'specs' ? 'details' : tab;
   const history = useAssetHistory(asset.id, { enabled: activeTab === 'history' });
+  // Repairs and files are read together: each repair shows its own files,
+  // and the Files tab says which repair a file came from.
+  const repairsOrFiles = activeTab === 'repairs' || activeTab === 'files';
+  const repairs = useRepairs({ assetId: asset.id, enabled: repairsOrFiles });
+  const files = useAttachments({ assetId: asset.id, enabled: repairsOrFiles });
 
   return (
     <Modal
@@ -79,6 +121,8 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onRecordCle
         tabs={[
           { id: 'details', label: 'Details' },
           ...(showSpecs ? [{ id: 'specs', label: 'Specification' }] : []),
+          { id: 'repairs', label: 'Repairs' },
+          { id: 'files', label: 'Files' },
           { id: 'history', label: 'History' }
         ]}
         active={activeTab}
@@ -93,6 +137,18 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onRecordCle
       >
         {activeTab === 'history' ? (
           <AssetHistory asset={asset} {...history} />
+        ) : activeTab === 'repairs' ? (
+          // Retired kit is out of use: its repairs and files are kept to read.
+          <AssetRepairs
+            repairs={repairs}
+            files={files}
+            isAdmin={isAdmin}
+            readOnly={retired}
+            onToast={onToast}
+            onEditingChange={setWritingRepair}
+          />
+        ) : activeTab === 'files' ? (
+          <AssetFiles files={files} repairs={repairs.repairs} isAdmin={isAdmin} readOnly={retired} />
         ) : activeTab === 'specs' ? (
           <dl className="detail-list">
             {specKeys.map((key) => (
@@ -104,6 +160,8 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onRecordCle
             ))}
           </dl>
         ) : (
+          <>
+          {retired ? <RetiredBanner asset={asset} /> : null}
           <dl className="detail-list">
             <Row label="Asset Ref">{asset.asset_ref}</Row>
             <Row label="Device type">{asset.device_type}</Row>
@@ -146,7 +204,9 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onRecordCle
             ) : (
               <Row label="Cleaning">
                 <span className="cell-muted">
-                  Not tracked — only laptops and desktops are in the cleaning rota.
+                  {retired
+                    ? 'Not tracked — retired kit has left the cleaning rota.'
+                    : 'Not tracked — only laptops and desktops are in the cleaning rota.'}
                 </span>
               </Row>
             )}
@@ -158,16 +218,35 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onRecordCle
               <span className="cell-muted cell-block">{asset.updated_by_email || 'unknown user'}</span>
             </Row>
           </dl>
+          </>
         )}
       </div>
 
       {/* No Close button: the header's x does that, and repeating it here only
           crowded the two actions that actually change something. */}
+      {writingRepair ? null : (
       <footer className="modal__footer modal__footer--split">
-        <button type="button" className="btn btn--danger-ghost" onClick={() => onDelete(asset)}>
-          Delete asset
-        </button>
+        {/* Deleting cannot be undone, so it is for admins; everyone else
+            retires kit, which keeps the record and can be reversed. */}
+        {isAdmin && onDelete ? (
+          <button type="button" className="btn btn--danger-ghost" onClick={() => onDelete(asset)}>
+            Delete asset
+          </button>
+        ) : (
+          <span />
+        )}
         <div className="modal__footer-group">
+          {retired ? (
+            isAdmin && onRestore ? (
+              <button type="button" className="btn btn--ghost" onClick={() => onRestore(asset)}>
+                Restore
+              </button>
+            ) : null
+          ) : onRetire ? (
+            <button type="button" className="btn btn--ghost" onClick={() => onRetire(asset)}>
+              Retire
+            </button>
+          ) : null}
           {tracked && onRecordClean ? (
             <button type="button" className="btn btn--brand-light" onClick={() => onRecordClean(asset)}>
               Record clean
@@ -178,6 +257,7 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onRecordCle
           </button>
         </div>
       </footer>
+      )}
     </Modal>
   );
 }

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { ASSETS_TABLE, ASSETS_VIEW, isCleaningTracked } from '../lib/constants';
-import { decorateAsset } from '../lib/assetStatus';
+import { decorateAsset, isRetired } from '../lib/assetStatus';
+import { ATTACHMENTS_BUCKET } from '../lib/attachments';
 import { specPayload } from '../lib/specs';
 import { describeDatabaseError } from '../lib/errors';
 import { todayIso } from '../lib/dates';
@@ -37,7 +38,12 @@ function toWritePayload(values) {
 }
 
 export function useAssets() {
-  const [assets, setAssets] = useState([]);
+  // Every row, retired kit included. Almost everything works from the active
+  // list below, so retired kit drops out of the lists, the cleaning queue,
+  // the dashboard and the reports without each of them having to check.
+  const [allAssets, setAssets] = useState([]);
+  const assets = useMemo(() => allAssets.filter((asset) => !isRetired(asset)), [allAssets]);
+  const retiredAssets = useMemo(() => allAssets.filter(isRetired), [allAssets]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -257,39 +263,90 @@ export function useAssets() {
     [bulkUpdate]
   );
 
+  /**
+   * Retires kit: it leaves every list but keeps its record. Anyone may do
+   * this; the database stamps who did.
+   */
+  const retireAssets = useCallback(
+    async (ids, { retired_on, retired_reason, retired_notes, data_wiped, data_wiped_by }) =>
+      bulkUpdate(ids, {
+        retired_on,
+        retired_reason,
+        retired_notes: retired_notes?.trim() ? retired_notes.trim() : null,
+        data_wiped: Boolean(data_wiped),
+        data_wiped_by: data_wiped ? data_wiped_by || null : null
+      }),
+    [bulkUpdate]
+  );
+
+  /** Brings retired kit back. Admins only - the database refuses anyone else. */
+  const restoreAsset = useCallback(
+    async (id) => {
+      const count = await bulkUpdate([id], { retired_on: null });
+      if (count === 0) throw new Error('Only an admin can restore retired kit.');
+      return count;
+    },
+    [bulkUpdate]
+  );
+
+  /**
+   * Deletes assets outright. Admins only: for anyone else the database
+   * matches no rows, which is reported rather than passed off as success.
+   *
+   * Attached files live in Storage, not the table, so their paths are read
+   * first and the files removed once the delete has actually happened -
+   * never before, or a refused delete would still lose the files.
+   */
   const bulkDelete = useCallback(
     async (ids) => {
-      const { error: deleteError } = await supabase.from(ASSETS_TABLE).delete().in('id', ids);
+      const { data: files } = await supabase
+        .from('attachments')
+        .select('storage_path')
+        .in('asset_id', ids);
+
+      const { data, error: deleteError } = await supabase
+        .from(ASSETS_TABLE)
+        .delete()
+        .in('id', ids)
+        .select('id');
       if (deleteError) throw new Error(describeDatabaseError(deleteError));
+
+      const deleted = data?.length ?? 0;
+      if (deleted === 0) {
+        throw new Error('Only an admin can delete assets. Retire it instead to take it out of use.');
+      }
+
+      const paths = (files ?? []).map((file) => file.storage_path);
+      if (paths.length > 0) {
+        // Best effort: a file left behind is harmless, and removable later.
+        await supabase.storage.from(ATTACHMENTS_BUCKET).remove(paths);
+      }
+
       await load({ quiet: true });
-      return ids.length;
+      return deleted;
     },
     [load]
   );
 
-  const deleteAsset = useCallback(
-    async (id) => {
-      const { error: deleteError } = await supabase.from(ASSETS_TABLE).delete().eq('id', id);
-      if (deleteError) throw new Error(describeDatabaseError(deleteError));
-      await load({ quiet: true });
-    },
-    [load]
-  );
+  const deleteAsset = useCallback((id) => bulkDelete([id]), [bulkDelete]);
 
-  /** Case-insensitive duplicate check before we even hit the database. */
+  /** Case-insensitive duplicate check before we even hit the database.
+   *  Retired kit keeps its reference, so it counts. */
   const assetRefExists = useCallback(
     (assetRef, ignoreId = null) => {
       const needle = assetRef.trim().toUpperCase();
-      return assets.some(
+      return allAssets.some(
         (asset) => asset.id !== ignoreId && String(asset.asset_ref).trim().toUpperCase() === needle
       );
     },
-    [assets]
+    [allAssets]
   );
 
   return useMemo(
     () => ({
       assets,
+      allAssets,
+      retiredAssets,
       loading,
       refreshing,
       error,
@@ -304,12 +361,15 @@ export function useAssets() {
       bulkRecordClean,
       bulkDelete,
       deleteAsset,
+      retireAssets,
+      restoreAsset,
       assetRefExists
     }),
     [
-      assets, loading, refreshing, error, lastSyncedAt, load,
+      assets, allAssets, retiredAssets, loading, refreshing, error, lastSyncedAt, load,
       createAsset, createAssets, updateAsset, recordClean,
-      bulkAssign, bulkRenameModel, bulkRecordClean, bulkDelete, deleteAsset, assetRefExists
+      bulkAssign, bulkRenameModel, bulkRecordClean, bulkDelete, deleteAsset,
+      retireAssets, restoreAsset, assetRefExists
     ]
   );
 }

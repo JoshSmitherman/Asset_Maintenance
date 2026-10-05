@@ -50,12 +50,19 @@ export function statusFor(deviceType, dateCleaned, nextCleanDue, today = todayIs
  * the UI uses. Status is recalculated from the stored next_clean_due date so it
  * stays correct even if the page has been open across a date change.
  */
+export function isRetired(asset) {
+  return Boolean(asset?.retired_on);
+}
+
 export function decorateAsset(row, today = todayIso()) {
   const nextCleanDue = row.next_clean_due ?? null;
   return {
     ...row,
     nextCleanDue,
-    status: statusFor(row.device_type, row.date_cleaned, nextCleanDue, today),
+    // Retired kit has left the cleaning rota, whatever its dates say.
+    status: isRetired(row)
+      ? STATUS.RETIRED
+      : statusFor(row.device_type, row.date_cleaned, nextCleanDue, today),
     daysUntilDue: nextCleanDue ? daysBetween(today, nextCleanDue) : null
   };
 }

@@ -15,6 +15,8 @@ import AssignUserModal from './AssignUserModal';
 import CleaningHistory from './CleaningHistory';
 import ReportsPage from './ReportsPage';
 import AdminPage from './AdminPage';
+import RetireModal from './RetireModal';
+import RetiredList from './RetiredList';
 import ReleaseNotesPage from './ReleaseNotesPage';
 import { CURRENT_VERSION } from '../lib/releaseNotes';
 import { assetRefFromSearch, clearAssetFromAddress, findAssetByRef } from '../lib/assetLinks';
@@ -25,6 +27,7 @@ import ConfirmDialog from './ConfirmDialog';
 import Toast from './Toast';
 import { useAssets } from '../hooks/useAssets';
 import { useCleaningLog } from '../hooks/useCleaningLog';
+import { useRepairs } from '../hooks/useRepairs';
 import { DEFAULT_PAGE_SIZE, usePagination } from '../hooks/usePagination';
 import { summariseAssets } from '../lib/assetStatus';
 import { kitSummary, totalPurchaseValue } from '../lib/dashboardStats';
@@ -43,6 +46,8 @@ import { ATTENTION_STATUSES, isCleaningTracked } from '../lib/constants';
 export default function AppShell() {
   const {
     assets,
+    allAssets,
+    retiredAssets,
     loading,
     error,
     lastSyncedAt,
@@ -56,6 +61,8 @@ export default function AppShell() {
     bulkRecordClean,
     bulkDelete,
     deleteAsset,
+    retireAssets,
+    restoreAsset,
     assetRefExists
   } = useAssets();
 
@@ -88,6 +95,7 @@ export default function AppShell() {
   // has loaded, show that asset's details, as if its eye button were clicked.
   const linkedAssetHandled = useRef(false);
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [retireTarget, setRetireTarget] = useState(null); // { assets: [...], fromBulk }
   // Edit and Delete are both launched from the details view. Dialogs never
   // stack - details closes as one opens - so this remembers where the user
   // came from, to hand them back there if they change their mind.
@@ -104,13 +112,15 @@ export default function AppShell() {
   const cleaningLog = useCleaningLog({
     enabled: (page === 'cleaning' && cleaningTab === 'history') || page === 'reports'
   });
+  // Every repair, for the reports; only fetched while they are open.
+  const allRepairs = useRepairs({ enabled: page === 'reports' });
 
   useEffect(() => {
     if (linkedAssetHandled.current || loading) return;
     const ref = assetRefFromSearch();
     if (!ref) return;
     linkedAssetHandled.current = true;
-    const linked = findAssetByRef(assets, ref);
+    const linked = findAssetByRef(allAssets, ref);
     if (linked) {
       setPage('assets');
       setDetailsTarget(linked);
@@ -119,7 +129,14 @@ export default function AppShell() {
       clearAssetFromAddress();
       setToast({ tone: 'error', message: `No asset ${ref} on the register. It may have been renamed or deleted.` });
     }
-  }, [loading, assets]);
+  }, [loading, allAssets]);
+
+  const detailsAsset = detailsTarget
+    ? allAssets.find((asset) => asset.id === detailsTarget.id) ?? detailsTarget
+    : null;
+
+  // Retired kit follows the same search and filters as the register.
+  const visibleRetired = useMemo(() => filterAssets(retiredAssets, filters), [retiredAssets, filters]);
 
   const summary = useMemo(() => summariseAssets(assets), [assets]);
   const departments = useMemo(() => uniqueDepartments(assets), [assets]);
@@ -252,7 +269,7 @@ export default function AppShell() {
   // holds for that asset rather than the copy captured when it was opened.
   const backToDetails = () => {
     if (!returnToDetails) return;
-    setDetailsTarget(assets.find((asset) => asset.id === returnToDetails) ?? null);
+    setDetailsTarget(allAssets.find((asset) => asset.id === returnToDetails) ?? null);
     setReturnToDetails(null);
   };
 
@@ -299,6 +316,30 @@ export default function AppShell() {
     setPendingDelete(null);
     setReturnToDetails(null);
     setToast({ tone: 'success', message: `Asset ${asset.asset_ref} deleted.` });
+  };
+
+  const handleRetire = async (values) => {
+    const { assets: targets, fromBulk } = retireTarget;
+    const count = await retireAssets(targets.map((asset) => asset.id), values);
+    setRetireTarget(null);
+    setReturnToDetails(null);
+    if (fromBulk) clearSelection();
+    setToast({
+      tone: 'success',
+      message:
+        targets.length === 1
+          ? `${targets[0].asset_ref} retired. It is kept under Retired on the Assets page.`
+          : `${count} assets retired. They are kept under Retired on the Assets page.`
+    });
+  };
+
+  const handleRestore = async (asset) => {
+    try {
+      await restoreAsset(asset.id);
+      setToast({ tone: 'success', message: `${asset.asset_ref} restored to the register.` });
+    } catch (caught) {
+      setToast({ tone: 'error', message: caught.message });
+    }
   };
 
   return (
@@ -367,6 +408,10 @@ export default function AppShell() {
         ) : page === 'reports' ? (
           <ReportsPage
             assets={assets}
+            retiredAssets={retiredAssets}
+            repairs={allRepairs.repairs}
+            repairsLoading={allRepairs.loading}
+            repairsError={allRepairs.error}
             log={cleaningLog.entries}
             logLoading={cleaningLog.loading}
             logError={cleaningLog.error}
@@ -454,7 +499,8 @@ export default function AppShell() {
                   onAssign={() => setBulkAction('assign')}
                   onUnassign={handleBulkUnassign}
                   onRecordClean={() => setBulkAction('clean')}
-                  onDelete={() => setBulkAction('delete')}
+                  onRetire={() => setRetireTarget({ assets: selected, fromBulk: true })}
+                  onDelete={isAdmin ? () => setBulkAction('delete') : undefined}
                 />
 
                 <AssetTable
@@ -504,7 +550,8 @@ export default function AppShell() {
                 onAssign={() => setBulkAction('assign')}
                 onUnassign={handleBulkUnassign}
                 onRecordClean={() => setBulkAction('clean')}
-                onDelete={() => setBulkAction('delete')}
+                onRetire={() => setRetireTarget({ assets: selected, fromBulk: true })}
+                onDelete={isAdmin ? () => setBulkAction('delete') : undefined}
               />
 
               <AssetTable
@@ -544,6 +591,13 @@ export default function AppShell() {
               />
               <Pagination {...unassignedPager} label="the unassigned list" />
             </section>
+
+            <RetiredList
+              assets={visibleRetired}
+              onViewDetails={setDetailsTarget}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+            />
           </>
         )}
 
@@ -574,13 +628,28 @@ export default function AppShell() {
         />
       ) : null}
 
-      {detailsTarget ? (
+      {detailsAsset ? (
         <AssetDetailsModal
-          asset={detailsTarget}
+          asset={detailsAsset}
+          isAdmin={isAdmin}
+          onToast={setToast}
           onClose={() => setDetailsTarget(null)}
           onEdit={(asset) => openFromDetails(asset, (item) => setFormState({ asset: item }))}
-          onDelete={(asset) => openFromDetails(asset, setPendingDelete)}
+          onDelete={isAdmin ? (asset) => openFromDetails(asset, setPendingDelete) : undefined}
           onRecordClean={(asset) => openFromDetails(asset, setCleaningTarget)}
+          onRetire={(asset) => openFromDetails(asset, (item) => setRetireTarget({ assets: [item] }))}
+          onRestore={handleRestore}
+        />
+      ) : null}
+
+      {retireTarget ? (
+        <RetireModal
+          assets={retireTarget.assets}
+          onSubmit={handleRetire}
+          onClose={() => {
+            setRetireTarget(null);
+            backToDetails();
+          }}
         />
       ) : null}
 

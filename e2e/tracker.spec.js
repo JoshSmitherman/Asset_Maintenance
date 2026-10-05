@@ -121,4 +121,124 @@ test.describe('Hardware Maintenance Tracker — end to end (mocked Supabase)', (
     await expect(dialog.getByRole('heading', { name: 'LAP-001' })).toBeVisible();
     await expect(dialog.getByText(/\?asset=LAP-001/)).toBeVisible();
   });
+
+  test('a plain user retires a laptop instead of deleting it', async ({ page }) => {
+    const state = await mockSupabase(page, { role: 'user' });
+    await page.goto('/');
+    await signIn(page);
+    await gotoAssets(page);
+    await page.getByRole('button', { name: /view details for LAP-001/i }).click();
+
+    const dialog = page.getByRole('dialog');
+    // Deleting is for admins; everyone else retires.
+    await expect(dialog.getByRole('button', { name: /delete asset/i })).toHaveCount(0);
+    await dialog.getByRole('button', { name: /^retire$/i }).click();
+
+    const retire = page.getByRole('dialog');
+    await retire.getByLabel(/reason/i).selectOption('Beyond repair');
+    await retire.getByLabel(/data has been wiped/i).check();
+    await retire.getByLabel(/wiped by/i).selectOption('user-456');
+    await retire.getByRole('button', { name: /retire asset/i }).click();
+
+    await expect(page.getByText(/LAP-001 retired/)).toBeVisible();
+    expect(state.assets.find((asset) => asset.id === 'a1')).toMatchObject({
+      retired_reason: 'Beyond repair',
+      data_wiped: true,
+      data_wiped_by: 'user-456'
+    });
+
+    // Off the register, kept under Retired.
+    await expect(page.getByRole('button', { name: /view details for LAP-001/i })).toHaveCount(0);
+    await page.getByRole('button', { name: /^show$/i }).click();
+    await expect(page.getByRole('cell', { name: 'LAP-001', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Beyond repair', exact: true })).toBeVisible();
+  });
+
+  test('logs an in-house repair with itemised parts and a receipt', async ({ page }) => {
+    const state = await mockSupabase(page, { role: 'user' });
+    await page.goto('/');
+    await signIn(page);
+    await gotoAssets(page);
+    await page.getByRole('button', { name: /view details for LAP-001/i }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('tab', { name: /repairs/i }).click();
+    await expect(dialog.getByText('No repairs recorded.')).toBeVisible();
+    await dialog.getByRole('button', { name: /log a repair/i }).click();
+
+    // Fixed by whoever logs it, unless changed.
+    await expect(dialog.getByLabel(/fixed by/i)).toHaveValue('user-123');
+    await dialog.getByLabel(/what was wrong/i).fill('Battery would not hold charge');
+    await dialog.getByLabel(/^part 1$/i).fill('Battery');
+    await dialog.getByLabel(/cost of part 1/i).fill('45.50');
+    await dialog.getByRole('button', { name: /add a part/i }).click();
+    await dialog.getByLabel(/^part 2$/i).fill('Screws');
+    await dialog.getByLabel(/cost of part 2/i).fill('1.20');
+    await expect(dialog.getByText('£46.70')).toBeVisible();
+    await dialog.getByRole('button', { name: /^log repair$/i }).click();
+
+    await expect(dialog.getByText(/1 repair · £46\.70 spent on parts/)).toBeVisible();
+    expect(state.repairs[0]).toMatchObject({
+      asset_id: 'a1',
+      fault: 'Battery would not hold charge',
+      fixed_by: 'user-123',
+      parts: [{ part: 'Battery', cost: 45.5 }, { part: 'Screws', cost: 1.2 }]
+    });
+
+    // A receipt on the repair itself.
+    await dialog.locator('.repair input[type="file"]').setInputFiles({
+      name: 'receipt.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 receipt')
+    });
+    await expect(dialog.getByRole('button', { name: 'receipt.pdf', exact: true })).toBeVisible();
+    expect(state.uploads[0]).toMatch(/^a1\/repairs\/rep-1\/.+-receipt\.pdf$/);
+    expect(state.attachments[0]).toMatchObject({ asset_id: 'a1', repair_id: 'rep-1', file_name: 'receipt.pdf' });
+  });
+
+  test('attaches an invoice to the asset, and refuses a program', async ({ page }) => {
+    const state = await mockSupabase(page, { role: 'user' });
+    await page.goto('/');
+    await signIn(page);
+    await gotoAssets(page);
+    await page.getByRole('button', { name: /view details for LAP-001/i }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('tab', { name: /files/i }).click();
+    const input = dialog.locator('input[type="file"]');
+
+    await input.setInputFiles({ name: 'setup.exe', mimeType: 'application/x-msdownload', buffer: Buffer.from('MZ') });
+    await expect(dialog.getByRole('alert')).toContainText(/not a photo or a PDF/);
+    expect(state.uploads).toHaveLength(0);
+
+    await input.setInputFiles({ name: 'invoice.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') });
+    await expect(dialog.getByRole('button', { name: 'invoice.pdf', exact: true })).toBeVisible();
+    expect(state.uploads[0]).toMatch(/^a1\/[^/]+-invoice\.pdf$/);
+  });
+
+  test('an admin can delete; the delete reaches the database', async ({ page }) => {
+    const state = await mockSupabase(page, { role: 'admin' });
+    await page.goto('/');
+    await signIn(page);
+    await gotoAssets(page);
+    await page.getByRole('button', { name: /view details for DSK-010/i }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /delete asset/i }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /delete asset/i }).click();
+
+    await expect(page.getByText(/DSK-010 deleted/)).toBeVisible();
+    expect(state.assets.map((asset) => asset.id)).toEqual(['a1']);
+  });
+
+  test('reports what one person holds', async ({ page }) => {
+    await mockSupabase(page);
+    await page.goto('/');
+    await signIn(page);
+    await page.getByRole('navigation', { name: /sections/i }).getByRole('button', { name: 'Reports' }).click();
+    await page.getByRole('navigation', { name: /reports/i }).getByRole('button', { name: /by person/i }).click();
+
+    await expect(page.getByRole('cell', { name: 'Alice' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Bob' })).toBeVisible();
+    await page.getByLabel(/^person$/i).selectOption('Bob');
+    await expect(page.getByRole('cell', { name: 'DSK-010', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'LAP-001', exact: true })).toHaveCount(0);
+  });
 });
+
