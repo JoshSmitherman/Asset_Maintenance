@@ -7,6 +7,37 @@
 
 export const RELEASES = [
   {
+    version: '2.2.0',
+    title: 'Reports Reorganised',
+    date: '2026-10-05',
+    sections: [
+      {
+        area: 'Reports',
+        groups: [
+          {
+            heading: 'Reports',
+            items: [
+              { type: 'changed', text: 'Reports are grouped into **Assets**, **Cleaning** and **Full exports**, picked from a menu down the side with a line on what each shows' },
+              { type: 'changed', text: 'Assets by department, by device type and by location are now one report, **Assets by group**, with a switch between them' },
+              { type: 'changed', text: 'Cleans by month and by person are now one report, **Cleaning activity**, with a switch between them' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'General',
+        groups: [
+          {
+            heading: 'Appearance',
+            items: [
+              { type: 'fixed', text: 'In light mode, status badges and error messages had lost their coloured borders' }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.1.0',
     title: 'Dark Mode, Asset History, Admin & Spec Memory',
     date: '2026-10-05',

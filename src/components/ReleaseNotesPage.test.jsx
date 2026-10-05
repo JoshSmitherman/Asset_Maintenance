@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ReleaseNotesPage from './ReleaseNotesPage';
-import { RELEASES } from '../lib/releaseNotes';
+import { CHANGE_TYPES, RELEASES } from '../lib/releaseNotes';
 
 describe('ReleaseNotesPage', () => {
   it('opens on the latest release and switches to an older one', async () => {
@@ -19,9 +19,14 @@ describe('ReleaseNotesPage', () => {
 
   it('shows each change with its badge, and bold where marked', () => {
     render(<ReleaseNotesPage />);
-    expect(screen.getAllByText('Added').length).toBeGreaterThan(0);
-    // "**History**" in the notes renders as bold text, not asterisks.
-    expect(screen.getAllByText('History', { selector: 'strong' }).length).toBeGreaterThan(0);
+    const firstType = RELEASES[0].sections[0].groups[0].items[0].type;
+    expect(screen.getAllByText(CHANGE_TYPES[firstType]).length).toBeGreaterThan(0);
+    // Text marked **like this** in the notes renders bold, not with asterisks.
+    const marked = RELEASES[0].sections
+      .flatMap((section) => section.groups.flatMap((group) => group.items))
+      .map((item) => item.text.match(/\*\*(.+?)\*\*/)?.[1])
+      .find(Boolean);
+    expect(screen.getAllByText(marked, { selector: 'strong' }).length).toBeGreaterThan(0);
     expect(screen.queryByText(/\*\*/)).not.toBeInTheDocument();
   });
 });

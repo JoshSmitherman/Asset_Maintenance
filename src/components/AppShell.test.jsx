@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AppShell from './AppShell';
 import { STATUS } from '../lib/constants';
@@ -162,22 +162,30 @@ describe('AppShell reports', () => {
     const user = userEvent.setup();
     render(<AppShell />);
     await user.click(screen.getByRole('button', { name: 'Reports' }));
-    await user.selectOptions(screen.getByLabelText(/report/i), 'due_this_month');
+    const menu = screen.getByRole('navigation', { name: 'Reports' });
+    await user.click(within(menu).getByRole('button', { name: /due this month/i }));
 
     // The mock asset is overdue, so it is due by the end of any month.
     expect(screen.getByText('AST-0041')).toBeInTheDocument();
     expect(screen.getByText(/1 row/)).toBeInTheDocument();
   });
 
-  it('builds a report from the register', async () => {
+  it('groups the reports and switches between views of one', async () => {
     const user = userEvent.setup();
     render(<AppShell />);
     await user.click(screen.getByRole('button', { name: 'Reports' }));
 
-    expect(screen.getByRole('heading', { name: /^reports$/i })).toBeInTheDocument();
+    const menu = screen.getByRole('navigation', { name: 'Reports' });
+    for (const group of ['Assets', 'Cleaning', 'Full exports']) {
+      expect(within(menu).getByRole('heading', { name: group })).toBeInTheDocument();
+    }
+    // Assets by group opens on departments, and switches to device types.
     expect(screen.getByText('Engineering')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Device type' }));
+    expect(screen.getByRole('button', { name: 'Device type' })).toHaveAttribute('aria-pressed', 'true');
 
-    await user.selectOptions(screen.getByLabelText(/report/i), 'cleaning_person');
+    await user.click(within(menu).getByRole('button', { name: /cleaning activity/i }));
+    await user.click(screen.getByRole('button', { name: 'By person' }));
     expect(screen.getByText('JS')).toBeInTheDocument();
   });
 });

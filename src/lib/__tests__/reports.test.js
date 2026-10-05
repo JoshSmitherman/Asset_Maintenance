@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { REPORTS, ageInYears, reportById } from '../reports';
+import { REPORTS, REPORT_MENU, ageInYears, reportById } from '../reports';
 import { STATUS } from '../../lib/constants';
 
 /** Cleaning dates, kept separate so the register above stays readable. */
@@ -130,5 +130,12 @@ describe('full-list reports', () => {
 describe('reportById', () => {
   it('falls back to the first report for an unknown id', () => {
     expect(reportById('nonsense')).toBe(REPORTS[0]);
+  });
+});
+
+describe('REPORT_MENU', () => {
+  it('shows every report exactly once', () => {
+    const shown = REPORT_MENU.flatMap((group) => group.items.flatMap((item) => item.views.map((view) => view.reportId)));
+    expect([...shown].sort()).toEqual(REPORTS.map((report) => report.id).sort());
   });
 });

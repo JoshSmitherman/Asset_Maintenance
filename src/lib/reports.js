@@ -222,7 +222,7 @@ export const REPORTS = [
   {
     id: 'cleaning_log',
     label: 'Cleaning history (every clean)',
-    description: 'The full log, one row per clean, newest first — rather than the monthly and per-person summaries above.',
+    description: 'The full log, one row per clean, newest first. For totals by month or by person, see Cleaning activity.',
     needsLog: true,
     build: ({ log }) => ({
       columns: [
@@ -271,3 +271,73 @@ export const REPORTS = [
 export function reportById(id) {
   return REPORTS.find((report) => report.id === id) ?? REPORTS[0];
 }
+
+/**
+ * How the Reports page presents REPORTS: three groups, and reports that are
+ * the same table cut different ways (by department, type or location) shown
+ * as one item with a switch between views. Every report in REPORTS appears
+ * exactly once.
+ */
+export const REPORT_MENU = [
+  {
+    category: 'Assets',
+    blurb: 'What we own, and what it is worth',
+    items: [
+      {
+        id: 'assets_by',
+        label: 'Assets by group',
+        summary: 'Counts and value by department, type or location',
+        viewLabel: 'Group by',
+        views: [
+          { reportId: 'department', label: 'Department' },
+          { reportId: 'device_type', label: 'Device type' },
+          { reportId: 'location', label: 'Location' }
+        ]
+      },
+      { id: 'age', label: 'Fleet age', summary: 'How old the kit is', views: [{ reportId: 'age' }] },
+      { id: 'spend', label: 'Spend by year', summary: 'What was bought, and when', views: [{ reportId: 'spend' }] }
+    ]
+  },
+  {
+    category: 'Cleaning',
+    blurb: 'What needs doing, and what has been done',
+    items: [
+      {
+        id: 'due_this_month',
+        label: 'Due this month',
+        summary: 'To clean by the end of the month',
+        views: [{ reportId: 'due_this_month' }]
+      },
+      {
+        id: 'never_cleaned',
+        label: 'Never cleaned',
+        summary: 'No clean on record at all',
+        views: [{ reportId: 'never_cleaned' }]
+      },
+      {
+        id: 'activity',
+        label: 'Cleaning activity',
+        summary: 'Cleans per month or per person',
+        viewLabel: 'Show',
+        views: [
+          { reportId: 'cleaning_month', label: 'By month' },
+          { reportId: 'cleaning_person', label: 'By person' }
+        ]
+      }
+    ]
+  },
+  {
+    category: 'Full exports',
+    blurb: 'Complete lists, ready to download',
+    items: [
+      { id: 'full_register', label: 'Asset register', summary: 'Every asset, every field', views: [{ reportId: 'full_register' }] },
+      { id: 'unassigned', label: 'Unassigned assets', summary: 'Spare or waiting to be issued', views: [{ reportId: 'unassigned' }] },
+      { id: 'cleaning_queue', label: 'Cleaning list', summary: 'Every laptop and desktop with its dates', views: [{ reportId: 'cleaning_queue' }] },
+      { id: 'cleaning_log', label: 'Cleaning history', summary: 'Every clean ever recorded', views: [{ reportId: 'cleaning_log' }] }
+    ]
+  }
+];
+
+export const REPORT_MENU_ITEMS = REPORT_MENU.flatMap((group) =>
+  group.items.map((item) => ({ ...item, category: group.category }))
+);
