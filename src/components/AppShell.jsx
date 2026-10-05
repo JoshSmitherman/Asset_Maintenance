@@ -15,6 +15,8 @@ import AssignUserModal from './AssignUserModal';
 import CleaningHistory from './CleaningHistory';
 import ReportsPage from './ReportsPage';
 import AdminPage from './AdminPage';
+import ReleaseNotesPage from './ReleaseNotesPage';
+import { CURRENT_VERSION } from '../lib/releaseNotes';
 import { useAuth } from '../context/AuthContext';
 import TabStrip from './TabStrip';
 import Pagination from './Pagination';
@@ -58,6 +60,24 @@ export default function AppShell() {
 
   const { isAdmin } = useAuth();
   const [page, setPage] = useState('dashboard');
+  // Which release notes this browser has opened, so the header can flag a
+  // newer version until it is looked at.
+  const [seenVersion, setSeenVersion] = useState(() => {
+    try {
+      return window.localStorage.getItem('release-notes-seen');
+    } catch {
+      return null;
+    }
+  });
+  const openReleaseNotes = () => {
+    goToPage('releases');
+    setSeenVersion(CURRENT_VERSION);
+    try {
+      window.localStorage.setItem('release-notes-seen', CURRENT_VERSION);
+    } catch {
+      // Storage blocked: the marker comes back on reload, which is harmless.
+    }
+  };
   const [filters, setFilters] = useState({ ...EMPTY_FILTERS });
   const [sort, setSort] = useState({ ...DEFAULT_SORT });
   const [formState, setFormState] = useState(null); // { asset?, prefill? }
@@ -253,7 +273,11 @@ export default function AppShell() {
       {/* Header and nav stick as one block so they cannot pin to the same
           offset and overlap each other. */}
       <div className="app-chrome">
-        <Header lastSyncedAt={lastSyncedAt} />
+        <Header
+          lastSyncedAt={lastSyncedAt}
+          onOpenReleaseNotes={openReleaseNotes}
+          hasUnseenRelease={seenVersion !== CURRENT_VERSION}
+        />
         <AppNav
           page={page}
           onChange={goToPage}
@@ -270,7 +294,9 @@ export default function AppShell() {
           </div>
         ) : null}
 
-        {page === 'admin' && isAdmin ? (
+        {page === 'releases' ? (
+          <ReleaseNotesPage />
+        ) : page === 'admin' && isAdmin ? (
           <AdminPage onToast={setToast} specMemory={specMemory} onMergeModels={bulkRenameModel} />
         ) : loading ? (
           <p className="empty-state">Loading assets…</p>

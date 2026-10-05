@@ -102,4 +102,14 @@ test.describe('Hardware Maintenance Tracker — end to end (mocked Supabase)', (
     await expect(nav.getByRole('button', { name: 'Reports' })).toBeVisible();
     await expect(nav.getByRole('button', { name: 'Admin' })).toHaveCount(0);
   });
+
+  test('the version in the header opens the release notes', async ({ page }) => {
+    await mockSupabase(page);
+    await page.goto('/');
+    await signIn(page);
+    await page.getByRole('button', { name: /release notes/i }).click();
+    await expect(page.getByRole('heading', { level: 2, name: 'Release Notes' })).toBeVisible();
+    await page.getByLabel('Version', { exact: true }).selectOption('2.0.0');
+    await expect(page.getByText('Bulk Actions, Cleaning History & Reports')).toBeVisible();
+  });
 });

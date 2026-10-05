@@ -4,8 +4,9 @@ import BrandLogo from './BrandLogo';
 import ChangePasswordModal from './ChangePasswordModal';
 import Toast from './Toast';
 import { formatTimestamp } from '../lib/dates';
+import { CURRENT_VERSION } from '../lib/releaseNotes';
 
-export default function Header({ lastSyncedAt }) {
+export default function Header({ lastSyncedAt, onOpenReleaseNotes, hasUnseenRelease = false }) {
   const { userEmail, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
@@ -31,7 +32,20 @@ export default function Header({ lastSyncedAt }) {
         <div className="app-header__brand">
           <BrandLogo className="app-header__logo" />
           <div>
-            <h1 className="app-header__title">Hardware Maintenance Tracker</h1>
+            <div className="app-header__title-row">
+              <h1 className="app-header__title">Hardware Maintenance Tracker</h1>
+              {/* The version, as on Ascend: click it for what changed. */}
+              <button
+                type="button"
+                className="app-header__version"
+                onClick={onOpenReleaseNotes}
+                title="Release notes"
+                aria-label={`Version ${CURRENT_VERSION}: release notes${hasUnseenRelease ? ' (new)' : ''}`}
+              >
+                {CURRENT_VERSION}
+                {hasUnseenRelease ? <span className="app-header__version-new">New</span> : null}
+              </button>
+            </div>
             <p className="app-header__subtitle">
               {lastSyncedAt ? `Last synced ${formatTimestamp(lastSyncedAt)}` : 'Connecting…'}
             </p>

@@ -103,3 +103,11 @@ export function formatMonth(yearMonth) {
   const date = parseIsoDate(`${yearMonth}-01`);
   return date ? monthFormatter.format(date) : '—';
 }
+
+const longDateFormatter = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** "2026-09-17" as "17 September 2026", for release notes. */
+export function formatLongDate(iso) {
+  const date = parseIsoDate(iso);
+  return date ? longDateFormatter.format(date) : '—';
+}

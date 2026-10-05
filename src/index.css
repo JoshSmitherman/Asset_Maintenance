@@ -75,6 +75,11 @@
   --green-700: #84d4ab;
   --green-100: #14322a;
   --green-border: #2a5b45;
+  /* Release-note badges: Fixed (teal) and Changed (blue). */
+  --teal-100: #10333a;
+  --teal-700: #7fd8e2;
+  --info-100: #172a45;
+  --info-700: #9cc3f3;
 
   --radius-sm: 5px;
   --radius-md: 8px;
@@ -117,13 +122,17 @@ body.light-mode {
 
   --red-700: #a51f1f;
   --red-100: #fdecec;
-  --red-border: var(--red-border);
+  --red-border: #f0bcbc;
   --amber-700: #8a5a00;
   --amber-100: #fff4d9;
-  --amber-border: var(--amber-border);
+  --amber-border: #f0dcae;
   --green-700: #1c6b45;
   --green-100: #e4f5ec;
-  --green-border: var(--green-border);
+  --green-border: #bfe4d1;
+  --teal-100: #def4f6;
+  --teal-700: #0d6b75;
+  --info-100: #e4eefb;
+  --info-700: #1d5aa6;
 
   --shadow-sm: 0 1px 2px rgba(15, 33, 56, 0.08);
   --shadow-md: 0 6px 20px rgba(15, 33, 56, 0.12);
@@ -1425,3 +1434,76 @@ code {
 .tidy-group__legend { padding: 0; margin-bottom: 4px; font-size: 12px; font-weight: 700; color: var(--slate-500); text-transform: uppercase; letter-spacing: 0.04em; }
 .tidy-group__choice { display: flex; align-items: baseline; gap: 8px; font-size: 14px; cursor: pointer; }
 .tidy-group__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------------------------------------------------------- Release notes */
+.app-header__title-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+
+.app-header__version {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: none;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.app-header__version:hover { color: #fff; border-color: rgba(255, 255, 255, 0.6); }
+.app-header__version:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.app-header__version-new {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--brand-purple);
+  color: #fff;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.release-notes__title { font-size: 28px; font-weight: 700; margin-bottom: 18px; }
+
+.release-notes__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 24px;
+  align-items: start;
+}
+.release-notes__picker { position: sticky; top: 140px; }
+
+.release { padding: 30px 32px; }
+.release__version { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.release__name { margin: 6px 0 0; font-weight: 600; }
+.release__date { margin: 6px 0 0; font-size: 15px; font-weight: 600; color: var(--slate-500); }
+
+.release__area { margin-top: 28px; }
+.release__area-title { font-size: 19px; font-weight: 700; margin: 0 0 4px; }
+.release__group { margin-top: 18px; }
+.release__group-title { font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+
+.release__items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.release__item { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.release__text { font-size: 14px; line-height: 1.5; }
+
+.change-badge {
+  justify-self: start;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.change-badge--added   { background: var(--green-100); color: var(--green-700); }
+.change-badge--fixed   { background: var(--teal-100);  color: var(--teal-700); }
+.change-badge--changed { background: var(--info-100);  color: var(--info-700); }
+.change-badge--removed { background: var(--red-100);   color: var(--red-700); }
+
+@media (max-width: 720px) {
+  .release-notes__layout { grid-template-columns: 1fr; }
+  .release-notes__picker { position: static; order: -1; }
+  .release { padding: 20px 18px; }
+  .release__item { grid-template-columns: 1fr; gap: 4px; }
+}

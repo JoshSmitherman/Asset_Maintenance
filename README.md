@@ -351,6 +351,7 @@ nobody needs the Supabase dashboard to manage them day to day.
 │   │   ├── AppShell.jsx           signed-in layout and all state wiring
 │   │   ├── AssetDetailsModal.jsx  read-only view: details, specification, history
 │   │   ├── AssetHistory.jsx       who-has-had-it bar and event timeline
+│   │   ├── ReleaseNotesPage.jsx   what changed in each version
 │   │   ├── SpecMemory.jsx         copies specs from models already on the register
 │   │   ├── BulkActionBar.jsx      actions for the ticked rows
 │   │   ├── CleaningHistory.jsx    every clean recorded, newest first
@@ -390,6 +391,13 @@ nobody needs the Supabase dashboard to manage them day to day.
 ---
 
 ## Customising
+
+**Release notes** — click the version number next to the title to read them.
+For each new release, add an entry at the top of
+[`src/lib/releaseNotes.js`](src/lib/releaseNotes.js) (grouped by page, each
+change marked added, changed, fixed or removed) and set the same version in
+`package.json`; a test fails if the two disagree. The header shows a **New**
+marker until someone has opened the latest notes.
 
 **Add or change the cleaners' initials or device types** — edit the lists in
 `src/lib/constants.js` **and** the matching check constraints in
