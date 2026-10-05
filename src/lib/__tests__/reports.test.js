@@ -139,3 +139,81 @@ describe('REPORT_MENU', () => {
     expect([...shown].sort()).toEqual(REPORTS.map((report) => report.id).sort());
   });
 });
+
+describe('assets by person', () => {
+  const kit = [
+    { id: 'a', asset_ref: 'LAP-2', device_type: 'Laptop', owner_name: 'Ann', department: 'IT', purchase_cost: 1000, status: STATUS.OVERDUE },
+    { id: 'b', asset_ref: 'LAP-1', device_type: 'Laptop', owner_name: 'Ann', department: 'IT', purchase_cost: 500, status: STATUS.OK },
+    { id: 'c', asset_ref: 'MON-1', device_type: 'Monitor', owner_name: 'Bo', department: 'Ops', purchase_cost: 200, status: STATUS.NOT_TRACKED },
+    { id: 'd', asset_ref: 'SPARE-1', device_type: 'Laptop', owner_name: null, department: 'IT', purchase_cost: 900, status: STATUS.OK }
+  ];
+  const repairs = [{ asset_id: 'a', total_cost: 75.5, repaired_on: '2026-09-01', parts: [] }];
+  const build = (person) => reportById('person').build({ assets: kit, repairs, person });
+
+  it('gives everyone a line, with their value, overdue cleans and repair spend', () => {
+    const { rows } = build('');
+    expect(rows.map((row) => row.label)).toEqual(['Ann', 'Bo']);
+    expect(rows[0]).toMatchObject({ count: 2, value: 1500, overdue: 1, repairs: 75.5 });
+  });
+
+  it('leaves spare kit out - nobody holds it', () => {
+    expect(build('').rows.map((row) => row.label)).not.toContain(null);
+  });
+
+  it('lists one person\'s kit, with each asset\'s repairs', () => {
+    const { rows, columns } = build('Ann');
+    expect(rows.map((row) => row.asset_ref)).toEqual(['LAP-1', 'LAP-2']);
+    const repairsColumn = columns.find((column) => column.key === 'repairs');
+    expect(repairsColumn.format(rows[1])).toBe('1 · £75.50');
+    expect(repairsColumn.format(rows[0])).toBe('None');
+  });
+});
+
+describe('repair reports', () => {
+  const kit = [{ id: 'a', asset_ref: 'LAP-1', device_type: 'Laptop' }];
+  const retiredKit = [{ id: 'z', asset_ref: 'LAP-OLD', device_type: 'Laptop', retired_on: '2026-09-30' }];
+  const repairs = [
+    { asset_id: 'a', repaired_on: '2026-08-01', total_cost: 45.5, fixed_by_email: 'josh.smitherman@adaro.net',
+      parts: [{ part: 'Battery', cost: 45.5 }] },
+    { asset_id: 'z', repaired_on: '2026-09-01', total_cost: 130, fixed_by_email: 'josh.smitherman@adaro.net',
+      parts: [{ part: 'battery ', cost: 50 }, { part: 'Screen', cost: 80 }] },
+    { asset_id: 'gone', repaired_on: '2026-07-01', total_cost: 0, fixed_by_email: null, parts: [] }
+  ];
+  const run = (id) => reportById(id).build({ assets: kit, retired: retiredKit, repairs });
+
+  it('names each repair\'s asset, retired kit included', () => {
+    const { rows, columns } = run('repairs_all');
+    const ref = columns.find((column) => column.key === 'asset_ref');
+    expect(rows.map((row) => ref.format(row))).toEqual(['LAP-OLD', 'LAP-1', 'Deleted asset']);
+  });
+
+  it('puts the most expensive asset first', () => {
+    const { rows } = run('repairs_by_asset');
+    expect(rows[0]).toMatchObject({ label: 'LAP-OLD', count: 1, spent: 130 });
+  });
+
+  it('counts "Battery" and "battery " as the same part', () => {
+    const { rows } = run('repairs_by_part');
+    expect(rows[0]).toMatchObject({ label: 'Battery', times: 2, pence: 9550 });
+  });
+
+  it('credits each person with their repairs', () => {
+    const { rows } = run('repairs_by_person');
+    expect(rows[0]).toMatchObject({ label: 'Josh Smitherman', count: 2 });
+    expect(rows.map((row) => row.label)).toContain('No longer on the team');
+  });
+});
+
+describe('retired kit report', () => {
+  it('lists retired kit newest first, with who wiped it', () => {
+    const retired = [
+      { asset_ref: 'LAP-1', retired_on: '2026-01-01', retired_reason: 'End of life', data_wiped: false },
+      { asset_ref: 'LAP-2', retired_on: '2026-09-01', retired_reason: 'Stolen', data_wiped: true,
+        data_wiped_by_email: 'josh.smitherman@adaro.net' }
+    ];
+    const { rows, columns } = reportById('retired').build({ assets: [], retired });
+    expect(rows.map((row) => row.asset_ref)).toEqual(['LAP-2', 'LAP-1']);
+    const wipedBy = columns.find((column) => column.key === 'data_wiped_by_email');
+    expect(wipedBy.format(rows[0])).toBe('Josh Smitherman');
+  });
+});

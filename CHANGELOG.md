@@ -7,6 +7,38 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.5.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.5.0) - 2026-10-05
+
+_Repairs, Files & Retiring Kit_
+
+### Assets
+
+**Repairs**
+
+- **Added:** A **Repairs** tab on every asset. Log an in-house fix: what was wrong, the date, who fixed it and each part replaced with its cost. The total adds itself up
+- **Added:** **Fixed by** starts as whoever is logging the repair, and can be changed to anyone on the team
+- **Added:** Receipts and photos can be attached to each repair
+
+**Files**
+
+- **Added:** A **Files** tab on every asset for the purchase invoice, warranty papers and photos. Photos and PDFs up to 10 MB each
+- **Added:** Files are private: they only open for people signed in to the tracker, even if someone has the link
+
+**Retiring Kit**
+
+- **Added:** **Retire** takes kit at the end of its life out of the register, the cleaning queue and the dashboard, but keeps its record, repairs and files
+- **Added:** Retiring records the date, the reason, and whether the data was wiped and by whom
+- **Added:** A folded **Retired** list at the bottom of the Assets page. Tick several assets to retire them together
+- **Changed:** Only admins can **Delete** an asset or a repair, or **Restore** retired kit. Everyone else retires kit instead, which can be undone
+
+### Reports
+
+**New Reports**
+
+- **Added:** **By person**: everything one person holds, with its value, cleaning state and repairs. Or everyone, a line each
+- **Added:** **Repairs**: every repair, or totalled by asset, by part or by the person who fixed it
+- **Added:** **Retired kit**: what was retired, when, why, and whether its data was wiped
+
 ## [2.4.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.4.0) - 2026-10-05
 
 _NFC Tag Links_

@@ -5,7 +5,8 @@ const CLASS_BY_STATUS = {
   [STATUS.DUE_SOON]: 'badge badge--due-soon',
   [STATUS.OK]: 'badge badge--ok',
   [STATUS.NEVER_CLEANED]: 'badge badge--never',
-  [STATUS.NOT_TRACKED]: 'badge badge--not-tracked'
+  [STATUS.NOT_TRACKED]: 'badge badge--not-tracked',
+  [STATUS.RETIRED]: 'badge badge--retired'
 };
 
 export default function StatusBadge({ status, title }) {

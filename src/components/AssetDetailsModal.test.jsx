@@ -115,7 +115,7 @@ describe('AssetDetailsModal', () => {
   it('hands the asset to edit and delete', async () => {
     const onEdit = vi.fn();
     const onDelete = vi.fn();
-    render(<AssetDetailsModal asset={asset} onEdit={onEdit} onDelete={onDelete} onClose={() => {}} />);
+    render(<AssetDetailsModal asset={asset} isAdmin onEdit={onEdit} onDelete={onDelete} onClose={() => {}} />);
 
     await userEvent.click(screen.getByRole('button', { name: /edit details/i }));
     expect(onEdit).toHaveBeenCalledWith(asset);

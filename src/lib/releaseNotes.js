@@ -7,6 +7,55 @@
 
 export const RELEASES = [
   {
+    version: '2.5.0',
+    title: 'Repairs, Files & Retiring Kit',
+    date: '2026-10-05',
+    sections: [
+      {
+        area: 'Assets',
+        groups: [
+          {
+            heading: 'Repairs',
+            items: [
+              { type: 'added', text: 'A **Repairs** tab on every asset. Log an in-house fix: what was wrong, the date, who fixed it and each part replaced with its cost. The total adds itself up' },
+              { type: 'added', text: '**Fixed by** starts as whoever is logging the repair, and can be changed to anyone on the team' },
+              { type: 'added', text: 'Receipts and photos can be attached to each repair' }
+            ]
+          },
+          {
+            heading: 'Files',
+            items: [
+              { type: 'added', text: 'A **Files** tab on every asset for the purchase invoice, warranty papers and photos. Photos and PDFs up to 10 MB each' },
+              { type: 'added', text: 'Files are private: they only open for people signed in to the tracker, even if someone has the link' }
+            ]
+          },
+          {
+            heading: 'Retiring Kit',
+            items: [
+              { type: 'added', text: '**Retire** takes kit at the end of its life out of the register, the cleaning queue and the dashboard, but keeps its record, repairs and files' },
+              { type: 'added', text: 'Retiring records the date, the reason, and whether the data was wiped and by whom' },
+              { type: 'added', text: 'A folded **Retired** list at the bottom of the Assets page. Tick several assets to retire them together' },
+              { type: 'changed', text: 'Only admins can **Delete** an asset or a repair, or **Restore** retired kit. Everyone else retires kit instead, which can be undone' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Reports',
+        groups: [
+          {
+            heading: 'New Reports',
+            items: [
+              { type: 'added', text: '**By person**: everything one person holds, with its value, cleaning state and repairs. Or everyone, a line each' },
+              { type: 'added', text: '**Repairs**: every repair, or totalled by asset, by part or by the person who fixed it' },
+              { type: 'added', text: '**Retired kit**: what was retired, when, why, and whether its data was wiped' }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.4.0',
     title: 'NFC Tag Links',
     date: '2026-10-05',

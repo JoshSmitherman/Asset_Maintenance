@@ -33,6 +33,15 @@ export function describeDatabaseError(error, context = {}) {
       "cache may be stale - run: notify pgrst, 'reload schema';"
     );
   }
+  // The database's own refusals already say what to do; let them through
+  // rather than turning them into a generic "no permission".
+  if (message.startsWith('Only an admin')) return message;
+  if (message.includes('assets_retirement_complete')) {
+    return 'Choose why the asset is being retired.';
+  }
+  if (message.includes('attachments_file_valid')) {
+    return 'That file cannot be attached. Use a photo or a PDF of 10 MB or less.';
+  }
   if (code === '42501' || message.toLowerCase().includes('row-level security')) {
     return 'You do not have permission to do that. Try signing out and back in.';
   }

@@ -34,6 +34,11 @@ const many = Array.from({ length: 7 }, (_, index) => ({
 
 const hook = {
   assets: [asset],
+  retiredAssets: [],
+  // Every row, retired kit included - what the real hook derives the other two from.
+  get allAssets() {
+    return [...this.assets, ...this.retiredAssets];
+  },
   loading: false,
   error: null,
   lastSyncedAt: null,
@@ -46,8 +51,13 @@ const hook = {
   bulkRecordClean: vi.fn().mockResolvedValue(2),
   bulkDelete: vi.fn().mockResolvedValue(2),
   deleteAsset: vi.fn(),
+  retireAssets: vi.fn().mockResolvedValue(1),
+  restoreAsset: vi.fn().mockResolvedValue(1),
   assetRefExists: () => false
 };
+
+// Who is signed in. Most tests act as an admin; the role tests say otherwise.
+const auth = { isAdmin: true };
 
 vi.mock('../hooks/useAssets', () => ({ useAssets: () => hook }));
 vi.mock('../hooks/useCleaningLog', () => ({
@@ -62,7 +72,11 @@ vi.mock('../hooks/useCleaningLog', () => ({
   })
 }));
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ user: { email: 'josh.smitherman@adaro.net' }, signOut: vi.fn() })
+  useAuth: () => ({
+    user: { id: 'u-josh', email: 'josh.smitherman@adaro.net' },
+    isAdmin: auth.isAdmin,
+    signOut: vi.fn()
+  })
 }));
 
 async function openDetails(user) {
@@ -72,6 +86,8 @@ async function openDetails(user) {
 
 beforeEach(() => {
   hook.assets = [asset];
+  hook.retiredAssets = [];
+  auth.isAdmin = true;
 });
 
 describe('AppShell bulk actions and paging', () => {
@@ -323,5 +339,110 @@ describe('AppShell asset links', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByText(/no asset NOPE-1 on the register/i)).toBeInTheDocument();
     expect(window.location.search).toBe('');
+  });
+});
+
+describe('AppShell retiring and deleting', () => {
+  const retired = {
+    ...asset,
+    id: 'r-1',
+    asset_ref: 'AST-0009',
+    status: 'Retired',
+    retired_on: '2026-09-30',
+    retired_reason: 'Beyond repair',
+    data_wiped: true,
+    data_wiped_by_email: 'josh.smitherman@adaro.net'
+  };
+
+  it('offers a plain user Retire but never Delete', async () => {
+    auth.isAdmin = false;
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await openDetails(user);
+
+    expect(screen.getByRole('button', { name: /^retire$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /delete asset/i })).not.toBeInTheDocument();
+
+    // The bulk bar is the same: Retire, no Delete.
+    await user.click(screen.getByRole('button', { name: /^close$/i }));
+    await user.click(screen.getByRole('checkbox', { name: /select AST-0041/i }));
+    expect(screen.getByRole('button', { name: /^retire$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
+  });
+
+  it('retires an asset with a reason and who wiped it', async () => {
+    auth.isAdmin = false;
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await openDetails(user);
+
+    await user.click(screen.getByRole('button', { name: /^retire$/i }));
+    // A reason is required.
+    await user.click(screen.getByRole('button', { name: /retire asset/i }));
+    expect(screen.getByText(/choose why it is being retired/i)).toBeInTheDocument();
+    expect(hook.retireAssets).not.toHaveBeenCalled();
+
+    await user.selectOptions(screen.getByLabelText(/reason/i), 'Beyond repair');
+    await user.click(screen.getByLabelText(/data has been wiped/i));
+    await user.click(screen.getByRole('button', { name: /retire asset/i }));
+
+    expect(hook.retireAssets).toHaveBeenCalledWith(
+      ['a1'],
+      expect.objectContaining({ retired_reason: 'Beyond repair', data_wiped: true, data_wiped_by: 'u-josh' })
+    );
+  });
+
+  it('keeps retired kit off the register, under its own folded list', async () => {
+    hook.retiredAssets = [retired];
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Assets' }));
+
+    expect(screen.getByRole('heading', { name: /^retired$/i })).toBeInTheDocument();
+    expect(screen.queryByText('AST-0009')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^show$/i }));
+    expect(screen.getByText('AST-0009')).toBeInTheDocument();
+    expect(screen.getAllByText('Beyond repair').length).toBeGreaterThan(0);
+  });
+
+  it('lets an admin restore retired kit, and only an admin', async () => {
+    hook.retiredAssets = [retired];
+    const user = userEvent.setup();
+    const { unmount } = render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Assets' }));
+    await user.click(screen.getByRole('button', { name: /^show$/i }));
+    await user.click(screen.getByRole('button', { name: /view details for AST-0009/i }));
+
+    expect(screen.getByText(/retired .* beyond repair/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^restore$/i }));
+    expect(hook.restoreAsset).toHaveBeenCalledWith('r-1');
+    unmount();
+
+    auth.isAdmin = false;
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Assets' }));
+    await user.click(screen.getByRole('button', { name: /^show$/i }));
+    await user.click(screen.getByRole('button', { name: /view details for AST-0009/i }));
+    expect(screen.queryByRole('button', { name: /^restore$/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('AppShell reports by person', () => {
+  it('shows everyone, then one person\'s kit when picked', async () => {
+    hook.assets = many;
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Reports' }));
+    // The side menu and the phone dropdown both offer it; take the menu.
+    await user.click(screen.getAllByRole('button', { name: /by person/i })[0]);
+
+    expect(screen.getByRole('heading', { name: /^by person$/i })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'Person 0' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'Person 3' })).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/^person$/i), 'Person 3');
+    expect(screen.getByRole('cell', { name: 'AST-103' })).toBeInTheDocument();
+    expect(screen.queryByRole('cell', { name: 'AST-100' })).not.toBeInTheDocument();
   });
 });

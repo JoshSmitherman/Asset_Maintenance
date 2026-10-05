@@ -19,9 +19,14 @@ is a shortcut that filters the table below it.
 days, most urgent first, with a one-click **Record clean** button that opens the
 asset pre-filled with today's date.
 
-**Asset register** — add, edit, delete and search assets; filter by device type,
-department, cleaner and status; sort by any column; delete asks for confirmation
-first.
+**Asset register** — add, edit, retire and search assets; filter by device type,
+department, cleaner and status; sort by any column. Only admins can delete, and
+delete asks for confirmation first.
+
+**Retiring** — kit at the end of its life is retired rather than deleted: it
+leaves the register, the cleaning queue and the dashboard but keeps its record,
+repairs and files, with the date, the reason and who wiped its data. Retired kit
+is listed, folded away, at the bottom of the Assets page; an admin can restore it.
 
 **Asset fields** — Asset Ref, Device Type (Laptop/Desktop), Owner, Department,
 Date Cleaned, Cleaned By (AL/BB/JS/RC/TM), Notes, Next Clean Due, Status, plus a
@@ -38,8 +43,17 @@ learns from your own register as it grows; nothing is sent anywhere.
 (one stretch per person, as wide as they held it) above a timeline of every
 move, department or location change, clean and its purchase.
 
+**Repairs** — each asset's **Repairs** tab logs in-house fixes: what was wrong,
+who fixed it, when, and each part replaced with its cost, totalled for you.
+
+**Files** — invoices, receipts and photos on an asset or on one of its repairs,
+kept in a private Supabase Storage bucket (the Free plan's 1 GB): a file only
+opens for someone signed in, through a link that lasts two minutes.
+
 **Admin** — admins get an **Admin** page to add accounts, reset passwords,
 remove people and make others admins (needs the `admin-users` Edge Function).
+Admins are also the only ones who can delete an asset or a repair, or restore
+retired kit.
 
 ### Business rules
 
@@ -59,6 +73,12 @@ remove people and make others admins (needs the `admin-users` Edge Function).
 | Two people editing the same asset cannot silently overwrite each other | `version` column + optimistic concurrency check on update |
 | Every change of user, department, location, type or reference is recorded | `log_asset_change()` trigger into `asset_events` |
 | Only admins can manage accounts | `user_roles` table, checked by the `admin-users` Edge Function |
+| Only admins can delete an asset or a repair; anyone else's delete matches nothing | `assets_delete_admin` / `repairs_delete_admin` policies |
+| Retired kit always says when and why; only an admin can restore it | `assets_retirement_complete` check + `handle_asset_write()` trigger |
+| A repair's total is the sum of its parts, worked out by the database | `handle_repair_write()` trigger |
+| Who fixed a repair, or wiped a drive, is a real account; the email is looked up, not trusted | same triggers, from `auth.users` |
+| Files are photos or PDFs up to 10 MB, kept under their own asset's folder | `attachments_file_valid` check + the private `asset-files` bucket |
+| A file can be removed by whoever added it, or an admin | `attachments` and `storage.objects` policies |
 
 The browser recalculates status from the **stored** `next_clean_due` date so an
 all-day-open tab stays correct past midnight, but it never decides what gets

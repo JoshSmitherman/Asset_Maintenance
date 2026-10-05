@@ -14,6 +14,8 @@ export default function BulkActionBar({
   onAssign,
   onUnassign,
   onRecordClean,
+  onRetire,
+  // Only passed for admins: everyone else retires kit rather than deleting it.
   onDelete
 }) {
   if (count === 0) return null;
@@ -51,9 +53,16 @@ export default function BulkActionBar({
             Record clean{cleanableCount !== count ? ` (${cleanableCount})` : ''}
           </button>
         ) : null}
-        <button type="button" className="btn btn--small btn--danger-ghost" onClick={onDelete}>
-          Delete
-        </button>
+        {onRetire ? (
+          <button type="button" className="btn btn--small btn--ghost" onClick={onRetire}>
+            Retire
+          </button>
+        ) : null}
+        {onDelete ? (
+          <button type="button" className="btn btn--small btn--danger-ghost" onClick={onDelete}>
+            Delete
+          </button>
+        ) : null}
         <button type="button" className="bulk-bar__link" onClick={onClear}>
           Clear
         </button>
