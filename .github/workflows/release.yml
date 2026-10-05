@@ -41,14 +41,26 @@ jobs:
           node-version: 20
 
       - name: Tag earlier releases listed in release-history.txt
+        # Through the API rather than git push: GitHub refuses to let this
+        # workflow's token push a tag onto an old commit whose workflow files
+        # differ from today's. If the API is refused as well, the tag is
+        # reported for creating by hand and the rest of the release goes on.
         run: |
-          grep -vE '^(#|$)' .github/release-history.txt | while read -r version commit; do
+          missing=""
+          while read -r version commit; do
             tag="v$version"
             git rev-parse -q --verify "refs/tags/$tag" >/dev/null && continue
-            git tag "$tag" "$commit"
-            git push origin "$tag"
-            echo "Tagged $commit as $tag."
-          done
+            sha="$(git rev-parse "$commit^{commit}")"
+            if gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$sha" >/dev/null; then
+              git fetch -q origin "refs/tags/$tag:refs/tags/$tag"
+              echo "Tagged $commit as $tag."
+            else
+              missing="$missing $tag@$commit"
+            fi
+          done < <(grep -vE '^(#|$)' .github/release-history.txt)
+          if [ -n "$missing" ]; then
+            echo "::warning title=Earlier releases not tagged::GitHub would not let the workflow tag:$missing. Create them once by hand: Releases -> Draft a new release -> type the tag -> Target: the commit shown. Then run this workflow again to publish their notes."
+          fi
 
       - name: Tag the deployed commit with its version
         run: |
@@ -57,8 +69,8 @@ jobs:
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
             echo "$tag already exists - this deploy did not change the version."
           else
-            git tag "$tag" HEAD
-            git push origin "$tag"
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$(git rev-parse HEAD)" >/dev/null
+            git fetch -q origin "refs/tags/$tag:refs/tags/$tag"
             echo "Tagged $(git rev-parse --short HEAD) as $tag."
           fi
 
