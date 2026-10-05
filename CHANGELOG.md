@@ -7,6 +7,34 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.5.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.5.0) - 2026-10-05
+
+_Dashboard Cards & Purchases_
+
+### Dashboard
+
+**Cards**
+
+- **Changed:** The cards are in two labelled rows. **Assets**: total value, total assets, laptops, desktops, monitors, and peripherals and other kit, each with what it is worth. **Cleaning**: overdue, due soon, never cleaned and OK, each with its share of the rota
+- **Added:** Clicking a kit card opens the register showing just that kind of kit
+
+**Charts**
+
+- **Added:** **Bought in the last 12 months**: a bar for each month. Point at a month for how many were bought and what they cost
+- **Fixed:** In dark mode the navy bars were hard to see against the background
+
+### Assets
+
+**Asset Register**
+
+- **Added:** The Device type filter has **Peripherals & other**: everything that is not a laptop, desktop or monitor
+
+### Reports
+
+**Assets**
+
+- **Added:** **Spend** report, by month or by year. By month shows how many were bought, the spend, and what was bought
+
 ## [2.4.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.4.0) - 2026-10-05
 
 _NFC Tag Links_

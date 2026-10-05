@@ -1,5 +1,7 @@
 import { STATUS } from '../lib/constants';
-import { countBy, statusBreakdown } from '../lib/dashboardStats';
+import { countBy, purchasesByMonth, statusBreakdown } from '../lib/dashboardStats';
+import { formatCurrency } from '../lib/constants';
+import { formatMonth } from '../lib/dates';
 
 // Validated for colour-vision separation and contrast before use - the
 // "Never Cleaned" purple is the ADARO brand purple.
@@ -76,11 +78,60 @@ function BarList({ data, colour, emptyMessage }) {
   );
 }
 
+const shortMonth = new Intl.DateTimeFormat('en-GB', { month: 'short' });
+
+/**
+ * What was bought in each of the last twelve months: one bar per month, one
+ * colour, as tall as the number of assets bought. Hover or focus a month for
+ * its count and spend; the Bought by month report has the full table.
+ */
+function PurchasesChart({ data }) {
+  const totalCount = data.reduce((sum, row) => sum + row.count, 0);
+  const totalValue = data.reduce((sum, row) => sum + row.value, 0);
+  const max = Math.max(1, ...data.map((row) => row.count));
+
+  if (totalCount === 0) {
+    return <p className="chart__empty">Nothing with a purchase date in the last 12 months.</p>;
+  }
+
+  return (
+    <>
+      <p className="purchases__summary">
+        <strong>{totalCount}</strong> {totalCount === 1 ? 'asset' : 'assets'} bought, costing{' '}
+        <strong>{formatCurrency(totalValue) ?? '£0.00'}</strong>
+      </p>
+      <ol className="purchases" aria-label="Assets bought per month, last 12 months">
+        {data.map((row) => {
+          const label = `${formatMonth(row.month)}: ${row.count} ${row.count === 1 ? 'asset' : 'assets'}, ${formatCurrency(row.value) ?? '£0.00'}`;
+          return (
+            <li key={row.month} className="purchases__month" tabIndex={0} aria-label={label}>
+              <span className="purchases__tip" aria-hidden="true">
+                <strong>{formatMonth(row.month)}</strong>
+                <span>{row.count} bought · {formatCurrency(row.value) ?? '£0.00'}</span>
+              </span>
+              <span className="purchases__count" aria-hidden="true">{row.count > 0 ? row.count : ''}</span>
+              <span className="purchases__track" aria-hidden="true">
+                {row.count > 0 ? (
+                  <span className="purchases__bar" style={{ height: `${(row.count / max) * 100}%` }} />
+                ) : null}
+              </span>
+              <span className="purchases__label" aria-hidden="true">
+                {shortMonth.format(new Date(`${row.month}-01T12:00:00`))}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </>
+  );
+}
+
 export default function Dashboard({ assets }) {
   const status = statusBreakdown(assets);
   const byType = countBy(assets, (asset) => asset.device_type);
   const byLocation = countBy(assets, (asset) => asset.location);
   const trackedTotal = status.reduce((sum, item) => sum + item.value, 0);
+  const purchases = purchasesByMonth(assets);
 
   return (
     <section className="dashboard" aria-label="Dashboard">
@@ -120,6 +171,18 @@ export default function Dashboard({ assets }) {
         </div>
         <div className="chart-card__body">
           <BarList data={byLocation} colour="var(--chart-purple)" emptyMessage="No assets yet." />
+        </div>
+      </div>
+
+      <div className="card chart-card dashboard__wide">
+        <div className="card__header">
+          <div>
+            <h2 className="card__title">Bought in the last 12 months</h2>
+            <p className="card__subtitle">Assets by purchase month. The full history is under Reports, Spend.</p>
+          </div>
+        </div>
+        <div className="chart-card__body">
+          <PurchasesChart data={purchases} />
         </div>
       </div>
 

@@ -27,6 +27,13 @@ export function isCleaningTracked(deviceType) {
 
 export const LOCATIONS = ['Remote', 'Hybrid', 'Office', 'Warehouse'];
 
+/** The kit the dashboard counts on its own; everything else is grouped as
+ *  "Peripherals & other". */
+export const MAIN_KIT_TYPES = ['Laptop', 'Desktop', 'Monitor'];
+
+/** Device-type filter value for everything outside MAIN_KIT_TYPES. */
+export const OTHER_KIT_FILTER = '__other';
+
 export const CLEANERS = ['AL', 'BB', 'JS', 'RC', 'TM'];
 
 export const DEFAULT_CLEANING_INTERVAL_MONTHS = 6;

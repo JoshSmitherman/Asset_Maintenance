@@ -325,3 +325,21 @@ describe('AppShell asset links', () => {
     expect(window.location.search).toBe('');
   });
 });
+
+describe('AppShell dashboard cards', () => {
+  it('groups the cards, and a kit card opens the register filtered to it', async () => {
+    const monitor = { ...asset, id: 'm1', asset_ref: 'MON-0001', device_type: 'Monitor', status: STATUS.NOT_TRACKED };
+    hook.assets = [asset, monitor];
+    const user = userEvent.setup();
+    render(<AppShell />);
+
+    const assetsGroup = screen.getByRole('region', { name: /^assets$/i });
+    const cleaningGroup = screen.getByRole('region', { name: /^cleaning/i });
+    expect(within(cleaningGroup).getByRole('button', { name: /overdue/i })).toHaveTextContent('1');
+
+    await user.click(within(assetsGroup).getByRole('button', { name: /monitors/i }));
+    expect(screen.getByLabelText(/device type/i)).toHaveValue('Monitor');
+    expect(screen.getByText('MON-0001')).toBeInTheDocument();
+    expect(screen.queryByText('AST-0041')).not.toBeInTheDocument();
+  });
+});

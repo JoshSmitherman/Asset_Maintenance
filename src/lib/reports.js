@@ -130,6 +130,40 @@ export const REPORTS = [
     }
   },
   {
+    id: 'purchases_month',
+    label: 'Bought by month',
+    description: 'Every month something was bought: how many assets, and what they cost. Newest first.',
+    build: ({ assets }) => {
+      const months = new Map();
+      for (const asset of assets) {
+        if (!asset.purchase_date) continue;
+        const month = String(asset.purchase_date).slice(0, 7);
+        const row = months.get(month) ?? { label: month, count: 0, value: 0, types: new Map() };
+        row.count += 1;
+        row.value += Number(asset.purchase_cost) || 0;
+        row.types.set(asset.device_type, (row.types.get(asset.device_type) ?? 0) + 1);
+        months.set(month, row);
+      }
+      return {
+        columns: [
+          { key: 'label', label: 'Month', format: (row) => formatMonth(row.label) },
+          { key: 'count', label: 'Assets bought' },
+          { key: 'value', label: 'Spend', format: (row) => money(row.value) },
+          {
+            key: 'types',
+            label: 'What',
+            format: (row) =>
+              [...row.types.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .map(([type, count]) => `${count} ${type}`)
+                .join(', ')
+          }
+        ],
+        rows: [...months.values()].sort((a, b) => b.label.localeCompare(a.label))
+      };
+    }
+  },
+  {
     id: 'due_this_month',
     label: 'Cleaning due this month',
     description:
@@ -295,7 +329,16 @@ export const REPORT_MENU = [
         ]
       },
       { id: 'age', label: 'Fleet age', summary: 'How old the kit is', views: [{ reportId: 'age' }] },
-      { id: 'spend', label: 'Spend by year', summary: 'What was bought, and when', views: [{ reportId: 'spend' }] }
+      {
+        id: 'bought',
+        label: 'Spend',
+        summary: 'What was bought, by month or by year',
+        viewLabel: 'Show',
+        views: [
+          { reportId: 'purchases_month', label: 'By month' },
+          { reportId: 'spend', label: 'By year' }
+        ]
+      }
     ]
   },
   {

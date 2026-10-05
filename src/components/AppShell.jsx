@@ -27,7 +27,7 @@ import { useAssets } from '../hooks/useAssets';
 import { useCleaningLog } from '../hooks/useCleaningLog';
 import { DEFAULT_PAGE_SIZE, usePagination } from '../hooks/usePagination';
 import { summariseAssets } from '../lib/assetStatus';
-import { totalPurchaseValue } from '../lib/dashboardStats';
+import { kitSummary, totalPurchaseValue } from '../lib/dashboardStats';
 import { knownModels, specSuggestions } from '../lib/specs';
 import {
   DEFAULT_SORT,
@@ -125,6 +125,7 @@ export default function AppShell() {
   const departments = useMemo(() => uniqueDepartments(assets), [assets]);
   const users = useMemo(() => uniqueUsers(assets), [assets]);
   const totalValue = useMemo(() => totalPurchaseValue(assets), [assets]);
+  const kit = useMemo(() => kitSummary(assets), [assets]);
   // Spec dropdowns offer what is already on the register as well as the
   // built-in suggestions, so the lists grow with the fleet.
   const specOptions = useMemo(() => specSuggestions(assets), [assets]);
@@ -336,13 +337,18 @@ export default function AppShell() {
           <>
             <StatsGrid
               summary={summary}
-              activeStatus={filters.status}
-              onSelectStatus={(status) => {
-                setFilters((current) => ({ ...current, status }));
-                setQueueScope('all');
-                goToPage(status === 'all' ? 'assets' : 'cleaning');
-              }}
+              kit={kit}
               totalValue={totalValue}
+              onSelectType={(deviceType) => {
+                setFilters({ ...EMPTY_FILTERS, deviceType });
+                goToPage('assets');
+              }}
+              onSelectStatus={(status) => {
+                setFilters({ ...EMPTY_FILTERS, status });
+                setQueueScope('all');
+                setCleaningTab('queue');
+                goToPage('cleaning');
+              }}
             />
 
             <Dashboard assets={assets} />

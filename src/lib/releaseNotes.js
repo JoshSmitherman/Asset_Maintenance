@@ -7,6 +7,54 @@
 
 export const RELEASES = [
   {
+    version: '2.5.0',
+    title: 'Dashboard Cards & Purchases',
+    date: '2026-10-05',
+    sections: [
+      {
+        area: 'Dashboard',
+        groups: [
+          {
+            heading: 'Cards',
+            items: [
+              { type: 'changed', text: 'The cards are in two labelled rows. **Assets**: total value, total assets, laptops, desktops, monitors, and peripherals and other kit, each with what it is worth. **Cleaning**: overdue, due soon, never cleaned and OK, each with its share of the rota' },
+              { type: 'added', text: 'Clicking a kit card opens the register showing just that kind of kit' }
+            ]
+          },
+          {
+            heading: 'Charts',
+            items: [
+              { type: 'added', text: '**Bought in the last 12 months**: a bar for each month. Point at a month for how many were bought and what they cost' },
+              { type: 'fixed', text: 'In dark mode the navy bars were hard to see against the background' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Assets',
+        groups: [
+          {
+            heading: 'Asset Register',
+            items: [
+              { type: 'added', text: 'The Device type filter has **Peripherals & other**: everything that is not a laptop, desktop or monitor' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Reports',
+        groups: [
+          {
+            heading: 'Assets',
+            items: [
+              { type: 'added', text: '**Spend** report, by month or by year. By month shows how many were bought, the spend, and what was bought' }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.4.0',
     title: 'NFC Tag Links',
     date: '2026-10-05',

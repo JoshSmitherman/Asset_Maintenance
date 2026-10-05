@@ -1,4 +1,4 @@
-import { STATUS_PRIORITY } from './constants';
+import { MAIN_KIT_TYPES, OTHER_KIT_FILTER, STATUS_PRIORITY } from './constants';
 
 export const EMPTY_FILTERS = {
   search: '',
@@ -23,7 +23,11 @@ function matchesSearch(asset, term) {
 export function filterAssets(assets, filters) {
   return assets.filter((asset) => {
     if (!matchesSearch(asset, filters.search)) return false;
-    if (filters.deviceType !== 'all' && asset.device_type !== filters.deviceType) return false;
+    if (filters.deviceType === OTHER_KIT_FILTER) {
+      if (MAIN_KIT_TYPES.includes(asset.device_type)) return false;
+    } else if (filters.deviceType !== 'all' && asset.device_type !== filters.deviceType) {
+      return false;
+    }
     if (filters.department !== 'all' && asset.department !== filters.department) return false;
     if (filters.location !== 'all') {
       if (filters.location === 'unassigned' ? asset.location : asset.location !== filters.location) {

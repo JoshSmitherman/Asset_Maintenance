@@ -42,7 +42,8 @@
   --chart-never:    #8c4a9c;
   --chart-due-soon: #d98c00;
   --chart-ok:       #1f8a5a;
-  --chart-navy:     #34506d;
+  /* Lighter in dark mode: the brand navy is 1.9:1 on the dark surface. */
+  --chart-navy:     #6f93b8;
   --chart-purple:   #8c4a9c;
 
   --navy-900: #1b2c3d;
@@ -129,6 +130,7 @@ body.light-mode {
   --green-700: #1c6b45;
   --green-100: #e4f5ec;
   --green-border: #bfe4d1;
+  --chart-navy: #34506d;
   --teal-100: #def4f6;
   --teal-700: #0d6b75;
   --info-100: #e4eefb;
@@ -286,7 +288,6 @@ code {
 /* ------------------------------------------------------------ Stat cards */
 .stat-grid {
   display: grid;
-  /* Six tiles: the five statuses plus total value. */
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 14px;
 }
@@ -750,7 +751,6 @@ code {
 @media (max-width: 1000px) { .col-hide-md { display: none; } }
 @media (max-width: 860px)  { .col-hide-sm { display: none; } }
 @media (max-width: 640px)  { .col-hide-xs { display: none; } }
-@media (max-width: 640px)  { .col-hide-xs { display: none; } }
 
 
 @media (max-width: 1000px) {
@@ -811,7 +811,10 @@ code {
    ===================================================================== */
 .dashboard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  /* Three chart cards side by side, with full-width cards below them. A fixed
+     count rather than auto-fit, which kept an empty fourth column once a
+     full-width card was added. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 18px;
 }
@@ -1695,3 +1698,108 @@ main.container { padding-bottom: 96px; }
    buttons - on a phone, right over Delete asset. It steps aside until the
    dialog closes. */
 body.no-scroll .theme-toggle { display: none; }
+
+/* ----------------------------------------------- Dashboard stat groups */
+.stat-groups { display: flex; flex-direction: column; gap: 14px; }
+.stat-group__title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--slate-500);
+}
+.stat-group__note { margin-left: 6px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+.stat-grid--assets { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.stat-grid--cleaning { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) {
+  .stat-grid--assets { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .stat-grid--assets,
+  .stat-grid--cleaning { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.stat--kit { border-left-color: var(--chart-navy); }
+.stat__meta { margin-top: 2px; font-size: 12px; color: var(--slate-500); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------- Bought in the last 12 months */
+.dashboard__wide { grid-column: 1 / -1; }
+
+.purchases__summary { margin: 0 0 14px; font-size: 14px; color: var(--slate-700); }
+.purchases__summary strong { color: var(--text); }
+
+.purchases {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+.purchases__month {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  outline: none;
+}
+/* Bars rise from a shared baseline; the track only sets the height. */
+.purchases__track {
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--slate-300);
+}
+.purchases__bar {
+  width: 100%;
+  min-height: 4px;
+  border-radius: 4px 4px 0 0;
+  background: var(--chart-navy);
+  transition: opacity 0.12s ease;
+}
+.purchases__label { text-align: center; font-size: 11.5px; color: var(--slate-500); }
+.purchases__count {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  min-height: 16px;
+}
+
+/* The month's numbers appear above it on hover or keyboard focus. */
+.purchases__tip {
+  position: absolute;
+  bottom: calc(100% - 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: none;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--navy-900);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+.purchases__month:hover .purchases__tip,
+.purchases__month:focus-visible .purchases__tip { display: flex; }
+.purchases__month:hover .purchases__bar,
+.purchases__month:focus-visible .purchases__bar { opacity: 0.8; }
+.purchases__month:focus-visible .purchases__label { color: var(--accent-text); font-weight: 700; }
+
+
+@media (max-width: 640px) {
+  .purchases { gap: 4px; }
+  .purchases__track { height: 90px; }
+  .purchases__label { font-size: 10px; }
+}
+@media (max-width: 900px) { .dashboard { grid-template-columns: 1fr; } }
