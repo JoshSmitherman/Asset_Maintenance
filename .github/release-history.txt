@@ -1,0 +1,9 @@
+# Versions released before tagging was automatic, and the commit each one
+# ended on. The Release workflow tags any of these that are not tagged yet;
+# after that it is history. New versions are tagged as they deploy.
+1.0.0 972d212
+1.1.0 eeb5bd7
+1.2.0 f7c5838
+2.0.0 1c44eaf
+2.0.1 98b23fb
+2.1.0 506be83

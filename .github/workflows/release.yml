@@ -40,6 +40,16 @@ jobs:
         with:
           node-version: 20
 
+      - name: Tag earlier releases listed in release-history.txt
+        run: |
+          grep -vE '^(#|$)' .github/release-history.txt | while read -r version commit; do
+            tag="v$version"
+            git rev-parse -q --verify "refs/tags/$tag" >/dev/null && continue
+            git tag "$tag" "$commit"
+            git push origin "$tag"
+            echo "Tagged $commit as $tag."
+          done
+
       - name: Tag the deployed commit with its version
         run: |
           version="$(node scripts/release-notes.mjs --current)"
