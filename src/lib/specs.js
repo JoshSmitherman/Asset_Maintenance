@@ -226,6 +226,8 @@ export function knownModels(assets) {
     const sample = newestFirst[0];
     (byType[group.deviceType] ??= []).push({
       key: group.key,
+      brand: String(specs.spec_brand ?? sample.spec_brand ?? '').trim(),
+      model: String(specs.spec_model ?? sample.spec_model ?? '').trim(),
       label: [sample.spec_brand, sample.spec_model].filter((part) => part && String(part).trim()).join(' '),
       count: group.assets.length,
       refs: newestFirst.map((asset) => asset.asset_ref),
@@ -244,4 +246,36 @@ export function matchKnownModel(models = [], brand, model) {
   if (!String(model ?? '').trim()) return null;
   const key = modelKey(brand, model);
   return models.find((entry) => entry.key === key) ?? null;
+}
+
+/**
+ * Swaps the form's specification for a chosen model's, every box that
+ * applies: picking a model is a deliberate choice, so it wins over whatever
+ * was there (the caller keeps the old values for Undo). Boxes the model
+ * never recorded are emptied, so nothing from the previous pick lingers.
+ */
+export function replaceSpecs(deviceType, values, found = {}) {
+  const next = { ...values };
+  for (const key of specsFor(deviceType)) {
+    const value = found[key];
+    next[key] = value === null || value === undefined ? '' : String(value);
+  }
+  return next;
+}
+
+/** Just the spec boxes of a set of form values, for Undo. */
+export function specSnapshot(deviceType, values) {
+  return Object.fromEntries(specsFor(deviceType).map((key) => [key, values[key] ?? '']));
+}
+
+/**
+ * Model names to offer in the Model box: once a brand is chosen, only that
+ * brand's models, so a Dell is not offered an EliteBook. With no brand, or a
+ * brand nothing is recorded for yet, everything.
+ */
+export function modelOptionsFor(models = [], brand, allModels = []) {
+  const wanted = String(brand ?? '').trim().toLowerCase();
+  if (!wanted) return allModels;
+  const mine = models.filter((entry) => entry.brand.toLowerCase() === wanted).map((entry) => entry.model);
+  return mine.length > 0 ? mine : allModels;
 }

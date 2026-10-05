@@ -10,7 +10,15 @@ import {
   isCleaningTracked,
   LOCATIONS
 } from '../lib/constants';
-import { SPEC_COLUMNS, SPEC_FIELDS, fillEmptySpecs, hasSpecs, specsFor } from '../lib/specs';
+import {
+  SPEC_COLUMNS,
+  SPEC_FIELDS,
+  fillEmptySpecs,
+  hasSpecs,
+  modelOptionsFor,
+  replaceSpecs,
+  specsFor
+} from '../lib/specs';
 import SpecMemory from './SpecMemory';
 import { previewNextCleanDue, statusFor } from '../lib/assetStatus';
 
@@ -318,15 +326,20 @@ export default function AssetFormModal({
               All optional — fill in what you know, and edit it any time later.
             </p>
             <SpecMemory
+              key={values.device_type}
+              deviceType={values.device_type}
               models={specMemory[values.device_type] ?? []}
-              brand={values.spec_brand}
-              model={values.spec_model}
+              values={values}
               disabled={busy}
-              onApply={(found) => {
+              onChange={(mode, found) => {
+                if (mode === 'replace') {
+                  setValues((current) => replaceSpecs(current.device_type, current, found));
+                  return 0;
+                }
                 const current = latestValues.current;
                 const merged = fillEmptySpecs(current.device_type, current, found);
                 setValues(merged.values);
-                return merged;
+                return merged.filled.length;
               }}
             />
             {specKeys.map((key) => {
@@ -351,7 +364,15 @@ export default function AssetFormModal({
                     <ComboSelect
                       id={key}
                       value={values[key]}
-                      options={specOptions[key] ?? field.suggestions}
+                      options={
+                        key === 'spec_model'
+                          ? modelOptionsFor(
+                              specMemory[values.device_type],
+                              values.spec_brand,
+                              specOptions.spec_model ?? field.suggestions
+                            )
+                          : specOptions[key] ?? field.suggestions
+                      }
                       onChange={(next) => setField(key, next)}
                       placeholder={field.placeholder}
                       invalid={Boolean(errors[key])}

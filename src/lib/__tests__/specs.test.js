@@ -5,6 +5,8 @@ import {
   hasAnySpecValue,
   knownModels,
   matchKnownModel,
+  modelOptionsFor,
+  replaceSpecs,
   hasSpecs,
   specPayload,
   specSuggestions,
@@ -149,5 +151,33 @@ describe('knownModels', () => {
     const { Laptop } = knownModels(assets);
     expect(matchKnownModel(Laptop, ' DELL', 'Latitude 5540 ')?.count).toBe(3);
     expect(matchKnownModel(Laptop, 'Dell', '')).toBeNull();
+  });
+});
+
+describe('replaceSpecs', () => {
+  it('sets every box that applies, emptying what the model never recorded', () => {
+    const next = replaceSpecs(
+      'Laptop',
+      { asset_ref: 'L9', spec_ram: '64 GB', spec_storage: '2 TB SSD' },
+      { spec_ram: '16 GB' }
+    );
+    expect(next.spec_ram).toBe('16 GB');
+    expect(next.spec_storage).toBe('');
+    expect(next.asset_ref).toBe('L9');
+  });
+});
+
+describe('modelOptionsFor', () => {
+  const models = [
+    { brand: 'Dell', model: 'Latitude 5540' },
+    { brand: 'HP', model: 'EliteBook 840' }
+  ];
+  it("offers only the chosen brand's models", () => {
+    expect(modelOptionsFor(models, 'dell', ['Latitude 5540', 'EliteBook 840'])).toEqual(['Latitude 5540']);
+  });
+  it('offers everything with no brand, or a brand with nothing recorded', () => {
+    const all = ['Latitude 5540', 'EliteBook 840'];
+    expect(modelOptionsFor(models, '', all)).toBe(all);
+    expect(modelOptionsFor(models, 'Lenovo', all)).toBe(all);
   });
 });

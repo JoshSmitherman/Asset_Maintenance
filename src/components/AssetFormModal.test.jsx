@@ -245,34 +245,68 @@ describe('AssetFormModal next step', () => {
 });
 
 describe('AssetFormModal spec memory', () => {
-  const specMemory = {
-    Laptop: [
-      {
-        key: 'dell latitude 5540',
-        label: 'Dell Latitude 5540',
-        count: 3,
-        refs: ['LAP-003', 'LAP-002', 'LAP-001'],
-        specs: { spec_brand: 'Dell', spec_model: 'Latitude 5540', spec_ram: '16 GB', spec_storage: '512 GB SSD' }
-      }
-    ]
+  const latitude = {
+    key: 'dell latitude 5540',
+    brand: 'Dell',
+    model: 'Latitude 5540',
+    label: 'Dell Latitude 5540',
+    count: 3,
+    refs: ['LAP-003', 'LAP-002', 'LAP-001'],
+    specs: { spec_brand: 'Dell', spec_model: 'Latitude 5540', spec_ram: '16 GB', spec_storage: '512 GB SSD' }
+  };
+  const elitebook = {
+    key: 'hp elitebook 840',
+    brand: 'HP',
+    model: 'EliteBook 840',
+    label: 'HP EliteBook 840',
+    count: 1,
+    refs: ['LAP-009'],
+    specs: { spec_brand: 'HP', spec_model: 'EliteBook 840', spec_ram: '8 GB' }
+  };
+  const specMemory = { Laptop: [latitude, elitebook] };
+  const openSpecs = async (user, overrides = {}) => {
+    setup({ specMemory, ...overrides });
+    await user.click(screen.getByRole('tab', { name: /specification/i }));
   };
 
-  it('copies a known model chosen from the list into the empty boxes', async () => {
+  it('switches between models as often as needed, and Undo goes back one step', async () => {
     const user = userEvent.setup();
-    setup({ specMemory });
-    await user.click(screen.getByRole('tab', { name: /specification/i }));
-    await user.selectOptions(screen.getByLabelText(/copy specs from a model/i), 'dell latitude 5540');
-    expect(screen.getByText(/filled 4 fields from LAP-003, LAP-002, LAP-001/i)).toBeInTheDocument();
+    await openSpecs(user);
+    const picker = screen.getByLabelText(/copy specs from a model/i);
+
+    await user.selectOptions(picker, 'dell latitude 5540');
     expect(screen.getByLabelText('RAM')).toHaveValue('16 GB');
+    expect(screen.getByLabelText('Hard drive')).toHaveValue('512 GB SSD');
+
+    // Still there, still usable: pick a different model and it takes over.
+    await user.selectOptions(screen.getByLabelText(/copy specs from a model/i), 'hp elitebook 840');
+    expect(screen.getByLabelText('Brand')).toHaveValue('HP');
+    expect(screen.getByLabelText('RAM')).toHaveValue('8 GB');
+    // Nothing left over from the Dell.
+    expect(screen.getByLabelText('Hard drive')).toHaveValue('');
+    expect(screen.getByLabelText(/copy specs from a model/i)).toHaveValue('hp elitebook 840');
+
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByLabelText('Brand')).toHaveValue('Dell');
+    expect(screen.getByLabelText('Hard drive')).toHaveValue('512 GB SSD');
   });
 
-  it('offers the match as soon as the typed model is one already recorded', async () => {
+  it('clears every spec box', async () => {
     const user = userEvent.setup();
-    setup({ specMemory, prefill: { spec_brand: 'dell', spec_model: 'latitude 5540' } });
-    await user.click(screen.getByRole('tab', { name: /specification/i }));
-    await user.click(screen.getByRole('button', { name: /fill in its specs/i }));
+    await openSpecs(user);
+    await user.selectOptions(screen.getByLabelText(/copy specs from a model/i), 'dell latitude 5540');
+    await user.click(screen.getByRole('button', { name: /clear specs/i }));
+    expect(screen.getByLabelText('RAM')).toHaveValue('');
+    expect(screen.getByLabelText(/copy specs from a model/i)).toHaveValue('');
+  });
+
+  it('offers to fill only the empty boxes when the typed model is already known', async () => {
+    const user = userEvent.setup();
+    await openSpecs(user, { prefill: { spec_brand: 'dell', spec_model: 'latitude 5540', spec_ram: '32 GB' } });
+    await user.click(screen.getByRole('button', { name: /fill the empty boxes/i }));
     expect(screen.getByLabelText('Hard drive')).toHaveValue('512 GB SSD');
     // What was typed stays as typed.
+    expect(screen.getByLabelText('RAM')).toHaveValue('32 GB');
     expect(screen.getByLabelText('Model')).toHaveValue('latitude 5540');
   });
 });
