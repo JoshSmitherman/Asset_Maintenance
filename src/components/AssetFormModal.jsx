@@ -1,16 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Modal from './Modal';
 import TabStrip from './TabStrip';
 import ComboSelect from './ComboSelect';
 import StatusBadge from './StatusBadge';
 import {
   CLEANERS,
-  DEFAULT_CLEANING_INTERVAL_MONTHS,
   DEVICE_TYPES,
+  defaultIntervalFor,
   isCleaningTracked,
   LOCATIONS
 } from '../lib/constants';
-import { SPEC_COLUMNS, SPEC_FIELDS, hasSpecs, specsFor } from '../lib/specs';
+import { SPEC_COLUMNS, SPEC_FIELDS, applyLookedUpSpecs, hasSpecs, specsFor } from '../lib/specs';
+import SpecLookup from './SpecLookup';
 import { previewNextCleanDue, statusFor } from '../lib/assetStatus';
 
 /** Enough for a delivery, few enough that a typo cannot create a thousand. */
@@ -40,7 +41,7 @@ function blankValues(prefill = {}) {
     purchase_date: '',
     date_cleaned: '',
     cleaned_by: '',
-    cleaning_interval_months: String(DEFAULT_CLEANING_INTERVAL_MONTHS),
+    cleaning_interval_months: String(defaultIntervalFor(prefill.device_type ?? DEVICE_TYPES[0])),
     notes: '',
     ...prefill
   };
@@ -59,7 +60,7 @@ function valuesFromAsset(asset, prefill = {}) {
     purchase_date: asset.purchase_date ?? '',
     date_cleaned: asset.date_cleaned ?? '',
     cleaned_by: asset.cleaned_by ?? '',
-    cleaning_interval_months: String(asset.cleaning_interval_months ?? DEFAULT_CLEANING_INTERVAL_MONTHS),
+    cleaning_interval_months: String(asset.cleaning_interval_months ?? defaultIntervalFor(asset.device_type)),
     notes: asset.notes ?? '',
     ...prefill
   };
@@ -175,6 +176,10 @@ export default function AssetFormModal({
   const [values, setValues] = useState(() =>
     isEditing ? valuesFromAsset(asset, prefill) : blankValues(prefill)
   );
+  // The lookup answers seconds later; it must merge into what the form holds
+  // then, not what it held when the search started.
+  const latestValues = useRef(values);
+  latestValues.current = values;
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -209,12 +214,52 @@ export default function AssetFormModal({
   const specKeys = specsFor(values.device_type);
 
   const preview = useMemo(() => {
-    const nextCleanDue = previewNextCleanDue(values.date_cleaned, values.cleaning_interval_months);
+    const nextCleanDue = previewNextCleanDue(
+      values.date_cleaned,
+      values.cleaning_interval_months,
+      values.purchase_date
+    );
     return {
       nextCleanDue,
       status: statusFor(values.device_type, values.date_cleaned, nextCleanDue)
     };
-  }, [values.device_type, values.date_cleaned, values.cleaning_interval_months]);
+  }, [values.device_type, values.date_cleaned, values.cleaning_interval_months, values.purchase_date]);
+
+  // Changing the type moves the interval to the new type's default, but only
+  // while it is still the old type's default - a number someone typed stays.
+  const setDeviceType = (nextType) => {
+    setValues((current) => {
+      const untouched = Number(current.cleaning_interval_months) === defaultIntervalFor(current.device_type);
+      return {
+        ...current,
+        device_type: nextType,
+        cleaning_interval_months: untouched
+          ? String(defaultIntervalFor(nextType))
+          : current.cleaning_interval_months
+      };
+    });
+    setErrors((current) => {
+      if (!current.device_type && !current.cleaning_interval_months) return current;
+      const next = { ...current };
+      delete next.device_type;
+      delete next.cleaning_interval_months;
+      return next;
+    });
+  };
+
+  // The Specification tab is easy to miss, so a new asset is walked to it:
+  // check the details first, then move on rather than saving straight away.
+  const goToSpecs = () => {
+    const detailErrors = Object.fromEntries(
+      Object.entries(validate(values, { assetRefExists, ignoreId: asset?.id ?? null })).filter(
+        ([key]) => !specKeys.includes(key)
+      )
+    );
+    setErrors(detailErrors);
+    if (Object.keys(detailErrors).length === 0) setTab('specs');
+  };
+
+  const offerNext = !isEditing && showSpecs && activeTab === 'details';
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -268,7 +313,23 @@ export default function AssetFormModal({
           aria-labelledby={showSpecs ? `tab-${activeTab}` : undefined}
         >
           {activeTab === 'specs' ? (
-            specKeys.map((key) => {
+            <>
+            <p className="field__hint field--full">
+              All optional — fill in what you know, and edit it any time later.
+            </p>
+            <SpecLookup
+              key={values.device_type}
+              deviceType={values.device_type}
+              initialQuery={[values.spec_brand, values.spec_model].filter((part) => part.trim()).join(' ')}
+              disabled={busy}
+              onFound={(found) => {
+                const current = latestValues.current;
+                const merged = applyLookedUpSpecs(current.device_type, current, found);
+                setValues(merged.values);
+                return merged;
+              }}
+            />
+            {specKeys.map((key) => {
               const field = SPEC_FIELDS[key];
               return (
                 <div className="field" key={key}>
@@ -300,7 +361,8 @@ export default function AssetFormModal({
                   {errors[key] ? <span className="field__error">{errors[key]}</span> : null}
                 </div>
               );
-            })
+            })}
+            </>
           ) : (
             <>
           <div className="field">
@@ -385,7 +447,7 @@ export default function AssetFormModal({
               id="device_type"
               className={`select${errors.device_type ? ' input--error' : ''}`}
               value={values.device_type}
-              onChange={(event) => setField('device_type', event.target.value)}
+              onChange={(event) => setDeviceType(event.target.value)}
               disabled={busy}
             >
               {DEVICE_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
@@ -524,7 +586,7 @@ export default function AssetFormModal({
             {errors.cleaning_interval_months ? (
               <span className="field__error">{errors.cleaning_interval_months}</span>
             ) : (
-              <span className="field__hint">Defaults to {DEFAULT_CLEANING_INTERVAL_MONTHS} months.</span>
+              <span className="field__hint">Defaults to {defaultIntervalFor(values.device_type)} months for a {values.device_type.toLowerCase()}.</span>
             )}
           </div>
 
@@ -536,6 +598,9 @@ export default function AssetFormModal({
               </span>
               <StatusBadge status={preview.status} />
             </div>
+            {!values.date_cleaned && values.purchase_date ? (
+              <span className="field__hint">First clean is due a year after purchase.</span>
+            ) : null}
           </div>
             </>
           ) : (
@@ -570,7 +635,30 @@ export default function AssetFormModal({
         </div>
 
         <footer className="modal__footer">
+          {!isEditing && showSpecs && activeTab === 'specs' ? (
+            <button
+              type="button"
+              className="btn btn--ghost modal__footer-start"
+              onClick={() => setTab('details')}
+              disabled={busy}
+            >
+              ← Back to details
+            </button>
+          ) : null}
           <button type="button" className="btn btn--ghost" onClick={onClose} disabled={busy}>Cancel</button>
+          {offerNext ? (
+            <button type="submit" className="btn btn--ghost" disabled={busy}>
+              {values.extra_refs.length > 0
+                ? `Add ${values.extra_refs.length + 1} assets`
+                : 'Add asset'}{' '}
+              without specs
+            </button>
+          ) : null}
+          {offerNext ? (
+            <button type="button" className="btn btn--primary" onClick={goToSpecs} disabled={busy}>
+              Next: Specification →
+            </button>
+          ) : (
           <button type="submit" className="btn btn--primary" disabled={busy}>
             {busy
               ? 'Saving…'
@@ -580,6 +668,7 @@ export default function AssetFormModal({
                   ? `Add ${values.extra_refs.length + 1} assets`
                   : 'Add asset'}
           </button>
+          )}
         </footer>
       </form>
     </Modal>

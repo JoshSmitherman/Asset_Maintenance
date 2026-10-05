@@ -36,6 +36,30 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // Admin or user, from public.user_roles. Read on every sign-in; an account
+  // with no row (or a database without the table yet) is a plain user.
+  const [role, setRole] = useState('user');
+  const userId = session?.user?.id ?? null;
+
+  useEffect(() => {
+    if (!supabase || !userId) {
+      setRole('user');
+      return undefined;
+    }
+    let active = true;
+    supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setRole(data?.role === 'admin' ? 'admin' : 'user');
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
   const signIn = useCallback(async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
@@ -62,12 +86,13 @@ export function AuthProvider({ children }) {
       session,
       user: session?.user ?? null,
       userEmail: session?.user?.email ?? '',
+      isAdmin: role === 'admin',
       initialising,
       signIn,
       signOut,
       changePassword
     }),
-    [session, initialising, signIn, signOut, changePassword]
+    [session, role, initialising, signIn, signOut, changePassword]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

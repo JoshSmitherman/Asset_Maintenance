@@ -1,6 +1,7 @@
 import {
   DEFAULT_CLEANING_INTERVAL_MONTHS,
   DUE_SOON_WINDOW_DAYS,
+  FIRST_CLEAN_AFTER_PURCHASE_MONTHS,
   isCleaningTracked,
   STATUS,
   STATUS_VALUES
@@ -13,17 +14,30 @@ import { addMonthsIso, daysBetween, todayIso } from './dates';
  * keep a long-open browser tab accurate after midnight. The database remains
  * the source of truth for what is actually saved.
  */
-export function previewNextCleanDue(dateCleaned, intervalMonths = DEFAULT_CLEANING_INTERVAL_MONTHS) {
-  if (!dateCleaned) return null;
-  const months = Number(intervalMonths) || DEFAULT_CLEANING_INTERVAL_MONTHS;
-  return addMonthsIso(dateCleaned, months);
+export function previewNextCleanDue(
+  dateCleaned,
+  intervalMonths = DEFAULT_CLEANING_INTERVAL_MONTHS,
+  purchaseDate = null
+) {
+  if (dateCleaned) {
+    const months = Number(intervalMonths) || DEFAULT_CLEANING_INTERVAL_MONTHS;
+    return addMonthsIso(dateCleaned, months);
+  }
+  // Never cleaned but we know when it was bought: new kit is first due a
+  // fixed time after purchase, whatever its interval.
+  if (purchaseDate) return addMonthsIso(purchaseDate, FIRST_CLEAN_AFTER_PURCHASE_MONTHS);
+  return null;
 }
 
 /** Mirrors public.asset_status() in the migration. Only laptops and desktops
- *  carry a cleaning status; everything else is inventory-only. */
+ *  carry a cleaning status; everything else is inventory-only.
+ *
+ *  A never-cleaned asset with a purchase date still has a due date (counted
+ *  from purchase), so it is the due date, not the clean, that decides
+ *  "Never Cleaned". dateCleaned is kept for callers but no longer decides. */
 export function statusFor(deviceType, dateCleaned, nextCleanDue, today = todayIso()) {
   if (!isCleaningTracked(deviceType)) return STATUS.NOT_TRACKED;
-  if (!dateCleaned || !nextCleanDue) return STATUS.NEVER_CLEANED;
+  if (!nextCleanDue) return STATUS.NEVER_CLEANED;
   const days = daysBetween(today, nextCleanDue);
   if (days === null) return STATUS.NEVER_CLEANED;
   if (days < 0) return STATUS.OVERDUE;

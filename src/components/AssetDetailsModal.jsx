@@ -2,6 +2,8 @@ import { useState } from 'react';
 import Modal from './Modal';
 import TabStrip from './TabStrip';
 import StatusBadge from './StatusBadge';
+import AssetHistory from './AssetHistory';
+import { useAssetHistory } from '../hooks/useAssetHistory';
 import { formatCurrency, isCleaningTracked } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import { SPEC_FIELDS, hasSpecs, specsFor } from '../lib/specs';
@@ -27,10 +29,11 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onClose }) 
   const specKeys = specsFor(asset.device_type);
   const [tab, setTab] = useState('details');
 
-  // Only computers and monitors have a specification; everything else is
-  // inventory-only and shows no second tab at all.
+  // Only computers and monitors have a specification; every asset has a
+  // history.
   const showSpecs = hasSpecs(asset.device_type);
-  const activeTab = showSpecs ? tab : 'details';
+  const activeTab = !showSpecs && tab === 'specs' ? 'details' : tab;
+  const history = useAssetHistory(asset.id, { enabled: activeTab === 'history' });
 
   return (
     <Modal
@@ -38,24 +41,25 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onClose }) 
       description={`${asset.device_type}${asset.owner_name ? ` · ${asset.owner_name}` : ' · Unassigned'}`}
       onClose={onClose}
     >
-      {showSpecs ? (
-        <TabStrip
-          tabs={[
-            { id: 'details', label: 'Details' },
-            { id: 'specs', label: 'Specification' }
-          ]}
-          active={activeTab}
-          onChange={setTab}
-        />
-      ) : null}
+      <TabStrip
+        tabs={[
+          { id: 'details', label: 'Details' },
+          ...(showSpecs ? [{ id: 'specs', label: 'Specification' }] : []),
+          { id: 'history', label: 'History' }
+        ]}
+        active={activeTab}
+        onChange={setTab}
+      />
 
       <div
         className="modal__body"
-        role={showSpecs ? 'tabpanel' : undefined}
-        id={showSpecs ? `panel-${activeTab}` : undefined}
-        aria-labelledby={showSpecs ? `tab-${activeTab}` : undefined}
+        role="tabpanel"
+        id={`panel-${activeTab}`}
+        aria-labelledby={`tab-${activeTab}`}
       >
-        {activeTab === 'specs' ? (
+        {activeTab === 'history' ? (
+          <AssetHistory asset={asset} {...history} />
+        ) : activeTab === 'specs' ? (
           <dl className="detail-list">
             {specKeys.map((key) => (
               <Row key={key} label={SPEC_FIELDS[key].label}>

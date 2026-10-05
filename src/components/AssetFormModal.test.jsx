@@ -2,6 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AssetFormModal from './AssetFormModal';
+
+const lookup = vi.fn();
+vi.mock('../lib/edgeFunctions', () => ({ callFunction: (...args) => lookup(...args) }));
 import { todayIso, addMonthsIso } from '../lib/dates';
 
 function setup(overrides = {}) {
@@ -194,5 +197,83 @@ describe('AssetFormModal validation', () => {
     await addNew(user, /department/i, 'IT');
     await user.click(screen.getByRole('button', { name: /add asset/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/already exists/i);
+  });
+});
+
+describe('AssetFormModal cleaning defaults', () => {
+  it('starts a laptop on 12 months and moves to 6 when switched to a desktop', async () => {
+    const user = userEvent.setup();
+    setup();
+    expect(screen.getByLabelText(/cleaning interval/i)).toHaveValue(12);
+    await user.selectOptions(screen.getByLabelText(/device type/i), 'Desktop');
+    expect(screen.getByLabelText(/cleaning interval/i)).toHaveValue(6);
+  });
+
+  it('keeps an interval someone typed when the type changes', async () => {
+    const user = userEvent.setup();
+    setup();
+    const interval = screen.getByLabelText(/cleaning interval/i);
+    await user.clear(interval);
+    await user.type(interval, '3');
+    await user.selectOptions(screen.getByLabelText(/device type/i), 'Desktop');
+    expect(screen.getByLabelText(/cleaning interval/i)).toHaveValue(3);
+  });
+
+  it('shows a just-purchased asset as due a year later', async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.type(screen.getByLabelText(/purchase date/i), todayIso());
+    expect(screen.getByText(/first clean is due a year after purchase/i)).toBeInTheDocument();
+    expect(screen.queryByText('No clean recorded')).not.toBeInTheDocument();
+  });
+});
+
+describe('AssetFormModal next step', () => {
+  it('checks the details, then moves on to the Specification tab', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = setup();
+    await user.click(screen.getByRole('button', { name: /next: specification/i }));
+    expect(screen.getByText('Asset Ref is required.')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /details/i })).toHaveAttribute('aria-selected', 'true');
+
+    await user.type(screen.getByLabelText(/asset ref/i), 'LAP-901');
+    await addNew(user, /department/i, 'IT');
+    await user.click(screen.getByRole('button', { name: /next: specification/i }));
+    expect(screen.getByRole('tab', { name: /specification/i })).toHaveAttribute('aria-selected', 'true');
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /^add asset$/i }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('AssetFormModal spec lookup', () => {
+  it('fills the empty spec boxes from an online lookup, leaving them editable', async () => {
+    lookup.mockResolvedValueOnce({
+      found: true,
+      matched_device: 'Dell Latitude 5540',
+      source_url: 'https://www.dell.com/spec',
+      note: null,
+      specs: { spec_brand: 'Dell', spec_model: 'Latitude 5540', spec_ram: '16 GB' }
+    });
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole('tab', { name: /specification/i }));
+    await user.type(screen.getByLabelText(/look up specs online/i), 'Dell Latitude 5540');
+    await user.click(screen.getByRole('button', { name: /^look up$/i }));
+
+    expect(lookup).toHaveBeenCalledWith('spec-lookup', { query: 'Dell Latitude 5540', device_type: 'Laptop' });
+    expect(await screen.findByText(/filled 3 fields for dell latitude 5540 from dell.com/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('RAM')).toHaveValue('16 GB');
+  });
+
+  it('says what went wrong when the lookup is unavailable', async () => {
+    lookup.mockRejectedValueOnce(new Error('The "spec-lookup" function could not be reached.'));
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole('tab', { name: /specification/i }));
+    await user.type(screen.getByLabelText(/look up specs online/i), 'Dell Latitude 5540');
+    await user.click(screen.getByRole('button', { name: /^look up$/i }));
+    expect(await screen.findByText(/could not be reached/i)).toBeInTheDocument();
   });
 });

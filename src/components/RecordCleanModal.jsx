@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
 import StatusBadge from './StatusBadge';
-import { CLEANERS, DEFAULT_CLEANING_INTERVAL_MONTHS } from '../lib/constants';
+import { CLEANERS, defaultIntervalFor } from '../lib/constants';
 import { previewNextCleanDue, statusFor } from '../lib/assetStatus';
 import { formatDate, isValidIsoDate, todayIso } from '../lib/dates';
 
@@ -14,7 +14,7 @@ export default function RecordCleanModal({ asset, onSubmit, onClose }) {
   const [values, setValues] = useState(() => ({
     date_cleaned: asset.date_cleaned ?? todayIso(),
     cleaned_by: asset.cleaned_by ?? '',
-    cleaning_interval_months: String(asset.cleaning_interval_months ?? DEFAULT_CLEANING_INTERVAL_MONTHS),
+    cleaning_interval_months: String(asset.cleaning_interval_months ?? defaultIntervalFor(asset.device_type)),
     notes: asset.notes ?? ''
   }));
   const [errors, setErrors] = useState({});
@@ -144,7 +144,7 @@ export default function RecordCleanModal({ asset, onSubmit, onClose }) {
             {errors.cleaning_interval_months ? (
               <span className="field__error">{errors.cleaning_interval_months}</span>
             ) : (
-              <span className="field__hint">Defaults to {DEFAULT_CLEANING_INTERVAL_MONTHS} months.</span>
+              <span className="field__hint">Defaults to {defaultIntervalFor(asset.device_type)} months for a {asset.device_type.toLowerCase()}.</span>
             )}
           </div>
 

@@ -59,7 +59,30 @@ export function seedAssets() {
 
 /** Wire up every Supabase endpoint the app touches. Returns a small handle so a
  *  test can inspect what was inserted. */
-export async function mockSupabase(page, { assets = seedAssets() } = {}) {
+/** History for LAP-001: added with Alice, moved to Carol, cleaned once. */
+export function seedEvents() {
+  return [
+    {
+      id: 'ev1', asset_id: 'a1', event_type: 'created',
+      details: { owner: 'Alice', department: 'IT', location: 'Office' },
+      happened_at: '2025-01-05T09:00:00Z', actor_email: 'tech@example.com'
+    },
+    {
+      id: 'ev2', asset_id: 'a1', event_type: 'owner', old_value: 'Alice', new_value: 'Carol',
+      happened_at: '2025-08-01T09:00:00Z', actor_email: 'tech@example.com'
+    },
+    {
+      id: 'ev3', asset_id: 'a1', event_type: 'location', old_value: 'Office', new_value: 'Remote',
+      happened_at: '2025-08-01T09:00:00Z', actor_email: 'tech@example.com'
+    },
+    {
+      id: 'ev4', asset_id: 'a1', event_type: 'owner', old_value: 'Carol', new_value: 'Alice',
+      happened_at: '2026-03-01T09:00:00Z', actor_email: 'tech@example.com'
+    }
+  ];
+}
+
+export async function mockSupabase(page, { assets = seedAssets(), events = seedEvents(), role = 'user' } = {}) {
   const state = { assets: [...assets], inserted: [] };
 
   await page.route('https://stub.supabase.co/**', async (route) => {
@@ -108,6 +131,32 @@ export async function mockSupabase(page, { assets = seedAssets() } = {}) {
         return json(201, [row]);
       }
       return json(200, []);
+    }
+
+    if (url.pathname === '/rest/v1/asset_events') {
+      const id = url.searchParams.get('asset_id')?.replace(/^eq\./, '');
+      return json(200, events.filter((event) => event.asset_id === id));
+    }
+    if (url.pathname === '/rest/v1/cleaning_log') {
+      const id = url.searchParams.get('asset_id')?.replace(/^eq\./, '');
+      const cleans = [{ id: 'c1', asset_id: 'a1', cleaned_on: '2026-01-01', cleaned_by: 'AL' }];
+      return json(200, id ? cleans.filter((clean) => clean.asset_id === id) : cleans);
+    }
+    if (url.pathname === '/rest/v1/user_roles') {
+      return json(200, role ? [{ user_id: USER.id, role }] : []);
+    }
+
+    // --- Edge Functions ---
+    if (url.pathname === '/functions/v1/admin-users') {
+      if (role !== 'admin') return json(403, { error: 'Only admins can manage accounts.' });
+      return json(200, {
+        users: [
+          { id: USER.id, email: USER.email, role: 'admin', created_at: '2026-01-01T00:00:00Z',
+            last_sign_in_at: '2026-10-05T08:00:00Z', is_you: true },
+          { id: 'user-456', email: 'colleague@example.com', role: 'user', created_at: '2026-03-01T00:00:00Z',
+            last_sign_in_at: null, is_you: false }
+        ]
+      });
     }
 
     // Anything else the client probes for (settings, etc.)

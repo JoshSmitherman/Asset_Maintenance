@@ -31,6 +31,19 @@ export const CLEANERS = ['AL', 'BB', 'JS', 'RC', 'TM'];
 
 export const DEFAULT_CLEANING_INTERVAL_MONTHS = 6;
 
+/** Per-type defaults that differ from the 6-month rule. Laptops are on a
+ *  yearly cycle. */
+const CLEANING_INTERVAL_BY_TYPE = { Laptop: 12 };
+
+/** The interval a new asset of this type starts with. */
+export function defaultIntervalFor(deviceType) {
+  return CLEANING_INTERVAL_BY_TYPE[deviceType] ?? DEFAULT_CLEANING_INTERVAL_MONTHS;
+}
+
+/** Never cleaned but purchased: first clean is due this long after purchase.
+ *  Mirrors next_clean_due in supabase/setup.sql. */
+export const FIRST_CLEAN_AFTER_PURCHASE_MONTHS = 12;
+
 /** An asset becomes "Due Soon" once it is inside this many days of its due date. */
 export const DUE_SOON_WINDOW_DAYS = 30;
 

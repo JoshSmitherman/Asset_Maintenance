@@ -25,23 +25,38 @@ first.
 
 **Asset fields** — Asset Ref, Device Type (Laptop/Desktop), Owner, Department,
 Date Cleaned, Cleaned By (AL/BB/JS/RC/TM), Notes, Next Clean Due, Status, plus a
-per-asset cleaning interval that defaults to 6 months.
+per-asset cleaning interval that defaults to 6 months (12 for a laptop).
+
+**Specification** — brand, model, processor and so on for computers and
+monitors. Adding an asset walks you from Details to Specification with a
+**Next** button, and **Look up specs online** fills the empty boxes from the
+web given a make and model (optional - needs the `spec-lookup` Edge Function).
+
+**Asset history** — each asset's **History** tab shows who has had it as a bar
+(one stretch per person, as wide as they held it) above a timeline of every
+move, department or location change, clean and its purchase.
+
+**Admin** — admins get an **Admin** page to add accounts, reset passwords,
+remove people and make others admins (needs the `admin-users` Edge Function).
 
 ### Business rules
 
 | Rule | Where it is enforced |
 | --- | --- |
-| Next Clean Due = Date Cleaned + 6 months (per-asset override allowed) | `next_clean_due`, a **stored generated column** in Postgres |
+| Next Clean Due = Date Cleaned + interval (6 months; 12 for laptops; per-asset override allowed) | `next_clean_due`, a **stored generated column** in Postgres |
+| Never cleaned but purchased: first clean is due 12 months after the Purchase Date | same column |
 | **OK** — more than 30 days remaining | `public.asset_status()` + the `assets_with_status` view |
 | **Due Soon** — due within the next 30 days | same |
 | **Overdue** — due date has passed (shown in red, row tinted) | same |
-| **Never Cleaned** — no Date Cleaned recorded (flagged in red in the table, counted separately on the dashboard) | same |
+| **Never Cleaned** — no Date Cleaned and no Purchase Date, so no due date (flagged in red in the table, counted separately on the dashboard) | same |
 | Asset Ref must be unique, ignoring case and surrounding spaces | unique index on `upper(btrim(asset_ref))` |
 | Date Cleaned cannot be in the future | database trigger + form validation |
 | Date Cleaned and Cleaned By must be given together | `assets_clean_record_complete` check constraint |
 | Device Type / Cleaned By must be from the allowed lists | check constraints |
 | `created_at`, `updated_at`, `updated_by` are recorded and cannot be forged by the client | `handle_asset_write()` trigger |
 | Two people editing the same asset cannot silently overwrite each other | `version` column + optimistic concurrency check on update |
+| Every change of user, department, location, type or reference is recorded | `log_asset_change()` trigger into `asset_events` |
+| Only admins can manage accounts | `user_roles` table, checked by the `admin-users` Edge Function |
 
 The browser recalculates status from the **stored** `next_clean_due` date so an
 all-day-open tab stays correct past midnight, but it never decides what gets
@@ -81,6 +96,12 @@ Realtime so open browser tabs update when a colleague saves a change.
 > section — it is the whole database in one script, and the only one you need.
 > The files below are the history of how an older database reached the same
 > state.
+>
+> **Updating an existing database?** Run `setup.sql` again. It adds whatever is
+> missing - the asset history, admin roles, and the purchase-date rule for Next
+> Clean Due - and changes nothing else. Assets that already exist start their
+> history from that moment. If nobody is an admin yet, the oldest account
+> becomes one.
 
 Then run the migrations, in the same way and **in this order**. Each one is
 safe to run again, and the app expects all of them:
@@ -104,16 +125,20 @@ delete from public.assets where asset_ref like 'SEED-%';
 
 ### 4. Create the team's user accounts
 
-There is deliberately no self-service sign-up. Create each technician's account
-yourself:
+There is deliberately no self-service sign-up. Create **your own** account by
+hand first:
 
 1. **Authentication → Users → Add user → Create new user**.
-2. Enter their email and a password, and tick **Auto Confirm User** so they can
+2. Enter your email and a password, and tick **Auto Confirm User** so you can
    sign in immediately.
+3. Run `setup.sql` again (or run it now if you have not yet): with no admin
+   yet, the oldest account - yours - becomes the admin.
 
-Then close the door behind you:
+Everyone else can then be added from the app's **Admin** page once the
+`admin-users` Edge Function is deployed (see [Edge Functions](#edge-functions)
+below), or by repeating steps 1-2 here. Then close the door behind you:
 
-3. **Authentication → Sign In / Providers → Email**: turn **Allow new users to
+4. **Authentication → Sign In / Providers → Email**: turn **Allow new users to
    sign up** OFF.
 
 > This step matters. The anon key is embedded in the deployed JavaScript, and
@@ -228,6 +253,48 @@ place.
 
 ---
 
+## Edge Functions
+
+Two features run as small Supabase Edge Functions, because they need secrets
+that must never be in the browser. The site works without them; the Admin page
+and the **Look up** button just say the function is not deployed yet.
+
+| Function | What it is for | Secret it needs |
+| --- | --- | --- |
+| [`admin-users`](supabase/functions/admin-users/index.ts) | The Admin page: add, remove and reset accounts, change roles | None to add - Supabase provides its own service-role key to functions |
+| [`spec-lookup`](supabase/functions/spec-lookup/index.ts) | **Look up specs online** on the Specification tab | `ANTHROPIC_API_KEY` |
+
+**Deploy from the dashboard (no tools needed):** **Edge Functions → Deploy a
+new function → Via Editor**, name it exactly `admin-users` (or `spec-lookup`),
+replace the sample code with the file's contents, and **Deploy**. Leave **Verify
+JWT** on.
+
+**Or with the Supabase CLI:**
+
+```bash
+supabase link --project-ref <your-project-ref>
+supabase functions deploy admin-users
+supabase functions deploy spec-lookup
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+```
+
+**The spec lookup's API key:** create one at
+<https://console.anthropic.com> (Settings → API Keys), then add it under
+**Edge Functions → Secrets** as `ANTHROPIC_API_KEY`. Each lookup is a
+Claude request with a handful of web searches; it is billed to that Anthropic
+account - usually a few pence to a few tens of pence per lookup, depending
+on how much it has to read. Usage is visible in the Anthropic
+Console. Only signed-in users can call it.
+
+**Why not just make accounts in the browser?** Creating or deleting a Supabase
+account needs the service-role key, which can do anything to the database.
+Shipping it in the website would hand it to anyone who opens the browser's
+developer tools. The function keeps it on Supabase's side and checks that the
+caller is an admin before every action - so accounts stay in Supabase Auth, and
+nobody needs the Supabase dashboard to manage them day to day.
+
+---
+
 ## Project structure
 
 ```
@@ -241,11 +308,16 @@ place.
 │   ├── migration-002-…            unassigned assets
 │   ├── migration-003-…            hardware specification columns
 │   ├── migration-004-…            cleaning history log + trigger
+│   ├── functions/admin-users/     Edge Function behind the Admin page
+│   ├── functions/spec-lookup/     Edge Function behind "Look up specs online"
 │   └── seed.sql                   sample data for testing
 ├── src/
 │   ├── components/
+│   │   ├── AdminPage.jsx          accounts and roles (admins only)
 │   │   ├── AppShell.jsx           signed-in layout and all state wiring
-│   │   ├── AssetDetailsModal.jsx  read-only view, with the specification tab
+│   │   ├── AssetDetailsModal.jsx  read-only view: details, specification, history
+│   │   ├── AssetHistory.jsx       who-has-had-it bar and event timeline
+│   │   ├── SpecLookup.jsx         "Look up specs online" on the Specification tab
 │   │   ├── BulkActionBar.jsx      actions for the ticked rows
 │   │   ├── CleaningHistory.jsx    every clean recorded, newest first
 │   │   ├── Pagination.jsx         page controls shared by every list
@@ -261,10 +333,13 @@ place.
 │   │   ├── StatsGrid.jsx          dashboard cards
 │   │   ├── StatusBadge.jsx
 │   │   └── Toast.jsx
-│   ├── context/AuthContext.jsx    session state, signIn, signOut
+│   ├── context/AuthContext.jsx    session state, signIn, signOut, isAdmin
 │   ├── hooks/useAssets.js         fetching, realtime, create/update/delete
+│   ├── hooks/useAssetHistory.js   one asset's changes and cleans
 │   ├── lib/
+│   │   ├── assetHistory.js        history rows → custody bar and timeline
 │   │   ├── assetQueries.js        filtering, sorting, urgency ordering
+│   │   ├── edgeFunctions.js       calling the Edge Functions, with plain errors
 │   │   ├── assetStatus.js         status rules (mirrors asset_status() in SQL)
 │   │   ├── constants.js           dropdown values, thresholds, table names
 │   │   ├── dates.js               timezone-safe date handling and formatting

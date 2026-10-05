@@ -150,3 +150,25 @@ export function specSuggestions(assets) {
     ])
   );
 }
+
+/**
+ * Merges a looked-up specification into the form. Only empty boxes are
+ * filled - anything someone has already typed is theirs and stays. Returns
+ * the new values and which keys were filled or kept.
+ */
+export function applyLookedUpSpecs(deviceType, values, found = {}) {
+  const next = { ...values };
+  const filled = [];
+  const kept = [];
+  for (const key of specsFor(deviceType)) {
+    const value = found[key];
+    if (value === null || value === undefined || value === '') continue;
+    if (String(values[key] ?? '').trim() === '') {
+      next[key] = String(value);
+      filled.push(key);
+    } else if (String(values[key]).trim() !== String(value)) {
+      kept.push(key);
+    }
+  }
+  return { values: next, filled, kept };
+}

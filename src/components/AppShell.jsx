@@ -14,6 +14,8 @@ import BulkCleanModal from './BulkCleanModal';
 import AssignUserModal from './AssignUserModal';
 import CleaningHistory from './CleaningHistory';
 import ReportsPage from './ReportsPage';
+import AdminPage from './AdminPage';
+import { useAuth } from '../context/AuthContext';
 import TabStrip from './TabStrip';
 import Pagination from './Pagination';
 import ConfirmDialog from './ConfirmDialog';
@@ -53,6 +55,7 @@ export default function AppShell() {
     assetRefExists
   } = useAssets();
 
+  const { isAdmin } = useAuth();
   const [page, setPage] = useState('dashboard');
   const [filters, setFilters] = useState({ ...EMPTY_FILTERS });
   const [sort, setSort] = useState({ ...DEFAULT_SORT });
@@ -248,7 +251,12 @@ export default function AppShell() {
           offset and overlap each other. */}
       <div className="app-chrome">
         <Header lastSyncedAt={lastSyncedAt} />
-        <AppNav page={page} onChange={goToPage} counts={{ cleaning: attentionCount }} />
+        <AppNav
+          page={page}
+          onChange={goToPage}
+          counts={{ cleaning: attentionCount }}
+          showAdmin={isAdmin}
+        />
       </div>
 
       <main className="container">
@@ -259,7 +267,9 @@ export default function AppShell() {
           </div>
         ) : null}
 
-        {loading ? (
+        {page === 'admin' && isAdmin ? (
+          <AdminPage onToast={setToast} />
+        ) : loading ? (
           <p className="empty-state">Loading assets…</p>
         ) : page === 'dashboard' ? (
           <>
@@ -442,7 +452,7 @@ export default function AppShell() {
 
       <footer className="app-footer">
         <span>
-          Cleaning cycle defaults to 6 months. Status: Overdue (past due) · Due Soon (within 30 days) · OK (more than 30 days).
+          Cleaning cycle defaults to 6 months (12 for laptops); new kit is first due a year after purchase. Status: Overdue (past due) · Due Soon (within 30 days) · OK (more than 30 days).
         </span>
       </footer>
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { statusFor, previewNextCleanDue, decorateAsset, summariseAssets } from '../assetStatus';
-import { STATUS } from '../constants';
+import { STATUS, defaultIntervalFor } from '../constants';
 
 const TODAY = '2026-09-13';
 
@@ -37,6 +37,30 @@ describe('previewNextCleanDue', () => {
   });
   it('returns null with no clean date', () => {
     expect(previewNextCleanDue(null)).toBeNull();
+  });
+  it('counts a never-cleaned asset from its purchase date, a year on', () => {
+    expect(previewNextCleanDue(null, 6, '2026-10-05')).toBe('2027-10-05');
+  });
+  it('a recorded clean wins over the purchase date', () => {
+    expect(previewNextCleanDue('2026-03-15', 6, '2025-01-01')).toBe('2026-09-15');
+  });
+});
+
+describe('purchase-date baseline', () => {
+  it('a just-bought laptop is OK rather than Never Cleaned', () => {
+    const due = previewNextCleanDue(null, 12, TODAY);
+    expect(statusFor('Laptop', null, due, TODAY)).toBe(STATUS.OK);
+  });
+  it('kit bought over a year ago and never cleaned is Overdue', () => {
+    const due = previewNextCleanDue(null, 6, '2025-01-01');
+    expect(statusFor('Desktop', null, due, TODAY)).toBe(STATUS.OVERDUE);
+  });
+});
+
+describe('defaultIntervalFor', () => {
+  it('is 12 months for a laptop and 6 for everything else', () => {
+    expect(defaultIntervalFor('Laptop')).toBe(12);
+    expect(defaultIntervalFor('Desktop')).toBe(6);
   });
 });
 

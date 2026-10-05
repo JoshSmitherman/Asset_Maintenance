@@ -5,11 +5,14 @@ const PAGES = [
   { key: 'reports', label: 'Reports' }
 ];
 
-export default function AppNav({ page, onChange, counts = {} }) {
+const ADMIN_PAGE = { key: 'admin', label: 'Admin' };
+
+export default function AppNav({ page, onChange, counts = {}, showAdmin = false }) {
+  const pages = showAdmin ? [...PAGES, ADMIN_PAGE] : PAGES;
   return (
     <nav className="app-nav" aria-label="Sections">
       <div className="app-nav__inner">
-        {PAGES.map((item) => {
+        {pages.map((item) => {
           const isActive = page === item.key;
           const count = counts[item.key];
           return (

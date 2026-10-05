@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   SPEC_FIELDS,
+  applyLookedUpSpecs,
   hasAnySpecValue,
   hasSpecs,
   specPayload,
@@ -96,5 +97,23 @@ describe('hasAnySpecValue', () => {
     expect(hasAnySpecValue({ device_type: 'Laptop', spec_ram: '16 GB' })).toBe(true);
     // A leftover value that does not apply to this type does not count.
     expect(hasAnySpecValue({ device_type: 'Phone', spec_ram: '16 GB' })).toBe(false);
+  });
+});
+
+describe('applyLookedUpSpecs', () => {
+  it('fills only the empty boxes that apply, and reports what it kept', () => {
+    const values = { spec_brand: 'Dell', spec_model: '', spec_ram: '32 GB', spec_resolution: '' };
+    const result = applyLookedUpSpecs('Laptop', values, {
+      spec_brand: 'Dell',
+      spec_model: 'Latitude 5540',
+      spec_ram: '16 GB',
+      spec_resolution: '1920 x 1080'
+    });
+    expect(result.values.spec_model).toBe('Latitude 5540');
+    expect(result.values.spec_ram).toBe('32 GB');
+    // Resolution is a monitor spec, so a laptop never takes it.
+    expect(result.values.spec_resolution).toBe('');
+    expect(result.filled).toEqual(['spec_model']);
+    expect(result.kept).toEqual(['spec_ram']);
   });
 });

@@ -70,4 +70,36 @@ test.describe('Hardware Maintenance Tracker — end to end (mocked Supabase)', (
       spec_brand: 'Dell'
     });
   });
+
+  test('shows who has had an asset on its History tab', async ({ page }) => {
+    await mockSupabase(page);
+    await page.goto('/');
+    await signIn(page);
+    await gotoAssets(page);
+    await page.getByRole('button', { name: /view details for LAP-001/i }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('tab', { name: /history/i }).click();
+    await expect(dialog.getByRole('heading', { name: /who has had it/i })).toBeVisible();
+    await expect(dialog.getByLabel(/^Carol,/)).toBeVisible();
+    await expect(dialog.getByText('Assigned to Carol')).toBeVisible();
+    await expect(dialog.getByText('Cleaned by AL')).toBeVisible();
+  });
+
+  test('only an admin sees the Admin page and its accounts', async ({ page }) => {
+    await mockSupabase(page, { role: 'admin' });
+    await page.goto('/');
+    await signIn(page);
+    const nav = page.getByRole('navigation', { name: /sections/i });
+    await nav.getByRole('button', { name: 'Admin' }).click();
+    await expect(page.getByRole('cell', { name: 'colleague@example.com', exact: true })).toBeVisible();
+  });
+
+  test('a plain user has no Admin page', async ({ page }) => {
+    await mockSupabase(page, { role: 'user' });
+    await page.goto('/');
+    await signIn(page);
+    const nav = page.getByRole('navigation', { name: /sections/i });
+    await expect(nav.getByRole('button', { name: 'Reports' })).toBeVisible();
+    await expect(nav.getByRole('button', { name: 'Admin' })).toHaveCount(0);
+  });
 });

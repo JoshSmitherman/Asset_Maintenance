@@ -1223,6 +1223,8 @@ code {
 /* Delete sits apart from the confirm-style actions so it is not clicked by
    reflex on the way to Edit. */
 .modal__footer--split { justify-content: space-between; }
+/* Pushes a Back button to the far left, away from Cancel and the main action. */
+.modal__footer-start { margin-right: auto; }
 
 @media (max-width: 480px) {
   .detail { grid-template-columns: 1fr; gap: 2px; }
@@ -1259,3 +1261,135 @@ code {
 }
 .theme-toggle:hover { box-shadow: 0 0 16px var(--accent-glow), var(--shadow-md); transform: scale(1.06); }
 .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* --------------------------------------------------------- Asset history */
+.history { display: flex; flex-direction: column; gap: 22px; }
+
+.history__heading {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--slate-500);
+  margin-bottom: 10px;
+}
+
+/* Who has had it: one stretch per holder, as wide as they held it. The 2px
+   gap keeps neighbouring stretches apart; names are written on them, so
+   colour only separates "current" from "earlier" and "unassigned". */
+.custody__bar {
+  display: flex;
+  gap: 2px;
+  height: 34px;
+}
+
+.custody__segment {
+  flex-basis: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: var(--brand-purple-100);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  cursor: default;
+  transition: var(--theme-transition);
+}
+.custody__segment:hover,
+.custody__segment:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.custody__segment--current { background: var(--brand-purple); color: #fff; }
+
+/* Nobody had it: a hatched neutral rather than a colour, so it reads as an
+   absence, in print and for colour-blind readers too. */
+.custody__segment--none {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--slate-100) 0 6px,
+    var(--slate-200) 6px 8px
+  );
+  color: var(--slate-500);
+  font-style: italic;
+}
+
+.custody__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.custody__legend {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 12.5px;
+}
+
+/* Timeline: a rail with a dot per event, newest at the top. */
+.timeline { list-style: none; margin: 0; padding: 0; position: relative; }
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--slate-200);
+}
+
+.timeline__item { position: relative; padding: 0 0 16px 26px; }
+.timeline__item:last-child { padding-bottom: 0; }
+
+.timeline__dot {
+  position: absolute;
+  left: 1px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--slate-500);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.timeline__item--assign .timeline__dot { background: var(--brand-purple); }
+.timeline__item--clean .timeline__dot { background: var(--chart-ok); }
+.timeline__item--created .timeline__dot,
+.timeline__item--purchase .timeline__dot { background: var(--heading); }
+.timeline__item--start .timeline__dot { background: var(--surface); border: 2px solid var(--slate-500); }
+
+.timeline__top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.timeline__title { font-weight: 600; }
+.timeline__kind {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--slate-500);
+}
+.timeline__detail { margin: 2px 0 0; font-size: 13px; color: var(--slate-700); }
+.timeline__meta { margin: 2px 0 0; font-size: 12px; color: var(--slate-500); }
+
+/* ------------------------------------------------------------ Admin page */
+.form-grid--single { grid-template-columns: 1fr; }
+
+.password-field { display: flex; gap: 8px; }
+.password-field .input { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+.select--compact { width: auto; min-width: 100px; padding-top: 5px; padding-bottom: 5px; }
+
+.pill--inline { margin-left: 8px; font-size: 11px; vertical-align: 1px; }
+
+/* ------------------------------------------------------ Spec lookup row */
+.spec-lookup {
+  padding: 12px 14px;
+  border: 1px dashed var(--brand-purple-100);
+  border-radius: var(--radius-md);
+  background: var(--brand-purple-025);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.spec-lookup__row { display: flex; gap: 8px; }
+.spec-lookup__row .input { flex: 1; }
+.spec-lookup__result { margin: 0; font-size: 12.5px; color: var(--slate-700); }

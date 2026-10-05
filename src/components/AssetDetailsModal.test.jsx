@@ -77,7 +77,9 @@ describe('AssetDetailsModal specification tab', () => {
         onClose={() => {}}
       />
     );
-    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /specification/i })).not.toBeInTheDocument();
+    // Every asset has a history, whatever it is.
+    expect(screen.getByRole('tab', { name: /history/i })).toBeInTheDocument();
     expect(screen.getByText('Purchase cost')).toBeInTheDocument();
   });
 });
