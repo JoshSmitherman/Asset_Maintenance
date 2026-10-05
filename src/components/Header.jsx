@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import AccountMenu from './AccountMenu';
 import BrandLogo from './BrandLogo';
 import ChangePasswordModal from './ChangePasswordModal';
 import Toast from './Toast';
@@ -7,7 +8,7 @@ import { formatTimestamp } from '../lib/dates';
 import { CURRENT_VERSION } from '../lib/releaseNotes';
 
 export default function Header({ lastSyncedAt, onOpenReleaseNotes, hasUnseenRelease = false }) {
-  const { userEmail, signOut } = useAuth();
+  const { userEmail, isAdmin, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [toast, setToast] = useState(null);
@@ -52,18 +53,13 @@ export default function Header({ lastSyncedAt, onOpenReleaseNotes, hasUnseenRele
           </div>
         </div>
 
-        <div className="app-header__actions">
-          {/* Change password reads as an underlined link - visibly clickable,
-              a clear step below Sign out's solid button. The email is plain
-              text: not an action, just a label. */}
-          <button type="button" className="app-header__link" onClick={() => setChangingPassword(true)}>
-            Change password
-          </button>
-          <span className="app-header__user" title={userEmail}>{userEmail}</span>
-          <button type="button" className="btn btn--primary" onClick={handleSignOut} disabled={signingOut}>
-            {signingOut ? 'Signing out…' : 'Sign out'}
-          </button>
-        </div>
+        <AccountMenu
+          email={userEmail}
+          isAdmin={isAdmin}
+          onChangePassword={() => setChangingPassword(true)}
+          onSignOut={handleSignOut}
+          signingOut={signingOut}
+        />
       </div>
 
       {changingPassword ? (

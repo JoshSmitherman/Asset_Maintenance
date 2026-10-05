@@ -69,6 +69,12 @@ export const RELEASES = [
         area: 'General',
         groups: [
           {
+            heading: 'Header',
+            items: [
+              { type: 'changed', text: 'Change password, your email and Sign out now live in one **account menu**: click the badge with your initials at the top right. It also shows your name and whether you are an Admin or a User' }
+            ]
+          },
+          {
             heading: 'Layout',
             items: [
               { type: 'fixed', text: 'The light and dark mode button no longer covers buttons at the bottom of a page' },
