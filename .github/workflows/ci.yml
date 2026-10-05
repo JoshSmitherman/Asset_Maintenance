@@ -55,3 +55,33 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  release-notes:
+    name: Release notes kept up to date
+    # Backstop for the rule in CLAUDE.md: a change people can see ships with a
+    # release-notes entry. Only warns - it never blocks a fix from going out.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check that app changes came with release notes
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "No previous commit to compare with; skipping."
+            exit 0
+          fi
+          changed="$(git diff --name-only "$BEFORE" "$AFTER")"
+          app_changes="$(echo "$changed" | grep -E '^(src/|index\.html$)' \
+            | grep -vE '(\.test\.|__tests__/|^src/lib/releaseNotes\.js$)' || true)"
+          if [ -n "$app_changes" ] && ! echo "$changed" | grep -qx 'src/lib/releaseNotes.js'; then
+            echo "::warning title=Release notes not updated::The app changed but src/lib/releaseNotes.js did not. If people will notice the change, add an entry and bump the version in package.json."
+            echo "Changed app files:"
+            echo "$app_changes"
+          else
+            echo "Release notes are in step with the app."
+          fi

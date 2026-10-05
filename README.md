@@ -397,7 +397,9 @@ For each new release, add an entry at the top of
 [`src/lib/releaseNotes.js`](src/lib/releaseNotes.js) (grouped by page, each
 change marked added, changed, fixed or removed) and set the same version in
 `package.json`; a test fails if the two disagree. The header shows a **New**
-marker until someone has opened the latest notes.
+marker until someone has opened the latest notes. [`CLAUDE.md`](CLAUDE.md) makes
+this part of every change, and CI warns on a push to `main` that changes the
+app without touching the notes.
 
 **Add or change the cleaners' initials or device types** — edit the lists in
 `src/lib/constants.js` **and** the matching check constraints in
