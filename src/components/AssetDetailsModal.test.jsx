@@ -46,7 +46,7 @@ describe('AssetDetailsModal specification tab', () => {
     expect(screen.queryByText('Purchase cost')).not.toBeInTheDocument();
   });
 
-  it('gives a monitor only its own four specs', async () => {
+  it('gives a monitor only its own specs', async () => {
     const user = userEvent.setup();
     render(
       <AssetDetailsModal
@@ -64,8 +64,9 @@ describe('AssetDetailsModal specification tab', () => {
     expect(screen.getByText('DisplayPort ports')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getByText('Brand')).toBeInTheDocument();
     expect(screen.queryByText('Battery type')).not.toBeInTheDocument();
-    expect(screen.queryByText('Brand')).not.toBeInTheDocument();
+    expect(screen.queryByText('Processor')).not.toBeInTheDocument();
   });
 
   it('has no specification tab for kit that has no specs', () => {

@@ -2,9 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AssetFormModal from './AssetFormModal';
-
-const lookup = vi.fn();
-vi.mock('../lib/edgeFunctions', () => ({ callFunction: (...args) => lookup(...args) }));
 import { todayIso, addMonthsIso } from '../lib/dates';
 
 function setup(overrides = {}) {
@@ -247,33 +244,35 @@ describe('AssetFormModal next step', () => {
   });
 });
 
-describe('AssetFormModal spec lookup', () => {
-  it('fills the empty spec boxes from an online lookup, leaving them editable', async () => {
-    lookup.mockResolvedValueOnce({
-      found: true,
-      matched_device: 'Dell Latitude 5540',
-      source_url: 'https://www.dell.com/spec',
-      note: null,
-      specs: { spec_brand: 'Dell', spec_model: 'Latitude 5540', spec_ram: '16 GB' }
-    });
-    const user = userEvent.setup();
-    setup();
-    await user.click(screen.getByRole('tab', { name: /specification/i }));
-    await user.type(screen.getByLabelText(/look up specs online/i), 'Dell Latitude 5540');
-    await user.click(screen.getByRole('button', { name: /^look up$/i }));
+describe('AssetFormModal spec memory', () => {
+  const specMemory = {
+    Laptop: [
+      {
+        key: 'dell latitude 5540',
+        label: 'Dell Latitude 5540',
+        count: 3,
+        refs: ['LAP-003', 'LAP-002', 'LAP-001'],
+        specs: { spec_brand: 'Dell', spec_model: 'Latitude 5540', spec_ram: '16 GB', spec_storage: '512 GB SSD' }
+      }
+    ]
+  };
 
-    expect(lookup).toHaveBeenCalledWith('spec-lookup', { query: 'Dell Latitude 5540', device_type: 'Laptop' });
-    expect(await screen.findByText(/filled 3 fields for dell latitude 5540 from dell.com/i)).toBeInTheDocument();
+  it('copies a known model chosen from the list into the empty boxes', async () => {
+    const user = userEvent.setup();
+    setup({ specMemory });
+    await user.click(screen.getByRole('tab', { name: /specification/i }));
+    await user.selectOptions(screen.getByLabelText(/copy specs from a model/i), 'dell latitude 5540');
+    expect(screen.getByText(/filled 4 fields from LAP-003, LAP-002, LAP-001/i)).toBeInTheDocument();
     expect(screen.getByLabelText('RAM')).toHaveValue('16 GB');
   });
 
-  it('says what went wrong when the lookup is unavailable', async () => {
-    lookup.mockRejectedValueOnce(new Error('The "spec-lookup" function could not be reached.'));
+  it('offers the match as soon as the typed model is one already recorded', async () => {
     const user = userEvent.setup();
-    setup();
+    setup({ specMemory, prefill: { spec_brand: 'dell', spec_model: 'latitude 5540' } });
     await user.click(screen.getByRole('tab', { name: /specification/i }));
-    await user.type(screen.getByLabelText(/look up specs online/i), 'Dell Latitude 5540');
-    await user.click(screen.getByRole('button', { name: /^look up$/i }));
-    expect(await screen.findByText(/could not be reached/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /fill in its specs/i }));
+    expect(screen.getByLabelText('Hard drive')).toHaveValue('512 GB SSD');
+    // What was typed stays as typed.
+    expect(screen.getByLabelText('Model')).toHaveValue('latitude 5540');
   });
 });

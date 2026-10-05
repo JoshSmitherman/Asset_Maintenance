@@ -25,7 +25,7 @@ import { useCleaningLog } from '../hooks/useCleaningLog';
 import { DEFAULT_PAGE_SIZE, usePagination } from '../hooks/usePagination';
 import { summariseAssets } from '../lib/assetStatus';
 import { totalPurchaseValue } from '../lib/dashboardStats';
-import { specSuggestions } from '../lib/specs';
+import { knownModels, specSuggestions } from '../lib/specs';
 import {
   DEFAULT_SORT,
   EMPTY_FILTERS,
@@ -87,6 +87,8 @@ export default function AppShell() {
   // Spec dropdowns offer what is already on the register as well as the
   // built-in suggestions, so the lists grow with the fleet.
   const specOptions = useMemo(() => specSuggestions(assets), [assets]);
+  // Specs of every model already recorded, so another of the same can copy them.
+  const specMemory = useMemo(() => knownModels(assets), [assets]);
 
   // The cleaning section only ever sees laptops and desktops.
   const cleaningAssets = useMemo(
@@ -464,6 +466,7 @@ export default function AppShell() {
           departments={departments}
           users={users}
           specOptions={specOptions}
+          specMemory={specMemory}
           onClose={() => {
             setFormState(null);
             backToDetails();

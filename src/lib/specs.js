@@ -84,7 +84,7 @@ const SPECS_BY_DEVICE_TYPE = {
     'spec_screen_size', 'spec_battery_type', 'spec_charger_type'
   ],
   Desktop: ['spec_brand', 'spec_model', 'spec_processor', 'spec_ram', 'spec_storage'],
-  Monitor: ['spec_screen_size', 'spec_resolution', 'spec_hdmi_ports', 'spec_dp_ports']
+  Monitor: ['spec_brand', 'spec_model', 'spec_screen_size', 'spec_resolution', 'spec_hdmi_ports', 'spec_dp_ports']
 };
 
 /** The spec columns that apply to a device type, in the order they are shown. */
@@ -152,11 +152,11 @@ export function specSuggestions(assets) {
 }
 
 /**
- * Merges a looked-up specification into the form. Only empty boxes are
+ * Merges a copied specification into the form. Only empty boxes are
  * filled - anything someone has already typed is theirs and stays. Returns
  * the new values and which keys were filled or kept.
  */
-export function applyLookedUpSpecs(deviceType, values, found = {}) {
+export function fillEmptySpecs(deviceType, values, found = {}) {
   const next = { ...values };
   const filled = [];
   const kept = [];
@@ -171,4 +171,77 @@ export function applyLookedUpSpecs(deviceType, values, found = {}) {
     }
   }
   return { values: next, filled, kept };
+}
+
+const modelKey = (brand, model) => `${String(brand ?? '').trim()} ${String(model ?? '').trim()}`.trim().toLowerCase();
+
+/**
+ * The register's memory: every make and model already recorded, per device
+ * type, with the specification those assets agree on. Adding another of the
+ * same model can then copy it instead of anyone typing it in again.
+ *
+ * For each field the most common value wins; on a tie, the most recently
+ * updated asset's value. Kit with no brand or model to match on (monitors
+ * record neither) is grouped by nothing and left out.
+ *
+ * Returns { [deviceType]: [{ key, label, count, refs, specs }] }, most
+ * common model first.
+ */
+export function knownModels(assets) {
+  const groups = new Map();
+  for (const asset of assets) {
+    const keys = specsFor(asset.device_type);
+    if (!keys.includes('spec_model')) continue;
+    const key = modelKey(asset.spec_brand, asset.spec_model);
+    if (!asset.spec_model || !String(asset.spec_model).trim()) continue;
+    const groupKey = `${asset.device_type}|${key}`;
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, { deviceType: asset.device_type, key, assets: [] });
+    }
+    groups.get(groupKey).assets.push(asset);
+  }
+
+  const byType = {};
+  for (const group of groups.values()) {
+    const newestFirst = [...group.assets].sort((a, b) =>
+      String(b.updated_at ?? '').localeCompare(String(a.updated_at ?? ''))
+    );
+    const specs = {};
+    for (const field of specsFor(group.deviceType)) {
+      const tally = new Map();
+      for (const asset of newestFirst) {
+        const value = asset[field];
+        if (value === null || value === undefined || String(value).trim() === '') continue;
+        const text = String(value).trim();
+        tally.set(text, (tally.get(text) ?? 0) + 1);
+      }
+      let best = null;
+      for (const [value, count] of tally) {
+        // Map keeps first-seen order, which is newest first, so ">" keeps the
+        // newer value on a tie.
+        if (!best || count > best.count) best = { value, count };
+      }
+      if (best) specs[field] = best.value;
+    }
+    const sample = newestFirst[0];
+    (byType[group.deviceType] ??= []).push({
+      key: group.key,
+      label: [sample.spec_brand, sample.spec_model].filter((part) => part && String(part).trim()).join(' '),
+      count: group.assets.length,
+      refs: newestFirst.map((asset) => asset.asset_ref),
+      specs
+    });
+  }
+
+  for (const list of Object.values(byType)) {
+    list.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'en-GB', { numeric: true }));
+  }
+  return byType;
+}
+
+/** The known model matching what is typed in Brand and Model, if any. */
+export function matchKnownModel(models = [], brand, model) {
+  if (!String(model ?? '').trim()) return null;
+  const key = modelKey(brand, model);
+  return models.find((entry) => entry.key === key) ?? null;
 }

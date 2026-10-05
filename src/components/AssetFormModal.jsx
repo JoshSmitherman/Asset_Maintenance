@@ -10,8 +10,8 @@ import {
   isCleaningTracked,
   LOCATIONS
 } from '../lib/constants';
-import { SPEC_COLUMNS, SPEC_FIELDS, applyLookedUpSpecs, hasSpecs, specsFor } from '../lib/specs';
-import SpecLookup from './SpecLookup';
+import { SPEC_COLUMNS, SPEC_FIELDS, fillEmptySpecs, hasSpecs, specsFor } from '../lib/specs';
+import SpecMemory from './SpecMemory';
 import { previewNextCleanDue, statusFor } from '../lib/assetStatus';
 
 /** Enough for a delivery, few enough that a typo cannot create a thousand. */
@@ -169,15 +169,15 @@ export default function AssetFormModal({
   assetRefExists,
   departments = [],
   users = [],
-  specOptions = {}
+  specOptions = {},
+  specMemory = {}
 }) {
   const isEditing = Boolean(asset);
   const [tab, setTab] = useState('details');
   const [values, setValues] = useState(() =>
     isEditing ? valuesFromAsset(asset, prefill) : blankValues(prefill)
   );
-  // The lookup answers seconds later; it must merge into what the form holds
-  // then, not what it held when the search started.
+  // Copying specs merges into what the form holds at that moment.
   const latestValues = useRef(values);
   latestValues.current = values;
   const [errors, setErrors] = useState({});
@@ -317,14 +317,14 @@ export default function AssetFormModal({
             <p className="field__hint field--full">
               All optional — fill in what you know, and edit it any time later.
             </p>
-            <SpecLookup
-              key={values.device_type}
-              deviceType={values.device_type}
-              initialQuery={[values.spec_brand, values.spec_model].filter((part) => part.trim()).join(' ')}
+            <SpecMemory
+              models={specMemory[values.device_type] ?? []}
+              brand={values.spec_brand}
+              model={values.spec_model}
               disabled={busy}
-              onFound={(found) => {
+              onApply={(found) => {
                 const current = latestValues.current;
-                const merged = applyLookedUpSpecs(current.device_type, current, found);
+                const merged = fillEmptySpecs(current.device_type, current, found);
                 setValues(merged.values);
                 return merged;
               }}

@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   SPEC_FIELDS,
-  applyLookedUpSpecs,
+  fillEmptySpecs,
   hasAnySpecValue,
+  knownModels,
+  matchKnownModel,
   hasSpecs,
   specPayload,
   specSuggestions,
@@ -25,8 +27,9 @@ describe('specsFor', () => {
     expect(desktop).not.toContain('spec_charger_type');
   });
 
-  it('gives a monitor its own four', () => {
+  it('gives a monitor its make and model, then its own four', () => {
     expect(specsFor('Monitor')).toEqual([
+      'spec_brand', 'spec_model',
       'spec_screen_size', 'spec_resolution', 'spec_hdmi_ports', 'spec_dp_ports'
     ]);
   });
@@ -100,10 +103,10 @@ describe('hasAnySpecValue', () => {
   });
 });
 
-describe('applyLookedUpSpecs', () => {
+describe('fillEmptySpecs', () => {
   it('fills only the empty boxes that apply, and reports what it kept', () => {
     const values = { spec_brand: 'Dell', spec_model: '', spec_ram: '32 GB', spec_resolution: '' };
-    const result = applyLookedUpSpecs('Laptop', values, {
+    const result = fillEmptySpecs('Laptop', values, {
       spec_brand: 'Dell',
       spec_model: 'Latitude 5540',
       spec_ram: '16 GB',
@@ -115,5 +118,36 @@ describe('applyLookedUpSpecs', () => {
     expect(result.values.spec_resolution).toBe('');
     expect(result.filled).toEqual(['spec_model']);
     expect(result.kept).toEqual(['spec_ram']);
+  });
+});
+
+describe('knownModels', () => {
+  const assets = [
+    { asset_ref: 'L1', device_type: 'Laptop', spec_brand: 'Dell', spec_model: 'Latitude 5540', spec_ram: '16 GB', updated_at: '2026-01-01' },
+    { asset_ref: 'L2', device_type: 'Laptop', spec_brand: 'dell ', spec_model: 'latitude 5540', spec_ram: '16 GB', spec_storage: '256 GB SSD', updated_at: '2026-02-01' },
+    { asset_ref: 'L3', device_type: 'Laptop', spec_brand: 'Dell', spec_model: 'Latitude 5540', spec_ram: '32 GB', spec_storage: '512 GB SSD', updated_at: '2026-03-01' },
+    { asset_ref: 'L4', device_type: 'Laptop', spec_brand: 'HP', spec_model: null, spec_ram: '8 GB' },
+    { asset_ref: 'M1', device_type: 'Monitor', spec_brand: 'Dell', spec_model: 'P2422H', spec_resolution: '1920 x 1080' }
+  ];
+
+  it('groups by make and model, ignoring case and spaces, taking the commonest value', () => {
+    const [latitude] = knownModels(assets).Laptop;
+    expect(latitude.count).toBe(3);
+    expect(latitude.refs).toEqual(['L3', 'L2', 'L1']);
+    expect(latitude.specs.spec_ram).toBe('16 GB');
+    // A tie goes to the most recently updated asset.
+    expect(latitude.specs.spec_storage).toBe('512 GB SSD');
+  });
+
+  it('leaves out kit with no model, and keeps each device type separate', () => {
+    const models = knownModels(assets);
+    expect(models.Laptop).toHaveLength(1);
+    expect(models.Monitor[0].label).toBe('Dell P2422H');
+  });
+
+  it('matches what is typed against the known models', () => {
+    const { Laptop } = knownModels(assets);
+    expect(matchKnownModel(Laptop, ' DELL', 'Latitude 5540 ')?.count).toBe(3);
+    expect(matchKnownModel(Laptop, 'Dell', '')).toBeNull();
   });
 });

@@ -29,8 +29,10 @@ per-asset cleaning interval that defaults to 6 months (12 for a laptop).
 
 **Specification** — brand, model, processor and so on for computers and
 monitors. Adding an asset walks you from Details to Specification with a
-**Next** button, and **Look up specs online** fills the empty boxes from the
-web given a make and model (optional - needs the `spec-lookup` Edge Function).
+**Next** button. Type a make and model the register already has - or pick one
+from **Copy specs from a model you already have** - and its specification is
+copied into the empty boxes, so the second Latitude 5540 takes seconds. It
+learns from your own register as it grows; nothing is sent anywhere.
 
 **Asset history** — each asset's **History** tab shows who has had it as a bar
 (one stretch per person, as wide as they held it) above a timeline of every
@@ -255,12 +257,45 @@ place.
 
 ## Edge Functions
 
-Two features run as small Supabase Edge Functions, because they need secrets
-that must never be in the browser. The site works without them; the Admin page
-and the **Look up** button just say the function is not deployed yet.
+The Admin page runs through one small Supabase Edge Function,
+[`admin-users`](supabase/functions/admin-users/index.ts), because creating or
+removing accounts needs Supabase's service-role key, which must never be in the
+browser. The rest of the site works without it; the Admin page just says the
+function is not deployed yet.
 
-| Function | What it is for | Secret it needs |
+**Deploy from the dashboard (no tools needed):** **Edge Functions → Deploy a
+new function → Via Editor**, name it exactly `admin-users`, replace the sample
+code with the file's contents, and **Deploy**. Leave **Verify JWT** on. It
+needs no secrets - Supabase gives every function its own service-role key.
+
+**Or with the Supabase CLI:**
+
+```bash
+supabase link --project-ref <your-project-ref>
+supabase functions deploy admin-users
+```
+
+**Why not just make accounts in the browser?** Shipping the service-role key in
+the website would hand full control of the database to anyone who opens the
+browser's developer tools. The function keeps it on Supabase's side and checks
+that the caller is an admin before every action - so accounts stay in Supabase
+Auth, and nobody needs the Supabase dashboard to manage them day to day.
+
+## What it costs
+
+Nothing, on these free tiers:
+
+| Part | Free allowance | This app's use |
 | --- | --- | --- |
+| GitHub Pages | Free for a public repository | Hosts the website |
+| Supabase Free plan | 500 MB database, 50,000 monthly active users, 500,000 Edge Function calls a month | A team's asset register is a tiny fraction of each |
+
+The one catch on Supabase's Free plan: a project with **no activity for a
+week is paused**. Nothing is lost - restore it from the dashboard with one
+click - and normal daily use keeps it awake. Supabase's limits change from time
+to time; check <https://supabase.com/pricing>.
+
+--- | --- | --- |
 | [`admin-users`](supabase/functions/admin-users/index.ts) | The Admin page: add, remove and reset accounts, change roles | None to add - Supabase provides its own service-role key to functions |
 | [`spec-lookup`](supabase/functions/spec-lookup/index.ts) | **Look up specs online** on the Specification tab | `ANTHROPIC_API_KEY` |
 
@@ -309,7 +344,6 @@ nobody needs the Supabase dashboard to manage them day to day.
 │   ├── migration-003-…            hardware specification columns
 │   ├── migration-004-…            cleaning history log + trigger
 │   ├── functions/admin-users/     Edge Function behind the Admin page
-│   ├── functions/spec-lookup/     Edge Function behind "Look up specs online"
 │   └── seed.sql                   sample data for testing
 ├── src/
 │   ├── components/
@@ -317,7 +351,7 @@ nobody needs the Supabase dashboard to manage them day to day.
 │   │   ├── AppShell.jsx           signed-in layout and all state wiring
 │   │   ├── AssetDetailsModal.jsx  read-only view: details, specification, history
 │   │   ├── AssetHistory.jsx       who-has-had-it bar and event timeline
-│   │   ├── SpecLookup.jsx         "Look up specs online" on the Specification tab
+│   │   ├── SpecMemory.jsx         copies specs from models already on the register
 │   │   ├── BulkActionBar.jsx      actions for the ticked rows
 │   │   ├── CleaningHistory.jsx    every clean recorded, newest first
 │   │   ├── Pagination.jsx         page controls shared by every list

@@ -1380,8 +1380,8 @@ code {
 
 .pill--inline { margin-left: 8px; font-size: 11px; vertical-align: 1px; }
 
-/* ------------------------------------------------------ Spec lookup row */
-.spec-lookup {
+/* ------------------------------------------- Copy specs from the register */
+.spec-memory {
   padding: 12px 14px;
   border: 1px dashed var(--brand-purple-100);
   border-radius: var(--radius-md);
@@ -1390,6 +1390,6 @@ code {
   flex-direction: column;
   gap: 6px;
 }
-.spec-lookup__row { display: flex; gap: 8px; }
-.spec-lookup__row .input { flex: 1; }
-.spec-lookup__result { margin: 0; font-size: 12.5px; color: var(--slate-700); }
+.spec-memory__row { display: flex; gap: 8px; }
+.spec-memory__row--match { align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 13.5px; }
+.spec-memory__result { margin: 0; font-size: 12.5px; color: var(--slate-700); }
