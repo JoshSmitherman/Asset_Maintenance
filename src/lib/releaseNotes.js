@@ -7,6 +7,27 @@
 
 export const RELEASES = [
   {
+    version: '2.7.0',
+    title: 'Favourite Reports',
+    date: '2026-10-05',
+    sections: [
+      {
+        area: 'Reports',
+        groups: [
+          {
+            heading: 'Favourites',
+            items: [
+              { type: 'added', text: 'Star a report to make it a favourite. Its star turns gold, and it is listed under **Favourites** at the top of the Reports menu' },
+              { type: 'added', text: 'Reports opens on your first favourite, so the one you use most is waiting for you' },
+              { type: 'added', text: 'Every report has a star beside its title too, which is how to star one on a phone' },
+              { type: 'added', text: 'Favourites are kept for each person on this computer, so a shared PC keeps everyone\'s separate' }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.6.0',
     title: 'Dashboard Cards & Purchases',
     date: '2026-10-05',

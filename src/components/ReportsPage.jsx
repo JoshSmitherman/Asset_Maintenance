@@ -2,6 +2,27 @@ import { useMemo, useState } from 'react';
 import { REPORT_MENU, REPORT_MENU_ITEMS, reportById } from '../lib/reports';
 import { exportCsv } from '../lib/csv';
 import { uniqueUsers } from '../lib/assetQueries';
+import { inMenuOrder } from '../lib/reportFavourites';
+import { useReportFavourites } from '../hooks/useReportFavourites';
+import StarIcon from './StarIcon';
+
+const MENU_IDS = REPORT_MENU_ITEMS.map((entry) => entry.id);
+
+/** Gold when starred. Says what it will do, so it reads right in a list. */
+function StarToggle({ label, starred, onToggle, className = '' }) {
+  return (
+    <button
+      type="button"
+      className={`star-toggle${starred ? ' star-toggle--on' : ''} ${className}`.trim()}
+      aria-pressed={starred}
+      aria-label={starred ? `Remove ‘${label}’ from favourites` : `Add ‘${label}’ to favourites`}
+      title={starred ? 'Remove from favourites' : 'Add to favourites'}
+      onClick={onToggle}
+    >
+      <StarIcon filled={starred} />
+    </button>
+  );
+}
 
 /**
  * Summaries of what the register already holds, in three groups - assets,
@@ -20,7 +41,10 @@ export default function ReportsPage({
   repairsLoading = false,
   repairsError = null
 }) {
-  const [itemId, setItemId] = useState(REPORT_MENU_ITEMS[0].id);
+  const { favourites, isFavourite, toggle } = useReportFavourites(MENU_IDS);
+  const favouriteItems = inMenuOrder(favourites, REPORT_MENU_ITEMS);
+  // Open on the first favourite, if there is one: the report most likely wanted.
+  const [itemId, setItemId] = useState(() => favouriteItems[0]?.id ?? REPORT_MENU_ITEMS[0].id);
   // The view chosen for each item, so switching away and back keeps it.
   const [viewByItem, setViewByItem] = useState({});
 
@@ -42,13 +66,21 @@ export default function ReportsPage({
   return (
     <div className="reports">
       <nav className="reports__menu" aria-label="Reports">
-        {REPORT_MENU.map((group) => (
-          <div key={group.category} className="reports__group">
+        {[
+          ...(favouriteItems.length
+            ? [{ category: 'Favourites', blurb: 'Your starred reports', items: favouriteItems, favourites: true }]
+            : []),
+          ...REPORT_MENU
+        ].map((group) => (
+          <div
+            key={group.category}
+            className={`reports__group${group.favourites ? ' reports__group--favourites' : ''}`}
+          >
             <h2 className="reports__group-title">{group.category}</h2>
             <p className="reports__group-blurb">{group.blurb}</p>
             <ul className="reports__items">
               {group.items.map((entry) => (
-                <li key={entry.id}>
+                <li key={entry.id} className="reports__entry">
                   <button
                     type="button"
                     className={`reports__item${entry.id === item.id ? ' reports__item--active' : ''}`}
@@ -58,6 +90,12 @@ export default function ReportsPage({
                     <span className="reports__item-label">{entry.label}</span>
                     <span className="reports__item-summary">{entry.summary}</span>
                   </button>
+                  <StarToggle
+                    label={entry.label}
+                    starred={isFavourite(entry.id)}
+                    onToggle={() => toggle(entry.id)}
+                    className="reports__star"
+                  />
                 </li>
               ))}
             </ul>
@@ -69,7 +107,10 @@ export default function ReportsPage({
         <div className="card__header">
           <div>
             <p className="reports__eyebrow">{item.category}</p>
-            <h2 className="card__title">{item.label}</h2>
+            <div className="reports__title-row">
+              <h2 className="card__title">{item.label}</h2>
+              <StarToggle label={item.label} starred={isFavourite(item.id)} onToggle={() => toggle(item.id)} />
+            </div>
             <p className="card__subtitle">{report.description}</p>
           </div>
           <button
@@ -99,6 +140,13 @@ export default function ReportsPage({
                 value={item.id}
                 onChange={(event) => setItemId(event.target.value)}
               >
+                {favouriteItems.length ? (
+                  <optgroup label="★ Favourites">
+                    {favouriteItems.map((entry) => (
+                      <option key={`fav-${entry.id}`} value={entry.id}>★ {entry.label}</option>
+                    ))}
+                  </optgroup>
+                ) : null}
                 {REPORT_MENU.map((group) => (
                   <optgroup key={group.category} label={group.category}>
                     {group.items.map((entry) => (

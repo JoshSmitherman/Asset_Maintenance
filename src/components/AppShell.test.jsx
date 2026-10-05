@@ -179,7 +179,7 @@ describe('AppShell reports', () => {
     render(<AppShell />);
     await user.click(screen.getByRole('button', { name: 'Reports' }));
     const menu = screen.getByRole('navigation', { name: 'Reports' });
-    await user.click(within(menu).getByRole('button', { name: /due this month/i }));
+    await user.click(within(menu).getByRole('button', { name: /^due this month/i }));
 
     // The mock asset is overdue, so it is due by the end of any month.
     expect(screen.getByText('AST-0041')).toBeInTheDocument();
@@ -200,7 +200,7 @@ describe('AppShell reports', () => {
     await user.click(screen.getByRole('button', { name: 'Device type' }));
     expect(screen.getByRole('button', { name: 'Device type' })).toHaveAttribute('aria-pressed', 'true');
 
-    await user.click(within(menu).getByRole('button', { name: /cleaning activity/i }));
+    await user.click(within(menu).getByRole('button', { name: /^cleaning activity/i }));
     await user.click(screen.getByRole('button', { name: 'By person' }));
     expect(screen.getByText('JS')).toBeInTheDocument();
   });
@@ -453,7 +453,7 @@ describe('AppShell reports by person', () => {
     render(<AppShell />);
     await user.click(screen.getByRole('button', { name: 'Reports' }));
     // The side menu and the phone dropdown both offer it; take the menu.
-    await user.click(screen.getAllByRole('button', { name: /by person/i })[0]);
+    await user.click(screen.getAllByRole('button', { name: /^by person/i })[0]);
 
     expect(screen.getByRole('heading', { name: /^by person$/i })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'Person 0' })).toBeInTheDocument();

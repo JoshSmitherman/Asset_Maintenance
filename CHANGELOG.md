@@ -7,6 +7,19 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.7.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.7.0) - 2026-10-05
+
+_Favourite Reports_
+
+### Reports
+
+**Favourites**
+
+- **Added:** Star a report to make it a favourite. Its star turns gold, and it is listed under **Favourites** at the top of the Reports menu
+- **Added:** Reports opens on your first favourite, so the one you use most is waiting for you
+- **Added:** Every report has a star beside its title too, which is how to star one on a phone
+- **Added:** Favourites are kept for each person on this computer, so a shared PC keeps everyone's separate
+
 ## [2.6.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.6.0) - 2026-10-05
 
 _Dashboard Cards & Purchases_

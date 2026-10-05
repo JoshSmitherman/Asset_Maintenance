@@ -232,13 +232,31 @@ test.describe('Hardware Maintenance Tracker — end to end (mocked Supabase)', (
     await page.goto('/');
     await signIn(page);
     await page.getByRole('navigation', { name: /sections/i }).getByRole('button', { name: 'Reports' }).click();
-    await page.getByRole('navigation', { name: /reports/i }).getByRole('button', { name: /by person/i }).click();
+    await page.getByRole('navigation', { name: /reports/i }).getByRole('button', { name: /^by person/i }).click();
 
     await expect(page.getByRole('cell', { name: 'Alice' })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Bob' })).toBeVisible();
     await page.getByLabel(/^person$/i).selectOption('Bob');
     await expect(page.getByRole('cell', { name: 'DSK-010', exact: true })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'LAP-001', exact: true })).toHaveCount(0);
+  });
+
+  test('a starred report is remembered, and the page opens on it', async ({ page }) => {
+    await mockSupabase(page);
+    await page.goto('/');
+    await signIn(page);
+    const sections = page.getByRole('navigation', { name: /sections/i });
+    await sections.getByRole('button', { name: 'Reports' }).click();
+
+    const menu = page.getByRole('navigation', { name: /^reports$/i });
+    await menu.getByRole('button', { name: /add ‘due this month’ to favourites/i }).click();
+    await expect(menu.getByRole('heading', { name: 'Favourites' })).toBeVisible();
+
+    await page.reload();
+    await sections.getByRole('button', { name: 'Reports' }).click();
+    await expect(page.getByRole('heading', { level: 2, name: 'Due this month' })).toBeVisible();
+    await expect(menu.getByRole('button', { name: /remove ‘due this month’ from favourites/i }).first())
+      .toHaveAttribute('aria-pressed', 'true');
   });
 });
 

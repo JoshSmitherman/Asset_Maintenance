@@ -81,6 +81,9 @@
   --teal-700: #7fd8e2;
   --info-100: #172a45;
   --info-700: #9cc3f3;
+  /* Favourite stars. Bright on the dark page; deeper in light mode, where a
+     pale gold all but disappears against white. */
+  --star-gold: #f2c94c;
 
   --radius-sm: 5px;
   --radius-md: 8px;
@@ -96,6 +99,8 @@
 
 body.light-mode {
   color-scheme: light;
+
+  --star-gold: #b8860b;
 
   --brand-purple-050: #f4ecf7;
   --brand-purple-025: #faf6fc;
@@ -1971,3 +1976,41 @@ body.no-scroll .theme-toggle { display: none; }
   .parts__row { grid-template-columns: minmax(0, 1fr) 92px 30px; }
   .attachment { flex-wrap: wrap; }
 }
+
+/* --------------------------------------------------- Favourite reports */
+.star-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--slate-500);
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+}
+/* Only where there is a pointer: on a touchscreen a hover style sticks after
+   the tap and looks like a stuck button. */
+@media (hover: hover) {
+  .star-toggle:hover { color: var(--star-gold); background: var(--slate-100); }
+}
+.star-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.star-toggle:active { transform: scale(0.88); }
+.star-toggle--on { color: var(--star-gold); }
+
+/* In the menu the star sits at the right of each report. Unstarred ones stay
+   faint until the row is pointed at, so the menu does not turn into a column
+   of empty stars; starred ones are always gold. */
+.reports__entry { position: relative; }
+.reports__entry .reports__item { padding-right: 40px; }
+.reports__star { position: absolute; top: 6px; right: 4px; }
+.reports__star:not(.star-toggle--on) { opacity: 0.35; }
+.reports__entry:hover .reports__star,
+.reports__star:focus-visible { opacity: 1; }
+
+.reports__group--favourites .reports__group-title { color: var(--star-gold); }
+
+.reports__title-row { display: flex; align-items: center; gap: 6px; }
