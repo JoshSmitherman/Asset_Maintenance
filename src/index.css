@@ -2042,3 +2042,34 @@ body.no-scroll .theme-toggle { display: none; }
 }
 .release__builds p { margin: 0 0 4px; }
 .release__builds a { color: var(--accent-text); }
+
+/* ------------------------------------------------- Environment banner */
+/* Across the top of every copy but the live site. Striped so it cannot be
+   mistaken for part of the app's own design. */
+.env-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 7px 16px;
+  font-size: 13px;
+  text-align: center;
+  color: #1b1300;
+  background: repeating-linear-gradient(135deg, #f5c542 0 14px, #f0b92a 14px 28px);
+  border-bottom: 2px solid #b8860b;
+}
+.env-banner__label { letter-spacing: 0.08em; font-weight: 800; }
+.env-banner code { background: rgba(0, 0, 0, 0.12); color: inherit; }
+.env-banner--local-preview {
+  color: #fff;
+  background: repeating-linear-gradient(135deg, #2f6fb5 0 14px, #2a64a4 14px 28px);
+  border-bottom-color: #1d4a7a;
+}
+.env-banner--local-preview code,
+.env-banner--custom code { background: rgba(255, 255, 255, 0.18); }
+.env-banner--custom {
+  color: #fff;
+  background: repeating-linear-gradient(135deg, #8c4a9c 0 14px, #7d4190 14px 28px);
+  border-bottom-color: #5e2f6c;
+}
