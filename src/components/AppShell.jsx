@@ -19,6 +19,7 @@ import RetireModal from './RetireModal';
 import RetiredList from './RetiredList';
 import ReleaseNotesPage from './ReleaseNotesPage';
 import { CURRENT_VERSION } from '../lib/releaseNotes';
+import { versionFromSearch } from '../lib/releaseLinks';
 import { assetRefFromSearch, clearAssetFromAddress, findAssetByRef } from '../lib/assetLinks';
 import { useAuth } from '../context/AuthContext';
 import TabStrip from './TabStrip';
@@ -67,7 +68,8 @@ export default function AppShell() {
   } = useAssets();
 
   const { isAdmin } = useAuth();
-  const [page, setPage] = useState('dashboard');
+  // A shared release link (?v=2.6.0) opens straight on the Release Notes.
+  const [page, setPage] = useState(() => (versionFromSearch() ? 'releases' : 'dashboard'));
   // Which release notes this browser has opened, so the header can flag a
   // newer version until it is looked at.
   const [seenVersion, setSeenVersion] = useState(() => {

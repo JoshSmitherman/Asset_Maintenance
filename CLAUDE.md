@@ -12,7 +12,9 @@ it current without being asked:
   wording or layout change - adds an entry in the same commit, at the top of
   `RELEASES` in `src/lib/releaseNotes.js`. Group items by the page they
   affect (Dashboard, Assets, Cleaning, Reports, Admin, General) and mark each
-  `added`, `changed`, `fixed` or `removed`. Write for the people using the
+  `added`, `changed`, `fixed`, `removed` or `security` (anything that keeps
+  the app or its data safe). Put detail behind an item in its `details`
+  array, shown as sub-points. Write for the people using the
   app, not developers: what they will see, in plain words.
 - **Bump the version** in `package.json` and `package-lock.json` (both the
   top-level `version` and `packages[""].version`) to match the new entry.

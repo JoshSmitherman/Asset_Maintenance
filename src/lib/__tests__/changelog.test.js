@@ -21,3 +21,14 @@ describe('releaseBody', () => {
     expect(body).toContain('- **Fixed:** The **Save** button');
   });
 });
+
+describe('releaseBody sub-points', () => {
+  it('nests details under their item', () => {
+    const body = releaseBody({
+      version: '9.9.9',
+      title: 'Example',
+      sections: [{ area: 'General', groups: [{ heading: 'Login', items: [{ type: 'security', text: 'Sign-in', details: ['Checked on the server'] }] }] }]
+    });
+    expect(body).toContain('- **Security:** Sign-in\n  - Checked on the server');
+  });
+});

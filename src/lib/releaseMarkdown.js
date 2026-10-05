@@ -16,6 +16,7 @@ export function releaseBody(release) {
       lines.push(`**${group.heading}**`, '');
       for (const item of group.items) {
         lines.push(`- **${CHANGE_TYPES[item.type]}:** ${item.text}`);
+        for (const detail of item.details ?? []) lines.push(`  - ${detail}`);
       }
       lines.push('');
     }

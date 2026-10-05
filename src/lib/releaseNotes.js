@@ -2,10 +2,40 @@
 // shown in the header and must match "version" in package.json (a test
 // checks). Add a new release at the top, grouped by the page it affects.
 //
-// type is one of: added, changed, fixed, removed. Wrap a name in **double
-// asterisks** to show it in bold.
+// type is one of: added, changed, fixed, removed, security. Wrap a name in
+// **double asterisks** to show it in bold. An item may carry details: an
+// array of sub-points shown beneath it (the ↳ lines).
 
 export const RELEASES = [
+  {
+    version: '2.8.0',
+    title: 'Release Notes, Ascend Style',
+    date: '2026-10-05',
+    sections: [
+      {
+        area: 'General',
+        groups: [
+          {
+            heading: 'Release Notes',
+            items: [
+              {
+                type: 'added',
+                text: 'Each release has its own link, ending **?v=** and the version, so one release can be shared',
+                details: ['Opening the link goes straight to that release, after signing in if needed']
+              },
+              { type: 'added', text: 'Changes can carry sub-points like these, for the detail behind them' },
+              { type: 'added', text: 'A **Security** label for changes that keep the tracker and its data safe' },
+              {
+                type: 'added',
+                text: 'Under each release, a link to the code exactly as it was released',
+                details: ['The release running now also shows the code it was built from, and when']
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   {
     version: '2.7.0',
     title: 'Favourite Reports',
@@ -136,7 +166,8 @@ export const RELEASES = [
             heading: 'Asset Details',
             items: [
               { type: 'added', text: 'Every asset has its own **Tag link**, shown in its details with a **Copy link** button. Write it onto an NFC tag or a QR code stuck on the device' },
-              { type: 'added', text: 'Tapping the tag with a phone opens the tracker straight to that asset\'s details, after signing in if needed' }
+              { type: 'added', text: 'Tapping the tag with a phone opens the tracker straight to that asset\'s details, after signing in if needed' },
+              { type: 'security', text: 'A tag holds only a link: whoever taps it still has to sign in, so a stranger sees the sign-in page and nothing else' }
             ]
           }
         ]
@@ -310,7 +341,12 @@ export const RELEASES = [
           {
             heading: 'Accounts',
             items: [
-              { type: 'added', text: 'New **Admin** page for admins: add accounts with a temporary password, reset passwords, remove people and choose who else is an admin' }
+              { type: 'added', text: 'New **Admin** page for admins: add accounts with a temporary password, reset passwords, remove people and choose who else is an admin' },
+              {
+                type: 'security',
+                text: 'Only admins can add, remove or reset accounts, and the key that does it never reaches the browser',
+                details: ['Every action is checked against the admin list on the server, not just hidden in the page', 'There must always be at least one admin, and nobody can remove their own account']
+              }
             ]
           },
           {
@@ -578,5 +614,6 @@ export const CHANGE_TYPES = {
   added: 'Added',
   changed: 'Changed',
   fixed: 'Fixed',
-  removed: 'Removed'
+  removed: 'Removed',
+  security: 'Security'
 };

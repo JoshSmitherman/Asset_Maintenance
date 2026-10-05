@@ -7,6 +7,21 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.8.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.8.0) - 2026-10-05
+
+_Release Notes, Ascend Style_
+
+### General
+
+**Release Notes**
+
+- **Added:** Each release has its own link, ending **?v=** and the version, so one release can be shared
+  - Opening the link goes straight to that release, after signing in if needed
+- **Added:** Changes can carry sub-points like these, for the detail behind them
+- **Added:** A **Security** label for changes that keep the tracker and its data safe
+- **Added:** Under each release, a link to the code exactly as it was released
+  - The release running now also shows the code it was built from, and when
+
 ## [2.7.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.7.0) - 2026-10-05
 
 _Favourite Reports_
@@ -90,6 +105,7 @@ _NFC Tag Links_
 
 - **Added:** Every asset has its own **Tag link**, shown in its details with a **Copy link** button. Write it onto an NFC tag or a QR code stuck on the device
 - **Added:** Tapping the tag with a phone opens the tracker straight to that asset's details, after signing in if needed
+- **Security:** A tag holds only a link: whoever taps it still has to sign in, so a stranger sees the sign-in page and nothing else
 
 ### General
 
@@ -195,6 +211,9 @@ _Dark Mode, Asset History, Admin & Spec Memory_
 **Accounts**
 
 - **Added:** New **Admin** page for admins: add accounts with a temporary password, reset passwords, remove people and choose who else is an admin
+- **Security:** Only admins can add, remove or reset accounts, and the key that does it never reaches the browser
+  - Every action is checked against the admin list on the server, not just hidden in the page
+  - There must always be at least one admin, and nobody can remove their own account
 
 **Tidy Model Names**
 

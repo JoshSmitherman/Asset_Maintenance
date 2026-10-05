@@ -30,3 +30,28 @@ describe('ReleaseNotesPage', () => {
     expect(screen.queryByText(/\*\*/)).not.toBeInTheDocument();
   });
 });
+
+describe('ReleaseNotesPage links and detail', () => {
+  it('opens on the version in the address, and keeps the address in step', async () => {
+    window.history.replaceState(null, '', '/?v=2.4.0');
+    const user = userEvent.setup();
+    render(<ReleaseNotesPage />);
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('2.4.0');
+    expect(screen.getAllByText('Security').length).toBeGreaterThan(0);
+
+    await user.selectOptions(screen.getByLabelText('Version'), '2.1.0');
+    expect(window.location.search).toBe('?v=2.1.0');
+    // Sub-points sit under their item.
+    expect(screen.getByText(/checked against the admin list on the server/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'v2.1.0 on GitHub' })).toHaveAttribute(
+      'href',
+      'https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.1.0'
+    );
+  });
+
+  it('ignores a version that does not exist', () => {
+    window.history.replaceState(null, '', '/?v=9.9.9');
+    render(<ReleaseNotesPage />);
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(RELEASES[0].version);
+  });
+});
