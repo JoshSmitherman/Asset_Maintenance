@@ -4,11 +4,45 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Internal IT hardware cleaning and maintenance tracker." />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="dark light" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>IT Hardware Maintenance Tracker</title>
   </head>
   <body>
+    <!-- Theme toggle. Runs before the app so the saved theme is on <body>
+         before first paint; React renders into #root and never touches it. -->
+    <script>
+      (function () {
+        var KEY = 'theme';
+        var body = document.body;
+        var saved = null;
+        try { saved = localStorage.getItem(KEY); } catch (e) { /* storage blocked */ }
+        var theme = saved === 'light' ? 'light' : 'dark';
+
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'theme-toggle';
+
+        function apply(next) {
+          theme = next;
+          body.classList.toggle('dark-mode', theme === 'dark');
+          body.classList.toggle('light-mode', theme === 'light');
+          // Sun in dark mode (click for light), moon in light mode.
+          button.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+          var label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+          button.setAttribute('aria-label', label);
+          button.title = label;
+        }
+
+        button.addEventListener('click', function () {
+          apply(theme === 'dark' ? 'light' : 'dark');
+          try { localStorage.setItem(KEY, theme); } catch (e) { /* storage blocked */ }
+        });
+
+        apply(theme);
+        body.appendChild(button);
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

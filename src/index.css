@@ -1,22 +1,40 @@
 /* =====================================================================
-   IT Hardware Maintenance Tracker - corporate light theme.
+   IT Hardware Maintenance Tracker - dark theme with a light-mode override.
    Plain CSS with custom properties: no framework, nothing to configure.
    ===================================================================== */
 
+/* Theme: dark is the default and lives on :root; body.light-mode swaps in
+   the original corporate light palette. ThemeToggle only flips the body
+   class, so every colour below must stay a custom property. */
 :root {
+  color-scheme: dark;
+
   /* ADARO brand. Navy carries structure (header, headings); purple is the
-     action/accent colour on primary buttons, focus states and highlights. */
+     action/accent colour on primary buttons, focus states and highlights.
+     Solid fills keep their brand values in both themes; only the tints
+     and anything used as text on the page surface change. */
   --brand-navy: #34506d;
   --brand-navy-dark: #263d54;
   --brand-navy-deep: #1b2c3d;
   --brand-purple: #8c4a9c;
   --brand-purple-dark: #743d82;
   --brand-purple-light: #9c5aa8;
-  --brand-purple-050: #f4ecf7;
-  /* Lighter still: a purple that reads as almost white, for resting states
-     that want a hint of the brand rather than a block of it. */
-  --brand-purple-025: #faf6fc;
-  --brand-purple-100: #e6d6ec;
+  --brand-purple-050: #2e2238;
+  /* Lighter still in light mode: a purple that reads as almost white, for
+     resting states that want a hint of the brand rather than a block of it. */
+  --brand-purple-025: #231d2e;
+  --brand-purple-100: #3f2c4a;
+
+  /* Semantic tokens. */
+  --bg: #0f1923;
+  --surface: #172331;
+  --text: #e3e9f1;
+  --heading: #b9cce0;
+  --accent: #c58ad3;
+  --accent-text: #c58ad3;
+  --accent-text-hover: #dcb2e6;
+  --accent-glow: rgba(197, 138, 211, 0.45);
+  --row-overdue: #2a1a21;
 
   /* Chart palette - checked for colour-vision separation and contrast
      against the page surface before use. Do not re-hue casually. */
@@ -32,6 +50,61 @@
   --navy-600: #34506d;
   --blue-600: #8c4a9c;
   --blue-500: #34506d;
+  --blue-050: #2e2238;
+
+  /* The slate scale is named for its light-mode lightness: 900 is body
+     text, 050 the page. Dark mode inverts it so the same names still mean
+     "strongest text" and "faintest fill". */
+  --slate-900: #e3e9f1;
+  --slate-700: #c2cdd9;
+  --slate-500: #93a2b4;
+  --slate-300: #46576b;
+  --slate-200: #2c3c4f;
+  --slate-100: #213041;
+  --slate-050: #0f1923;
+
+  --red-700: #f3a3a3;
+  --red-600: #c62828;
+  --red-100: #3a1d23;
+  --red-border: #6e2c31;
+  /* A deep red that stays a fill (white text on it) in both themes. */
+  --red-solid: #a51f1f;
+  --amber-700: #f0c461;
+  --amber-100: #372c13;
+  --amber-border: #5f4b1d;
+  --green-700: #84d4ab;
+  --green-100: #14322a;
+  --green-border: #2a5b45;
+
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 18px 45px rgba(0, 0, 0, 0.55);
+
+  --theme-transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+body.light-mode {
+  color-scheme: light;
+
+  --brand-purple-050: #f4ecf7;
+  --brand-purple-025: #faf6fc;
+  --brand-purple-100: #e6d6ec;
+
+  --bg: #f7f9fc;
+  --surface: #fff;
+  --text: #16202c;
+  --heading: #34506d;
+  --accent: #8c4a9c;
+  --accent-text: #8c4a9c;
+  --accent-text-hover: #743d82;
+  --accent-glow: rgba(140, 74, 156, 0.35);
+  --row-overdue: #fef7f7;
+
   --blue-050: #f4ecf7;
 
   --slate-900: #16202c;
@@ -43,21 +116,18 @@
   --slate-050: #f7f9fc;
 
   --red-700: #a51f1f;
-  --red-600: #c62828;
   --red-100: #fdecec;
+  --red-border: var(--red-border);
   --amber-700: #8a5a00;
   --amber-100: #fff4d9;
+  --amber-border: var(--amber-border);
   --green-700: #1c6b45;
   --green-100: #e4f5ec;
+  --green-border: var(--green-border);
 
-  --radius-sm: 5px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
   --shadow-sm: 0 1px 2px rgba(15, 33, 56, 0.08);
   --shadow-md: 0 6px 20px rgba(15, 33, 56, 0.12);
   --shadow-lg: 0 18px 45px rgba(15, 33, 56, 0.24);
-
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -69,9 +139,10 @@ body {
   font-family: var(--font);
   font-size: 15px;
   line-height: 1.5;
-  color: var(--slate-900);
-  background: var(--slate-050);
+  color: var(--text);
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  transition: var(--theme-transition);
 }
 
 body.no-scroll { overflow: hidden; }
@@ -202,7 +273,7 @@ code {
 
 .app-footer {
   border-top: 1px solid var(--slate-200);
-  background: #fff;
+  background: var(--surface);
   padding: 14px 20px;
   text-align: center;
   font-size: 12px;
@@ -211,7 +282,7 @@ code {
 
 /* ----------------------------------------------------------------- Cards */
 .card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--slate-200);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -265,7 +336,7 @@ code {
   gap: 4px;
   padding: 16px 18px;
   text-align: left;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--slate-200);
   border-left: 4px solid var(--slate-300);
   border-radius: var(--radius-lg);
@@ -328,7 +399,7 @@ code {
   font-size: 14px;
   font-family: inherit;
   color: var(--slate-900);
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--slate-300);
   border-radius: var(--radius-sm);
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
@@ -359,7 +430,7 @@ code {
   font-weight: 600;
   border-radius: var(--radius-sm);
   border: 1px solid var(--slate-300);
-  background: #fff;
+  background: var(--surface);
   color: var(--slate-700);
   cursor: pointer;
   white-space: nowrap;
@@ -371,20 +442,20 @@ code {
 .btn:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
 
 .btn--primary { background: var(--blue-600); border-color: var(--blue-600); color: #fff; }
-.btn--primary:hover:not(:disabled) { background: var(--brand-purple-dark); border-color: var(--brand-purple-dark); }
+.btn--primary:hover:not(:disabled) { background: var(--brand-purple-dark); border-color: var(--accent-text-hover); }
 
 .btn--danger { background: var(--red-600); border-color: var(--red-600); color: #fff; }
-.btn--danger:hover:not(:disabled) { background: var(--red-700); border-color: var(--red-700); }
+.btn--danger:hover:not(:disabled) { background: var(--red-solid); border-color: var(--red-solid); }
 
 .btn--danger-ghost { color: var(--red-700); border-color: var(--slate-300); }
-.btn--danger-ghost:hover:not(:disabled) { background: var(--red-100); border-color: #f0bcbc; }
+.btn--danger-ghost:hover:not(:disabled) { background: var(--red-100); border-color: var(--red-border); }
 
 /* A lighter tint of the brand purple for frequent, low-stakes row actions
    (e.g. "Record clean") - purple family like .btn--primary, but visually
    a step down so it doesn't compete with the page's actual primary actions.
    4.7:1 contrast with white text. */
 .btn--brand-light { background: var(--brand-purple-light); border-color: var(--brand-purple-light); color: #fff; }
-.btn--brand-light:hover:not(:disabled) { background: var(--brand-purple); border-color: var(--brand-purple); }
+.btn--brand-light:hover:not(:disabled) { background: var(--brand-purple); border-color: var(--accent-text); }
 
 .btn--ghost { background: transparent; }
 .btn--small { padding: 5px 10px; font-size: 12.5px; }
@@ -402,7 +473,7 @@ code {
   padding: 0;
   border: 1px solid var(--slate-300);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--surface);
   color: var(--slate-500);
   cursor: pointer;
 }
@@ -460,7 +531,7 @@ code {
 .table tbody tr:hover { background: var(--slate-050); }
 .table tbody tr:last-child td { border-bottom: none; }
 
-.row--overdue { background: #fef7f7; }
+.row--overdue { background: var(--row-overdue); }
 .row--overdue:hover { background: var(--red-100); }
 
 .table__sort {
@@ -489,7 +560,7 @@ code {
 .table th.table__actions-header { text-align: right; }
 .table td.table__actions { text-align: right; }
 
-.cell-strong { font-weight: 600; color: var(--navy-900); }
+.cell-strong { font-weight: 600; color: var(--text); }
 .cell-muted { color: var(--slate-500); }
 .cell-block { display: block; }
 .cell-flag { color: var(--red-700); font-weight: 600; }
@@ -502,7 +573,7 @@ code {
   padding: 1px 6px;
   border-radius: 999px;
   background: var(--blue-050);
-  color: var(--blue-600);
+  color: var(--accent-text);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -520,9 +591,9 @@ code {
   border: 1px solid transparent;
 }
 
-.badge--overdue  { background: var(--red-100);   color: var(--red-700);   border-color: #f3c6c6; }
-.badge--due-soon { background: var(--amber-100); color: var(--amber-700); border-color: #f0dcae; }
-.badge--ok       { background: var(--green-100); color: var(--green-700); border-color: #bfe4d1; }
+.badge--overdue  { background: var(--red-100);   color: var(--red-700);   border-color: var(--red-border); }
+.badge--due-soon { background: var(--amber-100); color: var(--amber-700); border-color: var(--amber-border); }
+.badge--ok       { background: var(--green-100); color: var(--green-700); border-color: var(--green-border); }
 .badge--never    { background: var(--slate-100); color: var(--slate-700); border-color: var(--slate-300); }
 .badge--not-tracked { background: transparent; color: var(--slate-500); border-color: var(--slate-200); border-style: dashed; }
 
@@ -545,14 +616,14 @@ code {
   border-radius: var(--radius-md);
   font-size: 14px;
 }
-.alert--error { background: var(--red-100); border: 1px solid #f0bcbc; color: var(--red-700); }
+.alert--error { background: var(--red-100); border: 1px solid var(--red-border); color: var(--red-700); }
 
 .form-error {
   margin: 0;
   padding: 9px 12px;
   border-radius: var(--radius-sm);
   background: var(--red-100);
-  border: 1px solid #f0bcbc;
+  border: 1px solid var(--red-border);
   color: var(--red-700);
   font-size: 13px;
 }
@@ -573,7 +644,7 @@ code {
 .modal {
   width: 100%;
   max-width: 720px;
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   outline: none;
@@ -669,7 +740,7 @@ code {
   z-index: 80;
 }
 .toast--success { background: var(--navy-800); }
-.toast--error { background: var(--red-700); }
+.toast--error { background: var(--red-solid); }
 
 /* ---------------------------------------------------------------- Login */
 .login {
@@ -684,7 +755,7 @@ code {
 .login__card {
   width: 100%;
   max-width: 420px;
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   padding: 28px;
@@ -750,6 +821,8 @@ code {
 .brand-logo {
   display: block;
   width: auto;
+  /* The logo artwork is drawn for a white tile, so this stays white in
+     both themes. */
   background: #fff;
   border-radius: var(--radius-sm);
 }
@@ -766,7 +839,7 @@ code {
 }
 
 .login__logo { height: 46px; padding: 0; margin: 0; }
-.login__logo.brand-wordmark { color: var(--brand-navy); font-size: 20px; }
+.login__logo.brand-wordmark { color: var(--heading); font-size: 20px; }
 
 /* =====================================================================
    Dashboard
@@ -869,7 +942,7 @@ code {
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  color: var(--brand-navy);
+  color: var(--heading);
   font-variant-numeric: tabular-nums;
 }
 
@@ -880,15 +953,15 @@ code {
   .figure { font-size: 27px; }
 }
 
-.stat--value { cursor: default; border-left-color: var(--brand-purple); }
-.stat__value--currency { font-size: 22px; color: var(--brand-navy); }
+.stat--value { cursor: default; border-left-color: var(--accent-text); }
+.stat__value--currency { font-size: 22px; color: var(--heading); }
 @media (max-width: 640px) { .stat__value--currency { font-size: 19px; } }
 
 /* =====================================================================
    Section navigation
    ===================================================================== */
 .app-nav {
-  background: #fff;
+  background: var(--surface);
   border-bottom: 1px solid var(--slate-200);
   box-shadow: var(--shadow-sm);
 }
@@ -918,17 +991,17 @@ code {
   gap: 7px;
 }
 
-.app-nav__tab:hover { color: var(--brand-navy); }
+.app-nav__tab:hover { color: var(--heading); }
 .app-nav__tab:focus-visible { outline: 2px solid var(--brand-navy); outline-offset: -2px; }
 
 .app-nav__tab--active {
-  color: var(--brand-purple);
-  border-bottom-color: var(--brand-purple);
+  color: var(--accent-text);
+  border-bottom-color: var(--accent-text);
 }
 
 .app-nav__count {
   background: var(--brand-purple-050);
-  color: var(--brand-purple-dark);
+  color: var(--accent-text-hover);
   border-radius: 999px;
   padding: 1px 7px;
   font-size: 11.5px;
@@ -994,13 +1067,13 @@ code {
   border: 1px solid var(--brand-purple-100);
   border-radius: var(--radius-sm);
   background: var(--brand-purple-025);
-  color: var(--brand-purple);
+  color: var(--accent-text);
   cursor: pointer;
   transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
 .icon-action:hover {
-  color: var(--brand-purple-dark);
-  border-color: var(--brand-purple);
+  color: var(--accent-text-hover);
+  border-color: var(--accent-text);
   background: var(--brand-purple-050);
 }
 .icon-action:focus-visible { outline: 2px solid var(--brand-purple); outline-offset: 2px; }
@@ -1030,7 +1103,7 @@ code {
 .checkbox {
   width: 16px;
   height: 16px;
-  accent-color: var(--brand-purple);
+  accent-color: var(--accent-text);
   cursor: pointer;
   margin: 0;
   vertical-align: middle;
@@ -1057,11 +1130,11 @@ code {
   padding: 0;
   font: inherit;
   font-size: 12.5px;
-  color: var(--brand-purple);
+  color: var(--accent-text);
   text-decoration: underline;
   cursor: pointer;
 }
-.bulk-bar__link:hover { color: var(--brand-purple-dark); }
+.bulk-bar__link:hover { color: var(--accent-text-hover); }
 
 /* ----------------------------------------------------------- Pagination */
 
@@ -1130,7 +1203,7 @@ code {
   margin-bottom: -1px;
 }
 .tab:hover { color: var(--slate-900); }
-.tab--active { color: var(--brand-purple); border-bottom-color: var(--brand-purple); }
+.tab--active { color: var(--accent-text); border-bottom-color: var(--accent-text); }
 
 /* The "Add new" side of a dropdown: a text box with the way back underneath. */
 .combo { display: grid; gap: 5px; }
@@ -1141,11 +1214,11 @@ code {
   padding: 0;
   font: inherit;
   font-size: 12px;
-  color: var(--brand-purple);
+  color: var(--accent-text);
   text-decoration: underline;
   cursor: pointer;
 }
-.combo__back:hover { color: var(--brand-purple-dark); }
+.combo__back:hover { color: var(--accent-text-hover); }
 
 /* Delete sits apart from the confirm-style actions so it is not clicked by
    reflex on the way to Edit. */
@@ -1155,3 +1228,34 @@ code {
   .detail { grid-template-columns: 1fr; gap: 2px; }
   .modal__footer--split { flex-direction: column-reverse; align-items: stretch; }
 }
+
+/* ---------------------------------------------------------- Theme toggle */
+/* Surfaces fade with the body rather than snapping when the theme flips. */
+.app-footer,
+.card,
+.modal {
+  transition: var(--theme-transition);
+}
+
+.theme-toggle {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--accent-glow), var(--shadow-sm);
+  transition: var(--theme-transition), transform 0.25s ease;
+}
+.theme-toggle:hover { box-shadow: 0 0 16px var(--accent-glow), var(--shadow-md); transform: scale(1.06); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
