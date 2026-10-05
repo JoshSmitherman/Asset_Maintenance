@@ -335,6 +335,9 @@ nobody needs the Supabase dashboard to manage them day to day.
 ```
 .
 ├── .github/workflows/deploy.yml   GitHub Pages build & deploy
+├── .github/workflows/release.yml  tags each deployed version, publishes its notes
+├── CHANGELOG.md                   release notes, generated - do not edit
+├── scripts/                       changelog and release-notes generators
 ├── public/favicon.svg
 ├── supabase/
 │   ├── setup.sql                  the whole database in one script (new projects)
@@ -399,7 +402,11 @@ change marked added, changed, fixed or removed) and set the same version in
 `package.json`; a test fails if the two disagree. The header shows a **New**
 marker until someone has opened the latest notes. [`CLAUDE.md`](CLAUDE.md) makes
 this part of every change, and CI warns on a push to `main` that changes the
-app without touching the notes.
+app without touching the notes. The same notes are kept in
+[`CHANGELOG.md`](CHANGELOG.md) (regenerate it with `npm run changelog`; a test
+fails if it drifts), and once a new version deploys, the Release workflow tags
+the deployed commit and publishes it as a
+[GitHub Release](https://github.com/JoshSmitherman/Asset_Maintenance/releases).
 
 **Add or change the cleaners' initials or device types** — edit the lists in
 `src/lib/constants.js` **and** the matching check constraints in

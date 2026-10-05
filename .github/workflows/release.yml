@@ -1,0 +1,73 @@
+name: Release
+
+# After a successful deploy, marks what went live: a git tag (v2.2.0) on the
+# deployed commit, and a GitHub Release carrying that version's notes from
+# src/lib/releaseNotes.js. Only runs when the version has changed - a deploy
+# with no new release notes adds nothing.
+#
+# Run it by hand (Actions -> Release -> Run workflow) to create GitHub
+# Releases for any older tags that do not have one yet.
+
+on:
+  workflow_run:
+    workflows: ['Deploy to GitHub Pages']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag and publish the release
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The commit that was actually deployed, not whatever main is now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Tag the deployed commit with its version
+        run: |
+          version="$(node scripts/release-notes.mjs --current)"
+          tag="v$version"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "$tag already exists - this deploy did not change the version."
+          else
+            git tag "$tag" HEAD
+            git push origin "$tag"
+            echo "Tagged $(git rev-parse --short HEAD) as $tag."
+          fi
+
+      - name: Publish a GitHub Release for every tag that lacks one
+        run: |
+          current="$(node scripts/release-notes.mjs --current)"
+          for version in $(node scripts/release-notes.mjs --list); do
+            tag="v$version"
+            git rev-parse -q --verify "refs/tags/$tag" >/dev/null || continue
+            if gh release view "$tag" >/dev/null 2>&1; then
+              continue
+            fi
+            node scripts/release-notes.mjs "$version" > notes.md
+            latest=false
+            [ "$version" = "$current" ] && latest=true
+            gh release create "$tag" \
+              --title "$(node scripts/release-notes.mjs --title "$version")" \
+              --notes-file notes.md \
+              --verify-tag \
+              --latest="$latest"
+            echo "Published $tag."
+          done

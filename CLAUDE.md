@@ -23,10 +23,20 @@ it current without being asked:
 - **Several changes before a deploy** can share one release: add to the
   top entry while its version has not reached `main` yet, rather than
   creating a new version for each commit.
+- **The date is the day it goes live.** When merging to `main`, set the top
+  entry's `date` to that day if it was written earlier.
+- **Regenerate the changelog**: `npm run changelog` rewrites `CHANGELOG.md`
+  from the same file. A test fails if it is out of date. Never edit
+  `CHANGELOG.md` by hand.
 - Behind-the-scenes work (tests, CI, refactors, docs) gets no entry.
 
-CI warns on a push to `main` that changes `src/` without touching the
-release notes.
+What happens on its own after that:
+
+- When a deploy to GitHub Pages succeeds with a new version, the Release
+  workflow (`.github/workflows/release.yml`) tags the deployed commit
+  (`v2.3.0`) and publishes a GitHub Release with that version's notes.
+- CI warns on a push to `main` that changes `src/` without touching the
+  release notes.
 
 ## Before pushing
 
