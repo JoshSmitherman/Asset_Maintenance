@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Header from './Header';
 import AppNav from './AppNav';
 import StatsGrid from './StatsGrid';
@@ -17,6 +17,7 @@ import ReportsPage from './ReportsPage';
 import AdminPage from './AdminPage';
 import ReleaseNotesPage from './ReleaseNotesPage';
 import { CURRENT_VERSION } from '../lib/releaseNotes';
+import { assetRefFromSearch, clearAssetFromAddress, findAssetByRef } from '../lib/assetLinks';
 import { useAuth } from '../context/AuthContext';
 import TabStrip from './TabStrip';
 import Pagination from './Pagination';
@@ -83,6 +84,9 @@ export default function AppShell() {
   const [formState, setFormState] = useState(null); // { asset?, prefill? }
   const [cleaningTarget, setCleaningTarget] = useState(null);
   const [detailsTarget, setDetailsTarget] = useState(null);
+  // An NFC tag or QR code opens the app at ?asset=AST-0076: once the register
+  // has loaded, show that asset's details, as if its eye button were clicked.
+  const linkedAssetHandled = useRef(false);
   const [pendingDelete, setPendingDelete] = useState(null);
   // Edit and Delete are both launched from the details view. Dialogs never
   // stack - details closes as one opens - so this remembers where the user
@@ -100,6 +104,22 @@ export default function AppShell() {
   const cleaningLog = useCleaningLog({
     enabled: (page === 'cleaning' && cleaningTab === 'history') || page === 'reports'
   });
+
+  useEffect(() => {
+    if (linkedAssetHandled.current || loading) return;
+    const ref = assetRefFromSearch();
+    if (!ref) return;
+    linkedAssetHandled.current = true;
+    const linked = findAssetByRef(assets, ref);
+    if (linked) {
+      setPage('assets');
+      setDetailsTarget(linked);
+      clearAssetFromAddress();
+    } else {
+      clearAssetFromAddress();
+      setToast({ tone: 'error', message: `No asset ${ref} on the register. It may have been renamed or deleted.` });
+    }
+  }, [loading, assets]);
 
   const summary = useMemo(() => summariseAssets(assets), [assets]);
   const departments = useMemo(() => uniqueDepartments(assets), [assets]);

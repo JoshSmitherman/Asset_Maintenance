@@ -112,4 +112,13 @@ test.describe('Hardware Maintenance Tracker — end to end (mocked Supabase)', (
     await page.getByLabel('Version', { exact: true }).selectOption('2.0.0');
     await expect(page.getByText('Bulk Actions, Cleaning History & Reports')).toBeVisible();
   });
+
+  test('an asset link signs in, then opens that asset', async ({ page }) => {
+    await mockSupabase(page);
+    await page.goto('/?asset=lap-001');
+    await signIn(page);
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('heading', { name: 'LAP-001' })).toBeVisible();
+    await expect(dialog.getByText(/\?asset=LAP-001/)).toBeVisible();
+  });
 });

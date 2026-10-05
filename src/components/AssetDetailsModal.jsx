@@ -7,6 +7,7 @@ import { useAssetHistory } from '../hooks/useAssetHistory';
 import { formatCurrency, isCleaningTracked } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import { SPEC_FIELDS, hasSpecs, specsFor } from '../lib/specs';
+import { assetLink } from '../lib/assetLinks';
 
 function Row({ label, children }) {
   return (
@@ -18,6 +19,39 @@ function Row({ label, children }) {
 }
 
 const EMPTY = <span className="cell-muted">—</span>;
+
+/** This asset's own address, to write onto an NFC tag or turn into a QR code. */
+function TagLink({ assetRef }) {
+  const link = assetLink(assetRef);
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // No clipboard (an older browser, or not allowed): select the text so
+      // it can be copied by hand.
+      const range = document.createRange();
+      range.selectNodeContents(document.getElementById('tag-link-text'));
+      window.getSelection()?.removeAllRanges();
+      window.getSelection()?.addRange(range);
+    }
+  };
+
+  return (
+    <div className="tag-link">
+      <code id="tag-link-text" className="tag-link__url">{link}</code>
+      <button type="button" className="btn btn--ghost btn--small" onClick={copy}>
+        {copied ? 'Copied' : 'Copy link'}
+      </button>
+      <span className="field__hint tag-link__hint">
+        Write this onto an NFC tag (or a QR code) on the device: tapping it opens these details.
+      </span>
+    </div>
+  );
+}
 
 /**
  * Read-only view of one asset, reached from the register's eye button. Editing
@@ -118,6 +152,7 @@ export default function AssetDetailsModal({ asset, onEdit, onDelete, onRecordCle
             )}
 
             <Row label="Notes">{asset.notes ?? EMPTY}</Row>
+            <Row label="Tag link"><TagLink assetRef={asset.asset_ref} /></Row>
             <Row label="Last updated">
               <span className="cell-block">{formatTimestamp(asset.updated_at)}</span>
               <span className="cell-muted cell-block">{asset.updated_by_email || 'unknown user'}</span>

@@ -7,6 +7,23 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.4.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.4.0) - 2026-10-05
+
+_NFC Tag Links_
+
+### Assets
+
+**Asset Details**
+
+- **Added:** Every asset has its own **Tag link**, shown in its details with a **Copy link** button. Write it onto an NFC tag or a QR code stuck on the device
+- **Added:** Tapping the tag with a phone opens the tracker straight to that asset's details, after signing in if needed
+
+### General
+
+**Layout**
+
+- **Fixed:** On a phone the light and dark mode button sat on top of a window's buttons, such as Delete asset. It now hides while a window is open
+
 ## [2.3.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.3.0) - 2026-10-05
 
 _Page-By-Page Improvements_

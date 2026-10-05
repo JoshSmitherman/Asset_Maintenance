@@ -306,3 +306,22 @@ describe('AppShell record clean', () => {
     expect(screen.getByRole('tab', { name: /history/i })).toBeInTheDocument();
   });
 });
+
+describe('AppShell asset links', () => {
+  it('opens the asset named in the address, then clears it from the address', () => {
+    window.history.replaceState(null, '', '/?asset=ast-0041');
+    render(<AppShell />);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('AST-0041');
+    expect(within(dialog).getByText(/\?asset=AST-0041/)).toBeInTheDocument();
+    expect(window.location.search).toBe('');
+  });
+
+  it('says so when the linked asset is not on the register', () => {
+    window.history.replaceState(null, '', '/?asset=NOPE-1');
+    render(<AppShell />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText(/no asset NOPE-1 on the register/i)).toBeInTheDocument();
+    expect(window.location.search).toBe('');
+  });
+});

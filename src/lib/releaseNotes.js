@@ -7,6 +7,36 @@
 
 export const RELEASES = [
   {
+    version: '2.4.0',
+    title: 'NFC Tag Links',
+    date: '2026-10-05',
+    sections: [
+      {
+        area: 'Assets',
+        groups: [
+          {
+            heading: 'Asset Details',
+            items: [
+              { type: 'added', text: 'Every asset has its own **Tag link**, shown in its details with a **Copy link** button. Write it onto an NFC tag or a QR code stuck on the device' },
+              { type: 'added', text: 'Tapping the tag with a phone opens the tracker straight to that asset\'s details, after signing in if needed' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'General',
+        groups: [
+          {
+            heading: 'Layout',
+            items: [
+              { type: 'fixed', text: 'On a phone the light and dark mode button sat on top of a window\'s buttons, such as Delete asset. It now hides while a window is open' }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.3.0',
     title: 'Page-By-Page Improvements',
     date: '2026-10-05',

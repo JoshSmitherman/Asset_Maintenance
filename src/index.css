@@ -1680,3 +1680,18 @@ main.container { padding-bottom: 96px; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* An asset's own address, for its NFC tag. */
+.tag-link { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.tag-link__url {
+  padding: 4px 8px;
+  font-size: 12px;
+  word-break: break-all;
+  user-select: all;
+}
+.tag-link__hint { flex-basis: 100%; }
+
+/* While a dialog is open the floating theme button would sit on its footer
+   buttons - on a phone, right over Delete asset. It steps aside until the
+   dialog closes. */
+body.no-scroll .theme-toggle { display: none; }
