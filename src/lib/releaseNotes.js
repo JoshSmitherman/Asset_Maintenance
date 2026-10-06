@@ -8,6 +8,28 @@
 
 export const RELEASES = [
   {
+    version: '2.10.1',
+    title: 'Sign-In Until Microsoft Is Ready',
+    date: '2026-10-06',
+    sections: [
+      {
+        area: 'General',
+        groups: [
+          {
+            heading: 'Signing in',
+            items: [
+              {
+                type: 'fixed',
+                text: 'The sign-in page only offers **Sign in with Microsoft** once it has been switched on',
+                details: ['Until then it opens straight on email and password']
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.10.0',
     title: 'Company Sign-In, Departments & a Safer Orbit',
     date: '2026-10-06',

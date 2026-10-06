@@ -7,6 +7,17 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.10.1](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.10.1) - 2026-10-06
+
+_Sign-In Until Microsoft Is Ready_
+
+### General
+
+**Signing in**
+
+- **Fixed:** The sign-in page only offers **Sign in with Microsoft** once it has been switched on
+  - Until then it opens straight on email and password
+
 ## [2.10.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.10.0) - 2026-10-06
 
 _Company Sign-In, Departments & a Safer Orbit_

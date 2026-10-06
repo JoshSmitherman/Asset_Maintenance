@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo from './BrandLogo';
+import { fetchSignInMethods } from '../lib/supabaseClient';
 
 /**
  * Why a Microsoft sign-in bounced back, from the error Supabase puts in the
@@ -52,6 +53,20 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(null); // 'microsoft' | 'password' | null
   // Most people sign in with Microsoft; email and password is the fallback.
   const [showPassword, setShowPassword] = useState(false);
+  // Microsoft is offered once it is switched on in Supabase; until then the
+  // password form is the way in. Unknown (still checking, or the check
+  // failed) shows both.
+  const [microsoftOn, setMicrosoftOn] = useState(null);
+  useEffect(() => {
+    let active = true;
+    fetchSignInMethods().then((methods) => {
+      if (active && methods) setMicrosoftOn(methods.microsoft);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const passwordOpen = showPassword || microsoftOn === false;
   const [revealPassword, setRevealPassword] = useState(false);
 
   const handleMicrosoft = async () => {
@@ -99,6 +114,8 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {microsoftOn === false ? null : (
+        <>
         <button
           type="button"
           className="btn btn--microsoft btn--block"
@@ -114,12 +131,16 @@ export default function LoginPage() {
           {busy === 'microsoft' ? 'Opening Microsoft…' : 'Sign in with Microsoft'}
         </button>
         <p className="login__hint">Use your Adaro work account.</p>
+        </>
+        )}
 
         {error ? <p className="form-error" role="alert">{error}</p> : null}
 
-        {showPassword ? (
+        {passwordOpen ? (
           <form className="login__password" onSubmit={handleSubmit} noValidate>
-            <div className="login__divider" role="separator"><span>or with a password</span></div>
+            {microsoftOn === false ? null : (
+              <div className="login__divider" role="separator"><span>or with a password</span></div>
+            )}
             <div className="field">
               <label className="field__label" htmlFor="email">Email address</label>
               <input
@@ -130,7 +151,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 disabled={Boolean(busy)}
-                autoFocus
+                autoFocus={showPassword}
                 required
               />
             </div>
@@ -171,7 +192,9 @@ export default function LoginPage() {
         )}
 
         <p className="login__hint">
-          New to Orbit? Sign in with Microsoft and ask for access - an admin will let you in.
+          {microsoftOn === false
+            ? 'No account yet? Ask an admin - they can give you access and set a password.'
+            : 'New to Orbit? Sign in with Microsoft and ask for access - an admin will let you in.'}
         </p>
       </div>
     </div>

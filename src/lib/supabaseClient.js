@@ -40,3 +40,25 @@ export const supabase = isSupabaseConfigured
       realtime: { params: { eventsPerSecond: 5 } }
     })
   : null;
+
+/**
+ * Which sign-in methods the Supabase project has switched on, from its
+ * public settings (no sign-in needed). Lets the sign-in page offer Microsoft
+ * only once it has been set up. Null if it cannot be read.
+ */
+export async function fetchSignInMethods() {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const response = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+      headers: { apikey: supabaseAnonKey }
+    });
+    if (!response.ok) return null;
+    const settings = await response.json();
+    return {
+      microsoft: Boolean(settings?.external?.azure),
+      password: settings?.external?.email !== false
+    };
+  } catch {
+    return null;
+  }
+}

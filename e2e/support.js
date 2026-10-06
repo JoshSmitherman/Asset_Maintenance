@@ -99,7 +99,7 @@ function idsFrom(value) {
   return inList ? inList[1].split(',').map((id) => id.replace(/"/g, '')) : [];
 }
 
-export async function mockSupabase(page, { assets = seedAssets(), events = seedEvents(), role = 'user' } = {}) {
+export async function mockSupabase(page, { assets = seedAssets(), events = seedEvents(), role = 'user', microsoft = true } = {}) {
   const state = {
     assets: [...assets], inserted: [], repairs: [], attachments: [], uploads: [],
     members: [
@@ -131,6 +131,9 @@ export async function mockSupabase(page, { assets = seedAssets(), events = seedE
       });
 
     // --- Auth ---
+    if (url.pathname === '/auth/v1/settings') {
+      return json(200, { external: { email: true, azure: microsoft }, disable_signup: false });
+    }
     if (url.pathname === '/auth/v1/token') {
       return json(200, {
         access_token: fakeJwt(),

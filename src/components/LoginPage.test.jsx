@@ -8,8 +8,11 @@ const signInWithMicrosoft = vi.fn();
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ signIn, signInWithMicrosoft })
 }));
+let methods = null;
+vi.mock('../lib/supabaseClient', () => ({ fetchSignInMethods: async () => methods }));
 
 beforeEach(() => {
+  methods = null;
   signIn.mockReset();
   signInWithMicrosoft.mockReset();
   window.history.replaceState(null, '', '/');
@@ -89,5 +92,19 @@ describe('LoginPage', () => {
     expect(field).toHaveAttribute('type', 'password');
     await user.click(screen.getByRole('button', { name: /show/i }));
     expect(field).toHaveAttribute('type', 'text');
+  });
+
+  it('opens straight on the password form while Microsoft is not switched on', async () => {
+    methods = { microsoft: false, password: true };
+    render(<LoginPage />);
+    expect(await screen.findByLabelText(/^password$/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /sign in with microsoft/i })).not.toBeInTheDocument();
+  });
+
+  it('leads with Microsoft once it is switched on', async () => {
+    methods = { microsoft: true, password: true };
+    render(<LoginPage />);
+    expect(await screen.findByRole('button', { name: /sign in with microsoft/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^password$/i)).not.toBeInTheDocument();
   });
 });

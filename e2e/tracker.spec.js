@@ -85,6 +85,17 @@ test.describe('Orbit — end to end (mocked Supabase)', () => {
     await expect(dialog.getByText('Cleaned by AL')).toBeVisible();
   });
 
+  test('before Microsoft is switched on, the sign-in page is the password form', async ({ page }) => {
+    await mockSupabase(page, { microsoft: false });
+    await page.goto('/');
+    await expect(page.getByLabel(/^password$/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /sign in with microsoft/i })).toHaveCount(0);
+    await page.getByLabel(/email address/i).fill('tech@adaro.net');
+    await page.getByLabel(/^password$/i).fill('correct-horse');
+    await page.getByRole('button', { name: /^sign in$/i }).click();
+    await expect(page.getByText('LAP-001')).toBeVisible();
+  });
+
   test('coming back from Microsoft finishes signing in', async ({ page }) => {
     await mockSupabase(page);
     // What supabase-js saved before leaving for Microsoft (PKCE).
