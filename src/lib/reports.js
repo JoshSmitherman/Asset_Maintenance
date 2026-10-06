@@ -1,5 +1,5 @@
 import { formatCurrency, isCleaningTracked, STATUS } from './constants';
-import { formatDate, formatMonth, monthBoundsIso, todayIso } from './dates';
+import { formatDate, formatMonth, monthBoundsIso, parseIsoDate, todayIso } from './dates';
 import { displayNameFromEmail } from './accountName';
 import { CLEANING_CSV_COLUMNS, REGISTER_CSV_COLUMNS } from './assetCsv';
 
@@ -34,13 +34,17 @@ const GROUP_COLUMNS = (label) => [
   { key: 'overdue', label: 'Overdue cleans' }
 ];
 
-/** Whole years between a purchase date and today. */
+/**
+ * Age in years (with a fraction) from a purchase date to today, counted in
+ * calendar months so kit is exactly 2 on its second anniversary - not a few
+ * hours later, as dividing days by 365.25 made it.
+ */
 export function ageInYears(purchaseDate, today = new Date()) {
-  if (!purchaseDate) return null;
-  const bought = new Date(`${purchaseDate}T00:00:00Z`);
-  if (Number.isNaN(bought.getTime())) return null;
-  const days = (today.getTime() - bought.getTime()) / 86400000;
-  return days / 365.25;
+  const bought = parseIsoDate(purchaseDate);
+  if (!bought) return null;
+  let months = (today.getFullYear() - bought.getFullYear()) * 12 + (today.getMonth() - bought.getMonth());
+  if (today.getDate() < bought.getDate()) months -= 1;
+  return months / 12;
 }
 
 /** Every asset by id, retired kit included - repairs outlive retirement. */
@@ -212,7 +216,12 @@ export const REPORTS = [
         // comparing them as dates, without any timezone to get wrong. An asset
         // never cleaned has no due date at all and belongs to its own report.
         rows: assets
-          .filter((asset) => asset.next_clean_due && asset.next_clean_due <= end)
+          // Only kit that is actually cleaned: the database gives monitors and
+          // phones a due date too (purchase + interval), which means nothing.
+          .filter(
+            (asset) =>
+              isCleaningTracked(asset.device_type) && asset.next_clean_due && asset.next_clean_due <= end
+          )
           .sort((a, b) => String(a.next_clean_due).localeCompare(String(b.next_clean_due)))
       };
     }

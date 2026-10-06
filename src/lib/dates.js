@@ -21,8 +21,13 @@ export function parseIsoDate(iso) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/** A real calendar date in YYYY-MM-DD form: 2026-02-31 and 2026-13-01 are not. */
 export function isValidIsoDate(iso) {
-  return parseIsoDate(iso) !== null;
+  const text = String(iso ?? '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+  const date = parseIsoDate(text);
+  // JS rolls 31 Feb over to 3 Mar rather than failing; a round trip catches it.
+  return date !== null && toIsoDate(date) === text;
 }
 
 /**

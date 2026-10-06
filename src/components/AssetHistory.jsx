@@ -8,7 +8,8 @@ const KIND_LABEL = {
   assign: 'Moved',
   change: 'Changed',
   clean: 'Cleaned',
-  purchase: 'Purchased'
+  retired: 'Retired',
+  restored: 'Restored'
 };
 
 /**
@@ -87,7 +88,7 @@ export default function AssetHistory({ asset, events, cleans, loading, error }) 
                 <div className="timeline__body">
                   <div className="timeline__top">
                     <span className="timeline__title">{entry.title}</span>
-                    <span className="timeline__kind">{KIND_LABEL[entry.kind]}</span>
+                    {KIND_LABEL[entry.kind] ? <span className="timeline__kind">{KIND_LABEL[entry.kind]}</span> : null}
                   </div>
                   {entry.detail ? <p className="timeline__detail">{entry.detail}</p> : null}
                   <p className="timeline__meta">

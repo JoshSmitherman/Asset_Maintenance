@@ -7,7 +7,7 @@ import Toast from './Toast';
 import { formatTimestamp } from '../lib/dates';
 import { CURRENT_VERSION } from '../lib/releaseNotes';
 
-export default function Header({ lastSyncedAt, onOpenReleaseNotes, hasUnseenRelease = false }) {
+export default function Header({ lastSyncedAt, connectionError = false, onOpenReleaseNotes, hasUnseenRelease = false }) {
   const { userEmail, isAdmin, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
@@ -48,7 +48,13 @@ export default function Header({ lastSyncedAt, onOpenReleaseNotes, hasUnseenRele
               </button>
             </div>
             <p className="app-header__subtitle">
-              {lastSyncedAt ? `Last synced ${formatTimestamp(lastSyncedAt)}` : 'Connecting…'}
+              {connectionError
+                ? lastSyncedAt
+                  ? `Not connected - last synced ${formatTimestamp(lastSyncedAt)}`
+                  : 'Not connected'
+                : lastSyncedAt
+                  ? `Last synced ${formatTimestamp(lastSyncedAt)}`
+                  : 'Connecting…'}
             </p>
           </div>
         </div>

@@ -1,3 +1,5 @@
+import { todayIso } from './dates';
+
 /**
  * CSV export.
  *
@@ -9,6 +11,9 @@
 /** Anything that could be read as a formula by a spreadsheet is defused. */
 function cell(value) {
   if (value === null || value === undefined) return '';
+  // Real numbers (a cost, "days until due" of -12) stay numbers, so the
+  // spreadsheet can sort and add them up. Only text is defused.
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
   const text = String(value);
   // A leading =, +, - or @ makes Excel treat the cell as a formula, which is
   // both wrong and a well-known way to smuggle something nasty into a
@@ -31,7 +36,9 @@ export function toCsv(columns, rows) {
 
 /** Today's date in the filename, so downloads do not overwrite each other. */
 export function csvFilename(name) {
-  const today = new Date().toISOString().slice(0, 10);
+  // The local date: just after midnight in summer the UTC date is still
+  // yesterday's.
+  const today = todayIso();
   return `${name}-${today}.csv`;
 }
 

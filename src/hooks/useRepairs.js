@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { describeDatabaseError } from '../lib/errors';
 import { repairPayload } from '../lib/repairs';
 import { ATTACHMENTS_BUCKET } from '../lib/attachments';
+import { fetchAll } from '../lib/fetchAll';
 
 const COLUMNS =
   'id, asset_id, repaired_on, fault, parts, total_cost, fixed_by, fixed_by_email, notes, created_at, created_by_email, updated_at, updated_by_email';
@@ -25,21 +26,23 @@ export function useRepairs({ assetId = null, enabled }) {
   const load = useCallback(async () => {
     if (!supabase) return;
     setState((current) => ({ ...current, loading: true }));
-    let query = supabase
-      .from('repairs')
-      .select(COLUMNS)
-      .order('repaired_on', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(2000);
-    if (assetId) query = query.eq('asset_id', assetId);
+    const build = () => {
+      let query = supabase
+        .from('repairs')
+        .select(COLUMNS)
+        .order('repaired_on', { ascending: false })
+        .order('created_at', { ascending: false })
+        .order('id');
+      if (assetId) query = query.eq('asset_id', assetId);
+      return query;
+    };
 
-    const { data, error } = await query;
-    if (!mounted.current) return;
-    setState({
-      repairs: data ?? [],
-      loading: false,
-      error: error ? describeDatabaseError(error) : null
-    });
+    try {
+      const data = await fetchAll(build);
+      if (mounted.current) setState({ repairs: data, loading: false, error: null });
+    } catch (error) {
+      if (mounted.current) setState({ repairs: [], loading: false, error: describeDatabaseError(error) });
+    }
   }, [assetId]);
 
   useEffect(() => {

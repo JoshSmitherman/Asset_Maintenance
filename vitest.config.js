@@ -11,7 +11,7 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./vitest.setup.js'],
     environmentMatchGlobs: [['src/components/**', 'jsdom']],
-    include: ['src/**/*.test.{js,jsx}'],
+    include: ['src/**/*.test.{js,jsx}', 'supabase/**/*.test.js'],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**']
   }
 });

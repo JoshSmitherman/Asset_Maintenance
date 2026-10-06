@@ -124,13 +124,20 @@ function validate(values, { assetRefExists, ignoreId }) {
 
   if (values.purchase_date && !isValidIsoDate(values.purchase_date)) {
     errors.purchase_date = 'Enter a valid date.';
+  } else if (values.purchase_date && values.purchase_date > today) {
+    errors.purchase_date = 'Purchase date cannot be in the future.';
+  } else if (values.purchase_date && values.purchase_date < '1990-01-01') {
+    errors.purchase_date = 'Check the purchase date - it is before 1990.';
   }
 
   const costText = String(values.purchase_cost ?? '').trim();
   if (costText) {
-    const cost = Number(costText);
-    if (!Number.isFinite(cost) || cost < 0) {
-      errors.purchase_cost = 'Purchase cost must be a number of zero or more.';
+    // Pounds and pence as typed in a shop: 849, 849.99. Not 1e3, not 12.345,
+    // and nothing the database's numeric(12,2) cannot hold.
+    if (!/^\d+(\.\d{1,2})?$/.test(costText)) {
+      errors.purchase_cost = 'Enter the cost in pounds, like 849 or 849.99 (no £ sign or commas).';
+    } else if (Number(costText) > 9999999999) {
+      errors.purchase_cost = 'That cost is too large. Check it.';
     }
   }
 
@@ -273,6 +280,15 @@ export default function AssetFormModal({
     event.preventDefault();
     setSubmitError(null);
 
+    // Enter in a box on the Details tab submits the form through its first
+    // submit button, "without specs". Treat it as Next instead, as the
+    // primary button on that tab is; only a click on "without specs" skips.
+    const submitter = event.nativeEvent?.submitter;
+    if (offerNext && !submitter?.dataset?.skipSpecs) {
+      goToSpecs();
+      return;
+    }
+
     const nextErrors = validate(values, { assetRefExists, ignoreId: asset?.id ?? null });
     setErrors(nextErrors);
     const failed = Object.keys(nextErrors);
@@ -297,7 +313,7 @@ export default function AssetFormModal({
       title={isEditing ? `Edit ${asset.asset_ref}` : 'Add asset'}
       description={
         isEditing
-          ? 'Changes are saved to Supabase immediately and visible to the whole team.'
+          ? 'Your changes are shared with the whole team as soon as you save.'
           : 'Next Clean Due and Status are calculated automatically.'
       }
       onClose={busy ? () => {} : onClose}
@@ -672,7 +688,7 @@ export default function AssetFormModal({
           ) : null}
           <button type="button" className="btn btn--ghost" onClick={onClose} disabled={busy}>Cancel</button>
           {offerNext ? (
-            <button type="submit" className="btn btn--ghost" disabled={busy}>
+            <button key="save-without-specs" type="submit" data-skip-specs="true" className="btn btn--ghost" disabled={busy}>
               {values.extra_refs.length > 0
                 ? `Add ${values.extra_refs.length + 1} assets`
                 : 'Add asset'}{' '}
@@ -680,11 +696,13 @@ export default function AssetFormModal({
             </button>
           ) : null}
           {offerNext ? (
-            <button type="button" className="btn btn--primary" onClick={goToSpecs} disabled={busy}>
+            // Distinct keys matter: without them React reuses one <button> for
+            // both and flips its type mid-click, so Next submitted the form.
+            <button key="next" type="button" className="btn btn--primary" onClick={goToSpecs} disabled={busy}>
               Next: Specification →
             </button>
           ) : (
-          <button type="submit" className="btn btn--primary" disabled={busy}>
+          <button key="save" type="submit" className="btn btn--primary" disabled={busy}>
             {busy
               ? 'Saving…'
               : isEditing

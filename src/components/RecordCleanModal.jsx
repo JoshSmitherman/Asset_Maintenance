@@ -50,6 +50,9 @@ export default function RecordCleanModal({ asset, onSubmit, onClose }) {
         next.date_cleaned = 'Enter a valid date.';
       } else if (values.date_cleaned > today) {
         next.date_cleaned = 'Date Cleaned cannot be in the future.';
+      } else if (asset.date_cleaned && values.date_cleaned < asset.date_cleaned) {
+        // Recording an older clean would move the due date backwards.
+        next.date_cleaned = `Its last clean was ${formatDate(asset.date_cleaned)}. A new clean cannot be dated before that - to correct the last one, use Edit on the Assets page.`;
       }
       if (!values.cleaned_by) {
         next.cleaned_by = 'Select who cleaned it.';

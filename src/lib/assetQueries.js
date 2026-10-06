@@ -44,6 +44,8 @@ export function filterAssets(assets, filters) {
   });
 }
 
+const TEXT_ORDER = new Intl.Collator('en-GB', { numeric: true, sensitivity: 'base' });
+
 function compareValues(a, b, key) {
   switch (key) {
     case 'status':
@@ -72,20 +74,31 @@ function compareValues(a, b, key) {
       return new Date(a[key] || 0).getTime() - new Date(b[key] || 0).getTime();
     }
     default: {
-      const left = String(a[key] ?? '').toLowerCase();
-      const right = String(b[key] ?? '').toLowerCase();
-      return left.localeCompare(right, 'en-GB', { numeric: true, sensitivity: 'base' });
+      return TEXT_ORDER.compare(String(a[key] ?? ''), String(b[key] ?? ''));
     }
   }
 }
 
+// One collator, built once: localeCompare with options builds a new one on
+// every call, which made sorting a few thousand rows take seconds.
+const REF_ORDER = new Intl.Collator('en-GB', { numeric: true });
+const isBlank = (value) => value === null || value === undefined || value === '';
+
 export function sortAssets(assets, sort) {
   const direction = sort.direction === 'desc' ? -1 : 1;
   return [...assets].sort((a, b) => {
-    const result = compareValues(a, b, sort.key);
+    // Blanks (no cost, never cleaned, unassigned) go to the bottom whichever
+    // way the column is sorted - they are never the "biggest" or "newest".
+    // The exception is the due date: no due date means never cleaned, the
+    // most urgent of all, so it keeps its place at the top.
+    const blanksLast = sort.key !== 'next_clean_due';
+    const leftBlank = blanksLast && isBlank(a[sort.key]);
+    const rightBlank = blanksLast && isBlank(b[sort.key]);
+    if (leftBlank !== rightBlank) return leftBlank ? 1 : -1;
+    const result = leftBlank ? 0 : compareValues(a, b, sort.key);
     if (result !== 0) return result * direction;
     // Stable tie-break so rows never jump around unpredictably.
-    return String(a.asset_ref).localeCompare(String(b.asset_ref), 'en-GB', { numeric: true });
+    return REF_ORDER.compare(String(a.asset_ref), String(b.asset_ref));
   });
 }
 
@@ -97,7 +110,7 @@ export function sortByUrgency(assets) {
     const left = a.daysUntilDue ?? 0;
     const right = b.daysUntilDue ?? 0;
     if (left !== right) return left - right;
-    return String(a.asset_ref).localeCompare(String(b.asset_ref), 'en-GB', { numeric: true });
+    return REF_ORDER.compare(String(a.asset_ref), String(b.asset_ref));
   });
 }
 

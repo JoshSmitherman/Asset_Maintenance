@@ -12,9 +12,13 @@ export const MAX_PART_COST = 100000;
 
 /** A part's cost as typed ("45", "45.5", "£45.50") as a number, or null. */
 export function parseCost(text) {
-  const cleaned = String(text ?? '').replace(/[£,\s]/g, '');
-  if (cleaned === '') return null;
-  const value = Number(cleaned);
+  const raw = String(text ?? '').trim().replace(/^£\s*/, '');
+  if (raw === '') return null;
+  // Commas only as thousands separators (1,250.00), never as a decimal point:
+  // "1,5" is ambiguous, so it is refused rather than read as 15.
+  // A minus sign is read so that the form can say "cannot be negative".
+  if (!/^-?(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?$/.test(raw)) return null;
+  const value = Number(raw.replace(/,/g, ''));
   return Number.isFinite(value) ? Math.round(value * 100) / 100 : null;
 }
 

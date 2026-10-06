@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { describeDatabaseError } from '../lib/errors';
+import { fetchAll } from '../lib/fetchAll';
 
 const CLEANING_LOG_TABLE = 'cleaning_log';
 
@@ -26,20 +27,22 @@ export function useCleaningLog({ enabled }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error: readError } = await supabase
-      .from(CLEANING_LOG_TABLE)
-      .select('id, asset_ref, device_type, cleaned_on, cleaned_by, logged_at, logged_by_email')
-      .order('cleaned_on', { ascending: false })
-      .order('logged_at', { ascending: false })
-      .limit(2000);
-
-    if (!mounted.current) return;
-    if (readError) {
+    try {
+      const data = await fetchAll(() =>
+        supabase
+          .from(CLEANING_LOG_TABLE)
+          .select('id, asset_ref, device_type, cleaned_on, cleaned_by, logged_at, logged_by_email')
+          .order('cleaned_on', { ascending: false })
+          .order('logged_at', { ascending: false })
+          .order('id')
+      );
+      if (!mounted.current) return;
+      setError(null);
+      setEntries(data);
+    } catch (readError) {
+      if (!mounted.current) return;
       setError(describeDatabaseError(readError));
       setEntries([]);
-    } else {
-      setError(null);
-      setEntries(data ?? []);
     }
     setLoading(false);
   }, []);

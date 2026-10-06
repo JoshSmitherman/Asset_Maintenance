@@ -16,6 +16,23 @@ function toMs(value) {
   return Number.isNaN(ms) ? null : ms;
 }
 
+const FIELD_LABELS = {
+  purchase_cost: 'purchase cost',
+  purchase_date: 'purchase date',
+  cleaning_interval_months: 'cleaning interval',
+  notes: 'notes',
+  serial_number: 'serial number',
+  retired_reason: 'retirement reason',
+  retired_notes: 'retirement notes',
+  retired_on: 'retirement date',
+  data_wiped: 'data wiped'
+};
+function fieldLabel(key) {
+  if (FIELD_LABELS[key]) return FIELD_LABELS[key];
+  if (key.startsWith('spec_')) return key.slice(5).replace(/_/g, ' ');
+  return key.replace(/_/g, ' ');
+}
+
 const blank = (value) => (value === null || value === undefined || value === '' ? null : value);
 
 function describeEvent(event) {
@@ -54,8 +71,30 @@ function describeEvent(event) {
       return { kind: 'change', title: `Device type: ${to ?? '—'}`, detail: from ? `Was ${from}` : null };
     case 'asset_ref':
       return { kind: 'change', title: `Renamed to ${to ?? '—'}`, detail: from ? `Was ${from}` : null };
+    case 'retired': {
+      const details = event.details ?? {};
+      const wiped = details.data_wiped
+        ? `Data wiped${details.data_wiped_by ? ` by ${details.data_wiped_by}` : ''}`
+        : 'Data not recorded as wiped';
+      return {
+        kind: 'retired',
+        title: `Retired${details.reason ? `: ${details.reason}` : ''}`,
+        detail: [wiped, blank(details.notes)].filter(Boolean).join(' · ')
+      };
+    }
+    case 'restored':
+      return { kind: 'restored', title: 'Brought back into use', detail: null };
+    case 'edited': {
+      // Fields changed in one save, from the full change record.
+      const fields = Object.keys(event.details?.fields ?? {});
+      return {
+        kind: 'change',
+        title: 'Details edited',
+        detail: fields.length ? `Changed: ${fields.map(fieldLabel).join(', ')}` : null
+      };
+    }
     default:
-      return { kind: 'change', title: event.event_type, detail: null };
+      return { kind: 'change', title: 'Changed', detail: null };
   }
 }
 

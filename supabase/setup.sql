@@ -305,6 +305,18 @@ create index if not exists assets_purchase_date_idx  on public.assets (purchase_
 --    A monitor is tracked for inventory but never joins the cleaning rota,
 --    so it must not be counted as "Never Cleaned".
 -- =====================================================================
+-- "Today" as the team means it: the date in the UK. The database itself runs
+-- on UTC, so between midnight and 1am in summer the UTC date is still
+-- yesterday - which refused a clean, repair or retirement dated today.
+create or replace function public.today_local()
+returns date
+language sql
+stable
+set search_path = pg_catalog, pg_temp
+as $$
+  select (now() at time zone 'Europe/London')::date;
+$$;
+
 create or replace function public.asset_status(
   p_device_type    text,
   p_date_cleaned   date,
@@ -320,8 +332,8 @@ as $$
     -- A never-cleaned asset with a purchase date is due a year after
     -- purchase, so it is the due date that decides, not the clean.
     when p_next_clean_due is null                           then 'Never Cleaned'
-    when p_next_clean_due < current_date                    then 'Overdue'
-    when p_next_clean_due <= current_date + 30              then 'Due Soon'
+    when p_next_clean_due < public.today_local()            then 'Overdue'
+    when p_next_clean_due <= public.today_local() + 30      then 'Due Soon'
     else 'OK'
   end;
 $$;
@@ -356,7 +368,7 @@ begin
   new.spec_charger_type := nullif(btrim(coalesce(new.spec_charger_type, '')), '');
   new.spec_resolution   := nullif(btrim(coalesce(new.spec_resolution, '')), '');
 
-  if new.date_cleaned is not null and new.date_cleaned > current_date then
+  if new.date_cleaned is not null and new.date_cleaned > public.today_local() then
     raise exception 'Date Cleaned cannot be in the future (%).', new.date_cleaned
       using errcode = 'check_violation';
   end if;
@@ -365,7 +377,7 @@ begin
   -- the register - but only an admin may bring it back.
   new.retired_notes := nullif(btrim(coalesce(new.retired_notes, '')), '');
 
-  if new.retired_on is not null and new.retired_on > current_date then
+  if new.retired_on is not null and new.retired_on > public.today_local() then
     raise exception 'The retirement date cannot be in the future (%).', new.retired_on
       using errcode = 'check_violation';
   end if;
@@ -475,13 +487,43 @@ security definer
 set search_path = public, auth, pg_temp
 as $$
 begin
-  if new.date_cleaned is null or new.cleaned_by is null then
-    return null;
-  end if;
-
   if tg_op = 'UPDATE'
      and new.date_cleaned is not distinct from old.date_cleaned
      and new.cleaned_by   is not distinct from old.cleaned_by then
+    return null;
+  end if;
+
+  -- A correction, not a new clean: the record was cleared, or changed to an
+  -- earlier (or the same) date, or only the cleaner changed. The log entry
+  -- for the old clean is corrected rather than joined by a second one, so
+  -- fixing a typo does not count as another clean in the reports. A later
+  -- date is a new clean and is added below.
+  if tg_op = 'UPDATE' and old.date_cleaned is not null and old.cleaned_by is not null
+     and (new.date_cleaned is null or new.cleaned_by is null
+          or new.date_cleaned <= old.date_cleaned) then
+    if new.date_cleaned is null or new.cleaned_by is null then
+      delete from public.cleaning_log
+       where asset_id = old.id and cleaned_on = old.date_cleaned and cleaned_by = old.cleaned_by;
+    elsif exists (select 1 from public.cleaning_log
+                   where asset_id = new.id and cleaned_on = new.date_cleaned
+                     and cleaned_by = new.cleaned_by) then
+      -- Corrected to a clean already in the log: the old entry was the typo.
+      delete from public.cleaning_log
+       where asset_id = old.id and cleaned_on = old.date_cleaned and cleaned_by = old.cleaned_by;
+    else
+      update public.cleaning_log
+         set cleaned_on = new.date_cleaned,
+             cleaned_by = new.cleaned_by,
+             asset_ref = new.asset_ref,
+             device_type = new.device_type
+       where asset_id = old.id and cleaned_on = old.date_cleaned and cleaned_by = old.cleaned_by;
+      if found then
+        return null;
+      end if;
+    end if;
+  end if;
+
+  if new.date_cleaned is null or new.cleaned_by is null then
     return null;
   end if;
 
@@ -631,7 +673,7 @@ select
     when a.retired_on is not null then 'Retired'
     else public.asset_status(a.device_type, a.date_cleaned, a.next_clean_due)
   end                                                                  as status,
-  (a.next_clean_due - current_date)                                    as days_until_due
+  (a.next_clean_due - public.today_local())                             as days_until_due
 from public.assets a;
 
 comment on view public.assets_with_status is 'assets + derived status/days_until_due. Read-only surface for the app.';
@@ -842,7 +884,7 @@ begin
   new.fault := btrim(coalesce(new.fault, ''));
   new.notes := nullif(btrim(coalesce(new.notes, '')), '');
 
-  if new.repaired_on > current_date then
+  if new.repaired_on > public.today_local() then
     raise exception 'The repair date cannot be in the future (%).', new.repaired_on
       using errcode = 'check_violation';
   end if;

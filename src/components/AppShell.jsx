@@ -19,6 +19,7 @@ import RetireModal from './RetireModal';
 import RetiredList from './RetiredList';
 import ReleaseNotesPage from './ReleaseNotesPage';
 import { CURRENT_VERSION } from '../lib/releaseNotes';
+import { formatTimestamp } from '../lib/dates';
 import { versionFromSearch } from '../lib/releaseLinks';
 import { assetRefFromSearch, clearAssetFromAddress, findAssetByRef } from '../lib/assetLinks';
 import { useAuth } from '../context/AuthContext';
@@ -351,6 +352,7 @@ export default function AppShell() {
       <div className="app-chrome">
         <Header
           lastSyncedAt={lastSyncedAt}
+          connectionError={Boolean(error)}
           onOpenReleaseNotes={openReleaseNotes}
           hasUnseenRelease={seenVersion !== CURRENT_VERSION}
         />
@@ -363,9 +365,14 @@ export default function AppShell() {
       </div>
 
       <main className="container">
-        {error ? (
+        {/* Once the register has loaded, a failed refresh keeps what is on
+            screen and says so. Before it has, there is nothing true to show:
+            zeros and "nothing needs attention" would be a false all-clear. */}
+        {error && lastSyncedAt ? (
           <div className="alert alert--error" role="alert">
-            <span>{error}</span>
+            <span>
+              {error} What you see was last updated {formatTimestamp(lastSyncedAt)}.
+            </span>
             <button type="button" className="btn btn--small" onClick={refresh}>Retry</button>
           </div>
         ) : null}
@@ -374,8 +381,18 @@ export default function AppShell() {
           <ReleaseNotesPage />
         ) : page === 'admin' && isAdmin ? (
           <AdminPage onToast={setToast} specMemory={specMemory} onMergeModels={bulkRenameModel} />
+        ) : error && !lastSyncedAt ? (
+          <section className="card load-failed" role="alert">
+            <h2 className="card__title">The register could not be loaded</h2>
+            <p>{error}</p>
+            <p className="cell-muted">
+              Nothing has been lost - your assets are safe in the database. This page just could not
+              reach it.
+            </p>
+            <button type="button" className="btn btn--primary" onClick={refresh}>Try again</button>
+          </section>
         ) : loading ? (
-          <p className="empty-state">Loading assets…</p>
+          <p className="empty-state" role="status">Loading assets…</p>
         ) : page === 'dashboard' ? (
           <>
             <StatsGrid
@@ -697,12 +714,29 @@ export default function AppShell() {
         <BulkCleanModal
           count={cleanableSelection.length}
           onClose={() => setBulkAction(null)}
-          onSubmit={(values) =>
-            runBulk(
-              () => bulkRecordClean(cleanableSelection.map((asset) => asset.id), values),
-              (count) => `Clean recorded for ${count} asset${count === 1 ? '' : 's'}.`
-            )
-          }
+          onSubmit={(values) => {
+            // A clean dated before an asset's last one would move its due date
+            // backwards; those are left as they are and named in the result.
+            const newer = cleanableSelection.filter(
+              (asset) => asset.date_cleaned && asset.date_cleaned > values.date_cleaned
+            );
+            const targets = cleanableSelection.filter((asset) => !newer.includes(asset));
+            const skipped = newer.length
+              ? ` ${newer.length} skipped - cleaned more recently than that: ${newer
+                  .slice(0, 5)
+                  .map((asset) => asset.asset_ref)
+                  .join(', ')}${newer.length > 5 ? '…' : ''}.`
+              : '';
+            if (targets.length === 0) {
+              return Promise.reject(
+                new Error('Every selected asset has a more recent clean than that date. Nothing was changed.')
+              );
+            }
+            return runBulk(
+              () => bulkRecordClean(targets.map((asset) => asset.id), values),
+              (count) => `Clean recorded for ${count} asset${count === 1 ? '' : 's'}.${skipped}`
+            );
+          }}
         />
       ) : null}
 

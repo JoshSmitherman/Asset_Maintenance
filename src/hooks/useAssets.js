@@ -6,8 +6,15 @@ import { ATTACHMENTS_BUCKET } from '../lib/attachments';
 import { specPayload } from '../lib/specs';
 import { describeDatabaseError } from '../lib/errors';
 import { todayIso } from '../lib/dates';
+import { chunk, fetchAll } from '../lib/fetchAll';
 
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+// A bulk change to 200 assets arrives as 200 live events; one reload covers
+// them all.
+const LIVE_RELOAD_DELAY_MS = 800;
+// Bulk writes name their rows in the request address, which has a length
+// limit; a few thousand ids are sent a batch at a time.
+const WRITE_BATCH = 200;
 
 /** Only these columns are ever written; the rest are database-managed. */
 function toWritePayload(values) {
@@ -49,6 +56,11 @@ export function useAssets() {
   const [error, setError] = useState(null);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const mounted = useRef(true);
+  // Each load is numbered. Loads overlap (a save, a live update and a focus
+  // can all fire together) and replies can arrive out of order, so only the
+  // newest one may update the screen - an older reply would put stale data
+  // back over newer.
+  const latestLoad = useRef(0);
 
   useEffect(() => {
     mounted.current = true;
@@ -59,24 +71,23 @@ export function useAssets() {
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     if (!supabase) return;
+    const ticket = latestLoad.current + 1;
+    latestLoad.current = ticket;
     if (quiet) setRefreshing(true);
     try {
-      const { data, error: queryError } = await supabase
-        .from(ASSETS_VIEW)
-        .select('*')
-        .order('next_clean_due', { ascending: true, nullsFirst: true });
-
-      if (queryError) throw queryError;
-      if (!mounted.current) return;
+      // Every row, a page at a time, ordered by id so pages never overlap;
+      // the lists sort for themselves.
+      const data = await fetchAll(() => supabase.from(ASSETS_VIEW).select('*').order('id'));
+      if (!mounted.current || ticket !== latestLoad.current) return;
 
       const today = todayIso();
-      setAssets((data ?? []).map((row) => decorateAsset(row, today)));
+      setAssets(data.map((row) => decorateAsset(row, today)));
       setError(null);
       setLastSyncedAt(new Date());
     } catch (caught) {
-      if (mounted.current) setError(describeDatabaseError(caught));
+      if (mounted.current && ticket === latestLoad.current) setError(describeDatabaseError(caught));
     } finally {
-      if (mounted.current) {
+      if (mounted.current && ticket === latestLoad.current) {
         setLoading(false);
         setRefreshing(false);
       }
@@ -93,10 +104,12 @@ export function useAssets() {
   useEffect(() => {
     if (!supabase) return undefined;
 
+    let pending = null;
     const channel = supabase
       .channel('assets-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: ASSETS_TABLE }, () => {
-        load({ quiet: true });
+        window.clearTimeout(pending);
+        pending = window.setTimeout(() => load({ quiet: true }), LIVE_RELOAD_DELAY_MS);
       })
       .subscribe();
 
@@ -109,6 +122,7 @@ export function useAssets() {
     window.addEventListener('focus', onVisible);
 
     return () => {
+      window.clearTimeout(pending);
       supabase.removeChannel(channel);
       window.clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
@@ -212,7 +226,7 @@ export function useAssets() {
         .select('id');
 
       if (insertError) {
-        throw new Error(describeDatabaseError(insertError, { assetRef: payloads[0]?.asset_ref }));
+        throw new Error(describeDatabaseError(insertError, { batch: payloads.length > 1, assetRef: payloads[0]?.asset_ref }));
       }
       await load({ quiet: true });
       return data;
@@ -230,15 +244,26 @@ export function useAssets() {
    */
   const bulkUpdate = useCallback(
     async (ids, payload) => {
-      const { data, error: writeError } = await supabase
-        .from(ASSETS_TABLE)
-        .update(payload)
-        .in('id', ids)
-        .select('id');
-
-      if (writeError) throw new Error(describeDatabaseError(writeError));
-      await load({ quiet: true });
-      return data?.length ?? 0;
+      let changed = 0;
+      try {
+        for (const batch of chunk(ids, WRITE_BATCH)) {
+          const { data, error: writeError } = await supabase
+            .from(ASSETS_TABLE)
+            .update(payload)
+            .in('id', batch)
+            .select('id');
+          if (writeError) {
+            const message = describeDatabaseError(writeError);
+            throw new Error(
+              changed > 0 ? `${changed} of ${ids.length} were updated before this stopped: ${message}` : message
+            );
+          }
+          changed += data?.length ?? 0;
+        }
+      } finally {
+        await load({ quiet: true });
+      }
+      return changed;
     },
     [load]
   );
@@ -299,27 +324,32 @@ export function useAssets() {
    */
   const bulkDelete = useCallback(
     async (ids) => {
-      const { data: files } = await supabase
-        .from('attachments')
-        .select('storage_path')
-        .in('asset_id', ids);
+      const files = [];
+      let deleted = 0;
+      for (const batch of chunk(ids, WRITE_BATCH)) {
+        const { data: batchFiles } = await supabase
+          .from('attachments')
+          .select('storage_path')
+          .in('asset_id', batch);
+        files.push(...(batchFiles ?? []));
 
-      const { data, error: deleteError } = await supabase
-        .from(ASSETS_TABLE)
-        .delete()
-        .in('id', ids)
-        .select('id');
-      if (deleteError) throw new Error(describeDatabaseError(deleteError));
+        const { data, error: deleteError } = await supabase
+          .from(ASSETS_TABLE)
+          .delete()
+          .in('id', batch)
+          .select('id');
+        if (deleteError) throw new Error(describeDatabaseError(deleteError));
+        deleted += data?.length ?? 0;
+      }
 
-      const deleted = data?.length ?? 0;
       if (deleted === 0) {
         throw new Error('Only an admin can delete assets. Retire it instead to take it out of use.');
       }
 
-      const paths = (files ?? []).map((file) => file.storage_path);
-      if (paths.length > 0) {
+      const paths = files.map((file) => file.storage_path);
+      for (const batch of chunk(paths, WRITE_BATCH)) {
         // Best effort: a file left behind is harmless, and removable later.
-        await supabase.storage.from(ATTACHMENTS_BUCKET).remove(paths);
+        await supabase.storage.from(ATTACHMENTS_BUCKET).remove(batch);
       }
 
       await load({ quiet: true });

@@ -591,6 +591,14 @@ code {
 }
 .alert--error { background: var(--red-100); border: 1px solid var(--red-border); color: var(--red-700); }
 
+.load-failed {
+  max-width: 560px;
+  margin: 32px auto;
+  text-align: center;
+  border-top: 4px solid var(--red-700);
+}
+.load-failed p { margin: 8px 0 16px; }
+
 .form-error {
   margin: 0;
   padding: 9px 12px;
@@ -1211,6 +1219,11 @@ code {
 @media (max-width: 480px) {
   .detail { grid-template-columns: 1fr; gap: 2px; }
   .modal__footer--split { flex-direction: column-reverse; align-items: stretch; }
+  /* On a phone the buttons stack, the main action at the top, full width, so
+     none can be pushed off the edge of the screen. */
+  .modal__footer { flex-direction: column-reverse; align-items: stretch; }
+  .modal__footer > .btn { width: 100%; justify-content: center; }
+  .modal__footer-start { margin-right: 0; }
 }
 
 /* ---------------------------------------------------------- Theme toggle */
@@ -1338,6 +1351,8 @@ code {
 .timeline__item--clean .timeline__dot { background: var(--chart-ok); }
 .timeline__item--created .timeline__dot,
 .timeline__item--purchase .timeline__dot { background: var(--heading); }
+.timeline__item--retired .timeline__dot { background: var(--slate-500); }
+.timeline__item--restored .timeline__dot { background: var(--chart-ok); }
 .timeline__item--start .timeline__dot { background: var(--surface); border: 2px solid var(--slate-500); }
 
 .timeline__top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
