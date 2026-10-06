@@ -623,6 +623,12 @@ security definer
 set search_path = public, pg_temp
 as $$
 begin
+  -- Only a new account, or a changed address, is checked. Supabase rewrites
+  -- the whole row on every sign-in; an existing account must not be locked
+  -- out by that.
+  if tg_op = 'UPDATE' and new.email is not distinct from old.email then
+    return new;
+  end if;
   if not public.email_domain_allowed(new.email) then
     raise exception 'Orbit is only for company accounts.' using errcode = 'insufficient_privilege';
   end if;

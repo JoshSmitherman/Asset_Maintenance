@@ -104,6 +104,17 @@ describe('setup.sql', () => {
       ).rejects.toThrow(/only for company accounts/);
     });
 
+    it('never locks out an existing account when its row is saved again', async () => {
+      await db.exec(`alter table auth.users disable trigger orbit_company_email_only`);
+      await db.query(`insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000f00d', 'old@gmail.com')`);
+      await db.exec(`alter table auth.users enable trigger orbit_company_email_only`);
+      // A sign-in updates the row, email included but unchanged.
+      await db.query(`update auth.users set email = email, last_sign_in_at = now() where email = 'old@gmail.com'`);
+      await expect(
+        db.query(`update auth.users set email = 'other@gmail.com' where email = 'old@gmail.com'`)
+      ).rejects.toThrow(/only for company accounts/);
+    });
+
     it('shows a signed-in company account that is not a member nothing at all', async () => {
       await addLaptop('SEEN-1');
       expect(await count(STRANGER, `select id from public.assets`)).toEqual([]);
