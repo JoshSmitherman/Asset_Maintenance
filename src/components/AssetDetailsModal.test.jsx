@@ -69,16 +69,16 @@ describe('AssetDetailsModal specification tab', () => {
     expect(screen.queryByText('Processor')).not.toBeInTheDocument();
   });
 
-  it('has no specification tab for kit that has no specs', () => {
+  it('records at least a make and model for any other kind of kit', () => {
     render(
       <AssetDetailsModal
-        asset={{ ...asset, device_type: 'Printer' }}
+        asset={{ ...asset, device_type: 'Projector', spec_brand: 'Epson' }}
         onEdit={() => {}}
         onDelete={() => {}}
         onClose={() => {}}
       />
     );
-    expect(screen.queryByRole('tab', { name: /specification/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /specification/i })).toBeInTheDocument();
     // Every asset has a history, whatever it is.
     expect(screen.getByRole('tab', { name: /history/i })).toBeInTheDocument();
     expect(screen.getByText('Purchase cost')).toBeInTheDocument();

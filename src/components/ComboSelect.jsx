@@ -19,17 +19,21 @@ export default function ComboSelect({
   invalid,
   placeholder,
   blankLabel = '— Not recorded —',
-  addLabel = '+ Add new…'
+  addLabel = '+ Add new…',
+  // Keep the options in the order given (the usual ones first) rather than A-Z.
+  sorted = true,
+  maxLength = 60
 }) {
   const [adding, setAdding] = useState(false);
 
   const choices = useMemo(() => {
     const all = new Set(options.filter(Boolean));
     if (value) all.add(value);
-    return [...all].sort((a, b) =>
-      a.localeCompare(b, 'en-GB', { numeric: true, sensitivity: 'base' })
-    );
-  }, [options, value]);
+    const list = [...all];
+    return sorted
+      ? list.sort((a, b) => a.localeCompare(b, 'en-GB', { numeric: true, sensitivity: 'base' }))
+      : list;
+  }, [options, value, sorted]);
 
   if (adding) {
     return (
@@ -40,7 +44,7 @@ export default function ComboSelect({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          maxLength={60}
+          maxLength={maxLength}
           disabled={disabled}
           autoFocus
         />
@@ -48,7 +52,9 @@ export default function ComboSelect({
           type="button"
           className="combo__back"
           onClick={() => {
-            onChange('');
+            // With no blank choice, go back to the first option rather than
+            // leave a value the list cannot show.
+            onChange(blankLabel === null ? choices[0] ?? '' : '');
             setAdding(false);
           }}
           disabled={disabled}
@@ -74,7 +80,7 @@ export default function ComboSelect({
         onChange(event.target.value);
       }}
     >
-      <option value="">{blankLabel}</option>
+      {blankLabel === null ? null : <option value="">{blankLabel}</option>}
       {choices.map((choice) => <option key={choice} value={choice}>{choice}</option>)}
       <option value={ADD_NEW}>{addLabel}</option>
     </select>

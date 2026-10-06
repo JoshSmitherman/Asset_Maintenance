@@ -8,6 +8,48 @@
 
 export const RELEASES = [
   {
+    version: '2.11.0',
+    title: 'Any Device Type, and the Dashboard Cards Back',
+    date: '2026-10-06',
+    sections: [
+      {
+        area: 'Assets',
+        groups: [
+          {
+            heading: 'Device types',
+            items: [
+              {
+                type: 'changed',
+                text: 'Device Type is no longer limited: pick a usual one, or **+ Add another type** for anything else',
+                details: [
+                  'The usual types come first: Laptop, Desktop, Monitor, Phone, Camera, Docking Station, Tablet, Printer, Peripheral and Other',
+                  'Types already on the register are offered too, so everyone spells them the same way'
+                ]
+              },
+              { type: 'changed', text: 'Cameras are just "Camera" - no more "(UniFi)"' },
+              { type: 'added', text: 'Every kind of kit can record its make and model on the Specification tab' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Dashboard',
+        groups: [
+          {
+            heading: 'Cards',
+            items: [
+              {
+                type: 'changed',
+                text: 'The asset cards are back as they were: Total value, Total assets, Laptops, Desktops, Monitors, and Peripherals & other',
+                details: ['Hover over Peripherals & other to see what it is made of']
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.10.1',
     title: 'Sign-In Until Microsoft Is Ready',
     date: '2026-10-06',

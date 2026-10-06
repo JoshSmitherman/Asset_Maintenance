@@ -8,8 +8,6 @@ import CleanerSelect from './CleanerSelect';
 import { useTeam } from '../hooks/useTeam';
 import {
   DEVICE_TYPES,
-  deviceTypeLabel,
-  isLegacyDeviceType,
   defaultIntervalFor,
   isCleaningTracked,
   LOCATIONS
@@ -97,7 +95,7 @@ function refError(ref, { assetRefExists, others }) {
 const REF_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._/-]*$/;
 const REF_HELP = 'Use letters, numbers and dashes, like AST-0222.';
 
-function validate(values, { assetRefExists, ignoreId, originalType = null }) {
+function validate(values, { assetRefExists, ignoreId }) {
   const errors = {};
   const today = todayIso();
   const tracked = isCleaningTracked(values.device_type);
@@ -124,9 +122,11 @@ function validate(values, { assetRefExists, ignoreId, originalType = null }) {
     if (first) errors.asset_ref = first;
   }
 
-  // An older type is only allowed on an asset that already has it.
-  if (!DEVICE_TYPES.includes(values.device_type) && values.device_type !== originalType) {
-    errors.device_type = 'Choose a device type.';
+  const deviceType = String(values.device_type ?? '').trim();
+  if (!deviceType) {
+    errors.device_type = 'Choose a device type, or add one.';
+  } else if (deviceType.length > 40) {
+    errors.device_type = 'Keep the device type to 40 characters.';
   }
   if (!values.department.trim()) {
     errors.department = 'Department is required.';
@@ -203,7 +203,8 @@ export default function AssetFormModal({
   users = [],
   specOptions = {},
   specMemory = {},
-  suggestedRef = null
+  suggestedRef = null,
+  deviceTypes = DEVICE_TYPES
 }) {
   const isEditing = Boolean(asset);
   const team = useTeam();
@@ -292,7 +293,7 @@ export default function AssetFormModal({
   // check the details first, then move on rather than saving straight away.
   const goToSpecs = () => {
     const detailErrors = Object.fromEntries(
-      Object.entries(validate(values, { assetRefExists, ignoreId: asset?.id ?? null, originalType: asset?.device_type ?? null })).filter(
+      Object.entries(validate(values, { assetRefExists, ignoreId: asset?.id ?? null })).filter(
         ([key]) => !specKeys.includes(key)
       )
     );
@@ -315,7 +316,7 @@ export default function AssetFormModal({
       return;
     }
 
-    const nextErrors = validate(values, { assetRefExists, ignoreId: asset?.id ?? null, originalType: asset?.device_type ?? null });
+    const nextErrors = validate(values, { assetRefExists, ignoreId: asset?.id ?? null });
     setErrors(nextErrors);
     const failed = Object.keys(nextErrors);
     if (failed.length > 0) {
@@ -538,20 +539,20 @@ export default function AssetFormModal({
 
           <div className="field">
             <label className="field__label" htmlFor="device_type">Device Type *</label>
-            <select
+            {/* The usual types, any already in use, and anything else typed in. */}
+            <ComboSelect
               id="device_type"
-              className={`select${errors.device_type ? ' input--error' : ''}`}
               value={values.device_type}
-              onChange={(event) => setDeviceType(event.target.value)}
+              options={deviceTypes}
+              onChange={setDeviceType}
+              placeholder="e.g. Projector"
+              blankLabel={null}
+              addLabel="+ Add another type…"
+              sorted={false}
+              maxLength={40}
+              invalid={Boolean(errors.device_type)}
               disabled={busy}
-            >
-              {DEVICE_TYPES.map((type) => (
-                <option key={type} value={type}>{deviceTypeLabel(type)}</option>
-              ))}
-              {asset && isLegacyDeviceType(asset.device_type) ? (
-                <option value={asset.device_type}>{asset.device_type} (older type - choose a current one)</option>
-              ) : null}
-            </select>
+            />
             {errors.device_type ? <span className="field__error">{errors.device_type}</span> : null}
           </div>
 
@@ -733,8 +734,8 @@ export default function AssetFormModal({
           ) : (
             <div className="field field--full">
               <p className="field__hint">
-                Only laptops are on the cleaning rota. This {deviceTypeLabel(values.device_type).toLowerCase()} is
-                recorded for the register and will not appear on the Cleaning page.
+                Cleaning is tracked for laptops and desktops only. This asset is recorded
+                for inventory and will not appear in the cleaning area.
               </p>
             </div>
           )}

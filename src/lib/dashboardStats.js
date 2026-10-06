@@ -53,6 +53,19 @@ export function kitSummary(assets) {
   return summary;
 }
 
+/** What "Peripherals & other" is made of, biggest first: "3 Phone, 2 Camera". */
+export function otherKitBreakdown(assets) {
+  const counts = new Map();
+  for (const asset of assets) {
+    if (MAIN_KIT_TYPES.includes(asset.device_type)) continue;
+    counts.set(asset.device_type, (counts.get(asset.device_type) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([type, count]) => `${count} ${type}`)
+    .join(', ');
+}
+
 /**
  * What was bought in each of the last `months` calendar months, oldest
  * first and ending with the current month, empty months included so the

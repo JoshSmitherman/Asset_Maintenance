@@ -1,4 +1,4 @@
-import { deviceTypeLabel, formatCurrency, isCleaningTracked, STATUS } from '../lib/constants';
+import { formatCurrency, isCleaningTracked, STATUS } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import StatusBadge from './StatusBadge';
 import { displayNameFromEmail } from '../lib/accountName';
@@ -171,7 +171,7 @@ export default function AssetTable({
                   <span className="note-flag" title={asset.notes} aria-label="Has notes">note</span>
                 ) : null}
               </td>
-              <td className={classOf('device_type')}>{deviceTypeLabel(asset.device_type)}</td>
+              <td className={classOf('device_type')}>{asset.device_type}</td>
               <td>
                 {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
               </td>

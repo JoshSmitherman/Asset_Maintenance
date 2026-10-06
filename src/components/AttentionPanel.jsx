@@ -1,4 +1,4 @@
-import { ATTENTION_STATUSES, deviceTypeLabel, STATUS } from '../lib/constants';
+import { ATTENTION_STATUSES, STATUS } from '../lib/constants';
 import { describeDayOffset, formatDate } from '../lib/dates';
 import { sortByUrgency } from '../lib/assetQueries';
 import StatusBadge from './StatusBadge';
@@ -36,7 +36,7 @@ export default function AttentionPanel({ assets, onRecordClean, onOpenQueue }) {
 
       {needsAttention.length === 0 ? (
         <p className="empty-state empty-state--positive">
-          Nothing needs attention — every laptop has been cleaned within its cycle.
+          Nothing needs attention — every asset has been cleaned within the last cycle.
         </p>
       ) : (
         <div className="table-scroll">
@@ -56,7 +56,7 @@ export default function AttentionPanel({ assets, onRecordClean, onOpenQueue }) {
               {shown.map((asset) => (
                 <tr key={asset.id}>
                   <td className="cell-strong">{asset.asset_ref}</td>
-                  <td className="col-hide-sm">{deviceTypeLabel(asset.device_type)}</td>
+                  <td className="col-hide-sm">{asset.device_type}</td>
                   <td className="col-hide-xs">
                     {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
                   </td>

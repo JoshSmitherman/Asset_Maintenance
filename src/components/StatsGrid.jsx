@@ -4,14 +4,13 @@ const money = (value) => formatCurrency(value) ?? '£0.00';
 
 const KIT_CARDS = [
   { key: 'Laptop', label: 'Laptops', filter: 'Laptop' },
-  { key: 'Phone', label: 'Phones', filter: 'Phone' },
+  { key: 'Desktop', label: 'Desktops', filter: 'Desktop' },
   { key: 'Monitor', label: 'Monitors', filter: 'Monitor' },
-  { key: 'Camera', label: 'Cameras', filter: 'Camera', hint: 'UniFi cameras' },
   {
     key: 'other',
-    label: 'Other devices',
+    label: 'Peripherals & other',
     filter: OTHER_KIT_FILTER,
-    hint: 'Other devices, plus desktops, docks and anything recorded under an older type'
+    hint: 'Phones, cameras, docks, printers and anything else'
   }
 ];
 
@@ -27,7 +26,7 @@ const CLEANING_CARDS = [
  * where the cleaning stands. Every card but the total value is a shortcut to
  * the matching list.
  */
-export default function StatsGrid({ summary, kit, totalValue, onSelectType, onSelectStatus }) {
+export default function StatsGrid({ summary, kit, totalValue, otherBreakdown = '', onSelectType, onSelectStatus }) {
   const trackedTotal = CLEANING_CARDS.reduce((sum, card) => sum + (summary[card.key] ?? 0), 0);
 
   return (
@@ -49,7 +48,8 @@ export default function StatsGrid({ summary, kit, totalValue, onSelectType, onSe
               type="button"
               className="stat stat--kit"
               onClick={() => onSelectType(card.filter)}
-              title={card.hint}
+              // Hover the "other" card to see what is in it.
+              title={card.key === 'other' && otherBreakdown ? otherBreakdown : card.hint}
             >
               <span className="stat__value">{kit[card.key]?.count ?? 0}</span>
               <span className="stat__label">{card.label}</span>
@@ -61,7 +61,7 @@ export default function StatsGrid({ summary, kit, totalValue, onSelectType, onSe
 
       <section className="stat-group" aria-labelledby="stat-group-cleaning">
         <h2 className="stat-group__title" id="stat-group-cleaning">
-          Cleaning <span className="stat-group__note">{trackedTotal} on the cleaning rota</span>
+          Cleaning <span className="stat-group__note">{trackedTotal} laptops and desktops</span>
         </h2>
         <div className="stat-grid stat-grid--cleaning">
           {CLEANING_CARDS.map((card) => {

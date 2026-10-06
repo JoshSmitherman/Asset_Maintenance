@@ -30,7 +30,7 @@ export function describeDatabaseError(error, context = {}) {
     return 'Enter both Date Cleaned and Cleaned By, or leave both blank.';
   }
   if (message.includes('assets_device_type_valid')) {
-    return 'Choose a Device Type from the list.';
+    return 'That device type cannot be saved yet. An admin needs to run the latest supabase/setup.sql in Supabase - until then, choose one from the list.';
   }
   if (message.includes('assets_cleaned_by_valid')) {
     return 'Choose who cleaned it from the list.';

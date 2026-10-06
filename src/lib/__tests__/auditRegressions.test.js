@@ -175,7 +175,7 @@ describe('database errors people can act on', () => {
       .not.toMatch(/asset ref/i);
     expect(describeDatabaseError({ code: '22003', message: 'numeric field overflow' })).toMatch(/too large/i);
     expect(describeDatabaseError({ message: 'new row violates check constraint "assets_device_type_valid"' }))
-      .toBe('Choose a Device Type from the list.');
+      .toMatch(/run the latest supabase\/setup\.sql/);
     expect(describeDatabaseError({ code: 'P0001', message: 'The repair date cannot be in the future (2026-10-07).' }))
       .toBe('The repair date cannot be in the future.');
     expect(describeDatabaseError({ message: 'TypeError: Failed to fetch' })).toMatch(/internet connection/i);

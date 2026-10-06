@@ -1,4 +1,4 @@
-import { deviceTypeLabel, STATUS } from '../lib/constants';
+import { STATUS } from '../lib/constants';
 import { countBy, purchasesByMonth, statusBreakdown } from '../lib/dashboardStats';
 import { formatCurrency } from '../lib/constants';
 import { formatMonth } from '../lib/dates';
@@ -128,7 +128,7 @@ function PurchasesChart({ data }) {
 
 export default function Dashboard({ assets }) {
   const status = statusBreakdown(assets);
-  const byType = countBy(assets, (asset) => deviceTypeLabel(asset.device_type));
+  const byType = countBy(assets, (asset) => asset.device_type);
   const byLocation = countBy(assets, (asset) => asset.location);
   const trackedTotal = status.reduce((sum, item) => sum + item.value, 0);
   const purchases = purchasesByMonth(assets);
@@ -140,8 +140,8 @@ export default function Dashboard({ assets }) {
           <div>
             <h2 className="card__title">Cleaning status</h2>
             <p className="card__subtitle">
-              {trackedTotal} {trackedTotal === 1 ? 'machine' : 'machines'} on the cleaning rota - laptops
-              (and desktops recorded before). Phones, monitors and cameras are not cleaned on a rota.
+              {trackedTotal} {trackedTotal === 1 ? 'computer' : 'computers'} in the cleaning rota.
+              Monitors and peripherals are excluded.
             </p>
           </div>
         </div>

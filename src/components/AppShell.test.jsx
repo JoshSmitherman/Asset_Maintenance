@@ -306,7 +306,7 @@ describe('AppShell cleaning queue', () => {
     expect(screen.getByText('AST-0041')).toBeInTheDocument();
     expect(screen.queryByText('AST-0099')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /everything on the rota \(2\)/i }));
+    await user.click(screen.getByRole('button', { name: /all laptops and desktops \(2\)/i }));
     expect(screen.getByText('AST-0099')).toBeInTheDocument();
   });
 });

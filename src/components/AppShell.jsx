@@ -32,7 +32,7 @@ import { useCleaningLog } from '../hooks/useCleaningLog';
 import { useRepairs } from '../hooks/useRepairs';
 import { savedPageSize, savePageSize, usePagination } from '../hooks/usePagination';
 import { summariseAssets } from '../lib/assetStatus';
-import { kitSummary, totalPurchaseValue } from '../lib/dashboardStats';
+import { kitSummary, otherKitBreakdown, totalPurchaseValue } from '../lib/dashboardStats';
 import { knownModels, specSuggestions } from '../lib/specs';
 import {
   DEFAULT_SORT,
@@ -46,9 +46,8 @@ import {
 import {
   ATTENTION_STATUSES,
   CLEANING_DEVICE_TYPES,
-  DEVICE_TYPES,
-  isCleaningTracked,
-  LEGACY_DEVICE_TYPES
+  deviceTypeOptions as deviceTypeOptionsFor,
+  isCleaningTracked
 } from '../lib/constants';
 
 export default function AppShell() {
@@ -167,12 +166,8 @@ export default function AppShell() {
 
   const summary = useMemo(() => summariseAssets(assets), [assets]);
   const departments = useMemo(() => uniqueDepartments(assets), [assets]);
-  // The current types, plus any older type still on the register so its kit
-  // can be found.
-  const deviceTypeOptions = useMemo(() => {
-    const present = new Set(assets.map((asset) => asset.device_type));
-    return [...DEVICE_TYPES, ...LEGACY_DEVICE_TYPES.filter((type) => present.has(type))];
-  }, [assets]);
+  // The usual types, then any others already on the register.
+  const deviceTypeOptions = useMemo(() => deviceTypeOptionsFor(allAssets), [allAssets]);
   // Everyone who has cleaned something on the register, for the filter.
   const cleanerNames = useMemo(
     () =>
@@ -181,10 +176,7 @@ export default function AppShell() {
       ),
     [assets]
   );
-  const cleaningDeviceTypes = useMemo(() => {
-    const present = new Set(assets.map((asset) => asset.device_type));
-    return CLEANING_DEVICE_TYPES.filter((type) => type === 'Laptop' || present.has(type));
-  }, [assets]);
+  const cleaningDeviceTypes = CLEANING_DEVICE_TYPES;
   const users = useMemo(() => uniqueUsers(assets), [assets]);
   const totalValue = useMemo(() => totalPurchaseValue(assets), [assets]);
   const kit = useMemo(() => kitSummary(assets), [assets]);
@@ -446,6 +438,7 @@ export default function AppShell() {
           <>
             <StatsGrid
               summary={summary}
+              otherBreakdown={otherKitBreakdown(assets)}
               kit={kit}
               totalValue={totalValue}
               onSelectType={(deviceType) => {
@@ -498,7 +491,7 @@ export default function AppShell() {
                 <p className="card__subtitle">
                   {cleaningTab === 'history'
                     ? 'Every clean that has been recorded, newest first.'
-                    : 'Laptops on the cleaning rota, most urgent first. Record a clean straight from the list.'}
+                    : 'Laptops and desktops, most urgent first. Record a clean straight from the list.'}
                 </p>
               </div>
               {cleaningTab === 'queue' ? (
@@ -534,7 +527,7 @@ export default function AppShell() {
                   <div className="segmented" role="group" aria-label="Which machines to list">
                     {[
                       { id: 'attention', label: `Needs attention (${attentionCount})` },
-                      { id: 'all', label: `Everything on the rota (${cleaningAssets.length})` }
+                      { id: 'all', label: `All laptops and desktops (${cleaningAssets.length})` }
                     ].map((option) => (
                       <button
                         key={option.id}
@@ -714,6 +707,7 @@ export default function AppShell() {
           specOptions={specOptions}
           specMemory={specMemory}
           suggestedRef={formState.asset ? null : nextAssetRef(allAssets)}
+          deviceTypes={deviceTypeOptions}
           onClose={() => {
             setFormState(null);
             backToDetails();

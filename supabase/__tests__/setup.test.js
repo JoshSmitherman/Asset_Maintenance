@@ -77,6 +77,12 @@ describe('setup.sql', () => {
     expect(await logFor(asset.id)).toEqual([{ cleaned_on: '2026-01-10', cleaned_by: 'AL' }]);
   });
 
+  it('accepts any device type, tidied, but not a blank one', async () => {
+    const asset = await addLaptop('TYPE-1', { device_type: '  Projector ' });
+    expect(asset.device_type).toBe('Projector');
+    await expect(addLaptop('TYPE-2', { device_type: '   ' })).rejects.toThrow(/assets_device_type_valid/);
+  });
+
   it('refuses a clean dated in the future', async () => {
     await expect(addLaptop('FUT-1', { date_cleaned: '2999-01-01', cleaned_by: 'AL' })).rejects.toThrow(
       /cannot be in the future/

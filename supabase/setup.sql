@@ -199,13 +199,11 @@ alter table public.assets add  constraint assets_department_not_blank
   check (btrim(department) <> '');
 
 alter table public.assets drop constraint if exists assets_device_type_valid;
--- The first line is what new assets can be. The second holds types from
--- before the list was narrowed: assets already recorded with one keep it.
+-- Any kind of kit can be recorded: the app offers the usual types first
+-- (src/lib/constants.js) and lets anything else be typed in. Only a blank or
+-- absurdly long type is refused.
 alter table public.assets add  constraint assets_device_type_valid check (
-  device_type in (
-    'Laptop', 'Phone', 'Monitor', 'Camera', 'Device',
-    'Desktop', 'Docking Station', 'Tablet', 'Printer', 'Peripheral', 'Other'
-  )
+  btrim(device_type) <> '' and char_length(device_type) <= 40
 );
 
 alter table public.assets drop constraint if exists assets_serial_number_sane;
@@ -665,6 +663,7 @@ set search_path = public, auth, pg_temp
 as $$
 begin
   new.asset_ref  := btrim(new.asset_ref);
+  new.device_type := btrim(new.device_type);
   new.owner_name := nullif(btrim(coalesce(new.owner_name, '')), '');
   new.department := btrim(new.department);
   new.notes      := nullif(btrim(coalesce(new.notes, '')), '');

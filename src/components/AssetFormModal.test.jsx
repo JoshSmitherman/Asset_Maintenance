@@ -140,16 +140,24 @@ describe('AssetFormModal validation', () => {
     expect(screen.queryByLabelText(/processor/i)).not.toBeInTheDocument();
   });
 
-  it('only offers the current device types to a new asset', () => {
-    setup();
-    const options = [...screen.getByLabelText(/device type/i).querySelectorAll('option')].map((o) => o.value);
-    expect(options).toEqual(['Laptop', 'Phone', 'Monitor', 'Camera', 'Device']);
+  it('offers the usual device types first, then lets any other be added', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = setup();
+    const options = [...screen.getByLabelText(/device type/i).querySelectorAll('option')].map((o) => o.textContent);
+    expect(options.slice(0, 5)).toEqual(['Laptop', 'Desktop', 'Monitor', 'Phone', 'Camera']);
+    expect(options.at(-1)).toMatch(/add another type/i);
+
+    await user.selectOptions(screen.getByLabelText(/device type/i), '+ Add another type…');
+    await user.type(screen.getByLabelText(/device type/i), 'Projector');
+    await user.type(screen.getByLabelText(/asset ref/i), 'AST-0500');
+    await addNew(user, /department/i, 'Finance');
+    await user.click(screen.getByRole('button', { name: /add asset/i }));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ device_type: 'Projector' });
   });
 
-  it('keeps an older type on an asset that already has it', () => {
-    setup({ asset: { id: 'd1', asset_ref: 'DSK-1', device_type: 'Desktop', department: 'IT', version: 1 } });
-    expect(screen.getByLabelText(/device type/i)).toHaveValue('Desktop');
-    expect(screen.getByRole('option', { name: /older type/i })).toBeInTheDocument();
+  it('keeps a type nobody else uses on an asset that has it', () => {
+    setup({ asset: { id: 'd1', asset_ref: 'PRJ-1', device_type: 'Projector', department: 'IT', version: 1 } });
+    expect(screen.getByLabelText(/device type/i)).toHaveValue('Projector');
   });
 
   it('opens the tab an error is hiding on', async () => {

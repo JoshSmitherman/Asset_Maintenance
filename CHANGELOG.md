@@ -7,6 +7,27 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.11.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.11.0) - 2026-10-06
+
+_Any Device Type, and the Dashboard Cards Back_
+
+### Assets
+
+**Device types**
+
+- **Changed:** Device Type is no longer limited: pick a usual one, or **+ Add another type** for anything else
+  - The usual types come first: Laptop, Desktop, Monitor, Phone, Camera, Docking Station, Tablet, Printer, Peripheral and Other
+  - Types already on the register are offered too, so everyone spells them the same way
+- **Changed:** Cameras are just "Camera" - no more "(UniFi)"
+- **Added:** Every kind of kit can record its make and model on the Specification tab
+
+### Dashboard
+
+**Cards**
+
+- **Changed:** The asset cards are back as they were: Total value, Total assets, Laptops, Desktops, Monitors, and Peripherals & other
+  - Hover over Peripherals & other to see what it is made of
+
 ## [2.10.1](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.10.1) - 2026-10-06
 
 _Sign-In Until Microsoft Is Ready_

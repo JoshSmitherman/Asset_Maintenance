@@ -1,27 +1,30 @@
 // Reference data shared by the UI. These lists mirror the CHECK constraints in
 // supabase/setup.sql - change both together.
 
-/** The kinds of asset that can be added. */
-export const DEVICE_TYPES = ['Laptop', 'Phone', 'Monitor', 'Camera', 'Device'];
-
 /**
- * Types from before the list was narrowed. Assets already recorded with one
- * keep it (nothing is changed behind anyone's back) and can be moved to a
- * current type when edited, but new assets cannot use them.
+ * The usual kinds of kit, offered first in the Device Type list. They are
+ * suggestions, not a limit: any other type can be typed in ("+ Add another
+ * type"), and types already on the register are offered too.
  */
-export const LEGACY_DEVICE_TYPES = ['Desktop', 'Docking Station', 'Tablet', 'Printer', 'Peripheral', 'Other'];
+export const DEVICE_TYPES = [
+  'Laptop',
+  'Desktop',
+  'Monitor',
+  'Phone',
+  'Camera',
+  'Docking Station',
+  'Tablet',
+  'Printer',
+  'Peripheral',
+  'Other'
+];
 
-export const ALL_DEVICE_TYPES = [...DEVICE_TYPES, ...LEGACY_DEVICE_TYPES];
-
-const DEVICE_TYPE_LABELS = { Camera: 'Camera (UniFi)', Device: 'Other device' };
-
-/** How a device type is shown: "Camera (UniFi)" for the stored "Camera". */
-export function deviceTypeLabel(type) {
-  return DEVICE_TYPE_LABELS[type] ?? type;
-}
-
-export function isLegacyDeviceType(type) {
-  return LEGACY_DEVICE_TYPES.includes(type);
+/** The usual types first, then any others the register already uses. */
+export function deviceTypeOptions(assets = []) {
+  const extra = [...new Set(assets.map((asset) => asset.device_type).filter(Boolean))]
+    .filter((type) => !DEVICE_TYPES.includes(type))
+    .sort((a, b) => a.localeCompare(b, 'en-GB', { sensitivity: 'base' }));
+  return [...DEVICE_TYPES, ...extra];
 }
 
 /**
@@ -38,8 +41,8 @@ export function isCleaningTracked(deviceType) {
 export const LOCATIONS = ['Remote', 'Hybrid', 'Office', 'Warehouse'];
 
 /** The kit the dashboard counts on its own; everything else is grouped as
- *  "Other devices". */
-export const MAIN_KIT_TYPES = ['Laptop', 'Phone', 'Monitor', 'Camera'];
+ *  "Peripherals & other". */
+export const MAIN_KIT_TYPES = ['Laptop', 'Desktop', 'Monitor'];
 
 /** Device-type filter value for everything outside MAIN_KIT_TYPES. */
 export const OTHER_KIT_FILTER = '__other';

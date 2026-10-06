@@ -36,16 +36,15 @@ describe('specsFor', () => {
     ]);
   });
 
-  it('gives phones, cameras and other devices the specs that suit them', () => {
+  it('gives phones and cameras the specs that suit them', () => {
     expect(specsFor('Phone')).toEqual(['spec_brand', 'spec_model', 'spec_storage']);
     expect(specsFor('Camera')).toEqual(['spec_brand', 'spec_model', 'spec_resolution']);
-    expect(specsFor('Device')).toEqual(['spec_brand', 'spec_model']);
   });
 
-  it('gives the older types without specs none at all', () => {
-    for (const type of ['Tablet', 'Printer', 'Docking Station', 'Peripheral', 'Other']) {
-      expect(specsFor(type)).toEqual([]);
-      expect(hasSpecs(type)).toBe(false);
+  it('gives any other kind of kit a make and model', () => {
+    for (const type of ['Tablet', 'Printer', 'Docking Station', 'Peripheral', 'Other', 'Projector']) {
+      expect(specsFor(type)).toEqual(['spec_brand', 'spec_model']);
+      expect(hasSpecs(type)).toBe(true);
     }
   });
 });
@@ -78,7 +77,9 @@ describe('specPayload', () => {
     expect(asDesktop.spec_battery_type).toBeNull();
 
     const asPrinter = specPayload('Printer', wasALaptop);
-    expect(Object.values(asPrinter).every((value) => value === null)).toBe(true);
+    expect(asPrinter.spec_brand).toBe('Dell');
+    expect(asPrinter.spec_screen_size).toBeNull();
+    expect(asPrinter.spec_charger_type).toBeNull();
 
     const asPhone = specPayload('Phone', wasALaptop);
     expect(asPhone.spec_brand).toBe('Dell');

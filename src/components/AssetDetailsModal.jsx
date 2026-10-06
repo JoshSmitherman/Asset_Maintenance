@@ -8,7 +8,7 @@ import AssetFiles from './AssetFiles';
 import { useAssetHistory } from '../hooks/useAssetHistory';
 import { useRepairs } from '../hooks/useRepairs';
 import { useAttachments } from '../hooks/useAttachments';
-import { deviceTypeLabel, formatCurrency, isCleaningTracked } from '../lib/constants';
+import { formatCurrency, isCleaningTracked } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import { SPEC_FIELDS, hasSpecs, specsFor } from '../lib/specs';
 import { assetLink } from '../lib/assetLinks';
@@ -115,7 +115,7 @@ export default function AssetDetailsModal({
   return (
     <Modal
       title={asset.asset_ref}
-      description={`${deviceTypeLabel(asset.device_type)}${asset.owner_name ? ` · ${asset.owner_name}` : ' · Unassigned'}`}
+      description={`${asset.device_type}${asset.owner_name ? ` · ${asset.owner_name}` : ' · Unassigned'}`}
       onClose={onClose}
       // A repair half-written in the Repairs tab is not lost to a stray Escape.
       confirmDiscard={writingRepair}
@@ -167,7 +167,7 @@ export default function AssetDetailsModal({
           {retired ? <RetiredBanner asset={asset} /> : null}
           <dl className="detail-list">
             <Row label="Asset Ref">{asset.asset_ref}</Row>
-            <Row label="Device type">{deviceTypeLabel(asset.device_type)}</Row>
+            <Row label="Device type">{asset.device_type}</Row>
             <Row label="User">
               {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
             </Row>

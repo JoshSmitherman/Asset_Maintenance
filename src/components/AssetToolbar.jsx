@@ -1,4 +1,4 @@
-import { DEVICE_TYPES, deviceTypeLabel, LOCATIONS, OTHER_KIT_FILTER, STATUS_FILTER_VALUES } from '../lib/constants';
+import { DEVICE_TYPES, LOCATIONS, OTHER_KIT_FILTER, STATUS_FILTER_VALUES } from '../lib/constants';
 import { EMPTY_FILTERS } from '../lib/assetQueries';
 
 export default function AssetToolbar({ filters, onChange, departments, resultCount, totalCount, deviceTypes, showOtherKit = true, onFindRef, cleaners = [] }) {
@@ -42,10 +42,10 @@ export default function AssetToolbar({ filters, onChange, departments, resultCou
           >
             <option value="all">All</option>
             {(deviceTypes ?? DEVICE_TYPES).map((type) => (
-              <option key={type} value={type}>{deviceTypeLabel(type)}</option>
+              <option key={type} value={type}>{type}</option>
             ))}
             {showOtherKit ? (
-              <option value={OTHER_KIT_FILTER}>Everything except laptops, phones, monitors and cameras</option>
+              <option value={OTHER_KIT_FILTER}>Peripherals &amp; other (not laptops, desktops or monitors)</option>
             ) : null}
           </select>
         </div>

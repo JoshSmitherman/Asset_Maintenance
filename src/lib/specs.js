@@ -86,13 +86,17 @@ const SPECS_BY_DEVICE_TYPE = {
   Desktop: ['spec_brand', 'spec_model', 'spec_processor', 'spec_ram', 'spec_storage'],
   Monitor: ['spec_brand', 'spec_model', 'spec_screen_size', 'spec_resolution', 'spec_hdmi_ports', 'spec_dp_ports'],
   Phone: ['spec_brand', 'spec_model', 'spec_storage'],
-  Camera: ['spec_brand', 'spec_model', 'spec_resolution'],
-  Device: ['spec_brand', 'spec_model']
+  Camera: ['spec_brand', 'spec_model', 'spec_resolution']
 };
+
+/** Everything else - a printer, a projector, a type someone has added - at
+ *  least has a make and model worth recording. */
+const DEFAULT_SPECS = ['spec_brand', 'spec_model'];
 
 /** The spec columns that apply to a device type, in the order they are shown. */
 export function specsFor(deviceType) {
-  return SPECS_BY_DEVICE_TYPE[deviceType] ?? [];
+  if (!deviceType) return [];
+  return SPECS_BY_DEVICE_TYPE[deviceType] ?? DEFAULT_SPECS;
 }
 
 export function hasSpecs(deviceType) {
