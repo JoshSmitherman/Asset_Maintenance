@@ -346,6 +346,11 @@ export default function AssetFormModal({
       confirmDiscard={dirty && !busy}
     >
       <form ref={formRef} onSubmit={handleSubmit} noValidate>
+        {/* The form's default button, first in the form: pressing Enter in a
+            box submits through it. It carries no "skip specs" flag, so Enter
+            on the Details tab moves on to Specification instead of saving
+            without specs. Invisible and out of the Tab order. */}
+        <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true" />
         {showSpecs ? (
           <TabStrip
             tabs={[

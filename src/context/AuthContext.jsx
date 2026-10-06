@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { canEditWith } from '../lib/access';
 
@@ -48,15 +48,27 @@ export function AuthProvider({ children }) {
   const [membership, setMembership] = useState({ status: 'loading' });
   const email = session?.user?.email?.toLowerCase() ?? '';
 
+  // Only the latest check may update the screen (a sign-in and a manual
+  // "Check again" can overlap).
+  const latestCheck = useRef(0);
+
   const loadMembership = useCallback(async () => {
-    if (!supabase || !email) {
+    const ticket = latestCheck.current + 1;
+    latestCheck.current = ticket;
+    if (!supabase || !session) {
       setMembership({ status: 'loading' });
+      return;
+    }
+    if (!email) {
+      // A sign-in with no email address cannot be matched to anyone.
+      setMembership({ status: 'none', requested: false, inactive: false });
       return;
     }
     const [member, request] = await Promise.all([
       supabase.from('members').select('access, department, full_name, active').eq('email', email).maybeSingle(),
       supabase.from('access_requests').select('requested_at').eq('email', email).maybeSingle()
     ]);
+    if (ticket !== latestCheck.current) return;
     if (member.error) {
       setMembership({ status: 'error', error: member.error });
       return;
@@ -72,7 +84,7 @@ export function AuthProvider({ children }) {
       department: row.department,
       fullName: row.full_name
     });
-  }, [email]);
+  }, [email, session]);
 
   useEffect(() => {
     loadMembership();

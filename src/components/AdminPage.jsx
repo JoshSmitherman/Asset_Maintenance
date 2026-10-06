@@ -530,9 +530,9 @@ export default function AdminPage({ onToast, specMemory = {}, onMergeModels }) {
           message={`${removing.email} will no longer be able to use Orbit, from now. Assets, cleans and repairs they recorded are kept. To stop them for a while instead, use Edit and switch their access off.`}
           confirmLabel="Remove access"
           onConfirm={async () => {
-            // A password sign-in, if they had one, goes first (the function only
-            // acts for people still on the list). Best effort: once they are
-            // off the list, a sign-in opens nothing anyway.
+            // Their sign-in account goes first (the function only acts for
+            // people still on the list). Best effort: once they are off the
+            // list, a sign-in opens nothing anyway. What they recorded stays.
             await callFunction('admin-users', { action: 'remove_login', email: removing.email }).catch(() => {});
             const { error: deleteError } = await supabase.from('members').delete().eq('email', removing.email);
             if (deleteError) throw new Error(describeDatabaseError(deleteError));

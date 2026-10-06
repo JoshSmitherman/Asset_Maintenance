@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { applyTheme, currentTheme, followSystemTheme } from '../lib/theme';
 
 /** The sun/moon switch in the header. */
 export default function ThemeToggle({ className = '' }) {
   const [theme, setTheme] = useState(currentTheme);
+  const stopFollowing = useRef(() => {});
 
   useEffect(() => {
     const stop = followSystemTheme();
+    stopFollowing.current = stop;
     // Keep the icon right if the system setting flips the theme.
     const observer = new MutationObserver(() => setTheme(currentTheme()));
     observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
@@ -24,6 +26,8 @@ export default function ThemeToggle({ className = '' }) {
       type="button"
       className={`theme-switch ${className}`}
       onClick={() => {
+        // A choice made here wins over the computer's setting from now on.
+        stopFollowing.current();
         applyTheme(next);
         setTheme(next);
       }}

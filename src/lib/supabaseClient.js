@@ -30,7 +30,11 @@ export const supabase = isSupabaseConfigured
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
+        // Microsoft sign-in comes back to the site with a one-time code in
+        // the address; Supabase swaps it for a session and tidies the address.
+        // PKCE keeps the token itself out of the address and history.
+        detectSessionInUrl: true,
+        flowType: 'pkce',
         storageKey: 'it-hardware-tracker-auth'
       },
       realtime: { params: { eventsPerSecond: 5 } }

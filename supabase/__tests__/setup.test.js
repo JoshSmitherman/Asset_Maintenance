@@ -161,6 +161,15 @@ describe('setup.sql', () => {
       await signInAs(db, TECH);
     });
 
+    it('lets an admin edit or switch off someone from before the company-only rule', async () => {
+      await signOut(db);
+      await db.query(`insert into public.members (email, department, access) values ('helper@gmail.com', 'Technical Support', 'editor')`);
+      await signInAs(db, ADMIN);
+      const result = await asUser(db, `update public.members set active = false where email = 'helper@gmail.com' returning email`);
+      expect(result.rows).toEqual([{ email: 'helper@gmail.com' }]);
+      await signInAs(db, TECH);
+    });
+
     it('cuts someone off the moment they are switched off', async () => {
       await addLaptop('CUT-1');
       await addMember(db, { email: 'leaver@adaro.net', access: 'editor' });

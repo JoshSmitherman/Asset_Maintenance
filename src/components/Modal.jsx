@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import CloseIcon from './CloseIcon';
 
 // Open dialogs, innermost last. Escape and Tab belong to the innermost one,
@@ -21,6 +21,9 @@ const FOCUSABLE = [
 export default function Modal({ title, description, onClose, children, size = 'md', confirmDiscard = false }) {
   const dialogRef = useRef(null);
   const id = useId();
+  // Whatever had focus when the dialog opened, read while rendering - by the
+  // time effects run, an autoFocus box inside the dialog already has it.
+  const [opener] = useState(() => (typeof document === 'undefined' ? null : document.activeElement));
   const titleId = `${id}-title`;
   const descriptionId = `${id}-description`;
   // The latest props, so the effect below runs once per dialog rather than
@@ -37,7 +40,6 @@ export default function Modal({ title, description, onClose, children, size = 'm
   requestCloseRef.current = requestClose;
 
   useEffect(() => {
-    const opener = document.activeElement;
     openDialogs.push(id);
     document.body.classList.add('no-scroll');
 
@@ -88,6 +90,7 @@ export default function Modal({ title, description, onClose, children, size = 'm
         opener.focus({ preventScroll: true });
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Close only when a click both starts and ends on the backdrop itself.

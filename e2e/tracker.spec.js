@@ -85,6 +85,34 @@ test.describe('Orbit — end to end (mocked Supabase)', () => {
     await expect(dialog.getByText('Cleaned by AL')).toBeVisible();
   });
 
+  test('coming back from Microsoft finishes signing in', async ({ page }) => {
+    await mockSupabase(page);
+    // What supabase-js saved before leaving for Microsoft (PKCE).
+    await page.addInitScript(() => {
+      localStorage.setItem('it-hardware-tracker-auth-code-verifier', JSON.stringify('verifier-stub'));
+    });
+    await page.goto('/?code=one-time-code');
+    await expect(page.getByText('LAP-001')).toBeVisible();
+    // The one-time code does not stay in the address.
+    await expect(page).not.toHaveURL(/code=/);
+  });
+
+  test('Enter on the Details tab moves on to Specification, not save', async ({ page }) => {
+    const state = await mockSupabase(page);
+    await page.goto('/');
+    await signIn(page);
+    await gotoAssets(page);
+    await page.getByRole('button', { name: /add asset/i }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel(/asset ref/i).fill('AST-0900');
+    await dialog.getByLabel(/^department/i).selectOption({ index: 1 }).catch(async () => {
+      await dialog.getByLabel(/^department/i).fill('Finance');
+    });
+    await dialog.getByLabel(/asset ref/i).press('Enter');
+    await expect(dialog.getByRole('tab', { name: /specification/i })).toHaveAttribute('aria-selected', 'true');
+    expect(state.inserted).toHaveLength(0);
+  });
+
   test('only an admin sees the Admin page, and can give someone access', async ({ page }) => {
     const state = await mockSupabase(page, { role: 'admin' });
     await page.goto('/');

@@ -122,6 +122,16 @@ updated - it adds whatever is missing and changes nothing else.
 > run them** - they would undo security added since, and they stop themselves if
 > you try.
 
+> **Upgrading a live Orbit to 2.10 (company sign-in)?** Order matters, or
+> people are locked out:
+> 1. Run `setup.sql` in the SQL Editor. The live site keeps working, and
+>    everyone with an account is put on the members list (in Technical
+>    Support, as an editor; old admins stay admins).
+> 2. Merge to `main` so the new site deploys.
+> 3. Redeploy the `admin-users` Edge Function (see [Edge Functions](#edge-functions)).
+> 4. Set up Microsoft sign-in (step 5a), then check everyone's department and
+>    access under **Admin → People & access**.
+
 ### 3. (Optional) Load sample data - test projects only
 
 Run [`supabase/seed.sql`](supabase/seed.sql) the same way. It inserts sample
@@ -179,7 +189,9 @@ Microsoft Entra ID (Azure AD) - usually IT.
 1. **Entra admin centre → App registrations → New registration.**
    - Name: `Orbit`.
    - Supported account types: **Accounts in this organizational directory only
-     (single tenant)** - this is what keeps it to Adaro accounts.
+     (single tenant)**. This is required, not optional: it is what keeps it to
+     Adaro accounts, and the Tenant URL in step 3 must name the Adaro tenant
+     (never `common`).
    - Redirect URI: **Web**, `https://<project-ref>.supabase.co/auth/v1/callback`
      (Supabase shows the exact address on its Azure provider page).
 2. On the new app: copy the **Application (client) ID** and the **Directory

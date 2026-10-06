@@ -469,7 +469,7 @@ begin
   if tg_op in ('UPDATE', 'DELETE') then
     -- One change at a time, so two admins cannot each remove the other and
     -- leave nobody able to manage access.
-    lock table public.members in share row exclusive mode;
+    perform pg_advisory_xact_lock(hashtext('orbit_members'));
     if old.access = 'admin' and old.active
        and (tg_op = 'DELETE' or new.access <> 'admin' or not new.active)
        and not exists (select 1 from public.members m
@@ -485,10 +485,11 @@ begin
   new.email     := lower(btrim(new.email));
   new.full_name := nullif(btrim(coalesce(new.full_name, '')), '');
 
-  -- From the app, only company addresses. (Run by hand in the SQL Editor,
-  -- with nobody signed in, anyone can be added - the way back in if the
-  -- domain list is ever wrong.)
-  if auth.uid() is not null and not public.email_domain_allowed(new.email) then
+  -- New people, from the app: company addresses only. (Run by hand in the SQL
+  -- Editor, with nobody signed in, anyone can be added - the way back in if
+  -- the domain list is ever wrong.) Existing rows - including accounts from
+  -- before this rule - can always be edited or switched off.
+  if tg_op = 'INSERT' and auth.uid() is not null and not public.email_domain_allowed(new.email) then
     select string_agg('@' || domain, ' or ' order by domain) into domains from public.allowed_email_domains;
     raise exception 'Only company email addresses (%) can be given access.', coalesce(domains, 'none set up')
       using errcode = 'check_violation';
@@ -525,33 +526,33 @@ alter table public.allowed_email_domains enable row level security;
 drop policy if exists "members_select_self_or_admin" on public.members;
 create policy "members_select_self_or_admin"
   on public.members for select to authenticated
-  using (email = public.current_email() or public.is_admin());
+  using (email = public.current_email() or (select public.is_admin()));
 
 drop policy if exists "members_insert_admin" on public.members;
 create policy "members_insert_admin"
-  on public.members for insert to authenticated with check (public.is_admin());
+  on public.members for insert to authenticated with check ((select public.is_admin()));
 
 drop policy if exists "members_update_admin" on public.members;
 create policy "members_update_admin"
   on public.members for update to authenticated
-  using (public.is_admin()) with check (public.is_admin());
+  using ((select public.is_admin())) with check ((select public.is_admin()));
 
 drop policy if exists "members_delete_admin" on public.members;
 create policy "members_delete_admin"
-  on public.members for delete to authenticated using (public.is_admin());
+  on public.members for delete to authenticated using ((select public.is_admin()));
 
 drop policy if exists "access_requests_select_self_or_admin" on public.access_requests;
 create policy "access_requests_select_self_or_admin"
   on public.access_requests for select to authenticated
-  using (email = public.current_email() or public.is_admin());
+  using (email = public.current_email() or (select public.is_admin()));
 
 drop policy if exists "access_requests_delete_admin" on public.access_requests;
 create policy "access_requests_delete_admin"
-  on public.access_requests for delete to authenticated using (public.is_admin());
+  on public.access_requests for delete to authenticated using ((select public.is_admin()));
 
 drop policy if exists "allowed_domains_select_admin" on public.allowed_email_domains;
 create policy "allowed_domains_select_admin"
-  on public.allowed_email_domains for select to authenticated using (public.is_admin());
+  on public.allowed_email_domains for select to authenticated using ((select public.is_admin()));
 
 revoke all on public.members, public.access_requests, public.allowed_email_domains from anon, authenticated;
 grant select, insert, update, delete on public.members to authenticated;
@@ -1060,20 +1061,20 @@ drop policy if exists "assets_select_authenticated" on public.assets;
 create policy "assets_select_authenticated"
   on public.assets for select
   to authenticated
-  using (public.can_view());
+  using ((select public.can_view()));
 
 drop policy if exists "assets_insert_authenticated" on public.assets;
 create policy "assets_insert_authenticated"
   on public.assets for insert
   to authenticated
-  with check (public.can_edit());
+  with check ((select public.can_edit()));
 
 drop policy if exists "assets_update_authenticated" on public.assets;
 create policy "assets_update_authenticated"
   on public.assets for update
   to authenticated
-  using (public.can_edit())
-  with check (public.can_edit());
+  using ((select public.can_edit()))
+  with check ((select public.can_edit()));
 
 -- Deleting is for admins only, and its policy is in section 10 because it
 -- needs is_admin(). This removes the older everyone-can-delete policy.
@@ -1086,13 +1087,13 @@ drop policy if exists "cleaning_log_select_authenticated" on public.cleaning_log
 create policy "cleaning_log_select_authenticated"
   on public.cleaning_log for select
   to authenticated
-  using (public.can_view());
+  using ((select public.can_view()));
 
 drop policy if exists "asset_events_select_authenticated" on public.asset_events;
 create policy "asset_events_select_authenticated"
   on public.asset_events for select
   to authenticated
-  using (public.can_view());
+  using ((select public.can_view()));
 
 revoke all on public.assets             from anon;
 revoke all on public.asset_events       from anon;
@@ -1155,7 +1156,7 @@ drop policy if exists "user_roles_select_own_or_admin" on public.user_roles;
 create policy "user_roles_select_own_or_admin"
   on public.user_roles for select
   to authenticated
-  using (user_id = auth.uid() or public.is_admin());
+  using (user_id = auth.uid() or (select public.is_admin()));
 
 revoke all on public.user_roles from anon, authenticated;
 grant select on public.user_roles to authenticated;
@@ -1168,7 +1169,7 @@ drop policy if exists "assets_delete_admin" on public.assets;
 create policy "assets_delete_admin"
   on public.assets for delete
   to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
 
 -- Moving over from the old setup, once: everyone who already had an account
 -- keeps working, in Technical Support, as an editor - or an admin if they
@@ -1185,6 +1186,7 @@ begin
                 then 'admin' else 'editor' end
       from auth.users u
      where u.email is not null and u.deleted_at is null
+       and lower(u.email) ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
     on conflict (email) do nothing;
   end if;
 
@@ -1198,6 +1200,7 @@ begin
     select lower(u.email), 'Technical Support', 'admin'
       from auth.users u
      where u.email is not null and u.deleted_at is null
+       and lower(u.email) ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
      order by u.created_at
      limit 1
     on conflict (email) do update set access = 'admin', active = true;
@@ -1384,19 +1387,19 @@ alter table public.repairs enable row level security;
 
 drop policy if exists "repairs_select_authenticated" on public.repairs;
 create policy "repairs_select_authenticated"
-  on public.repairs for select to authenticated using (public.can_view());
+  on public.repairs for select to authenticated using ((select public.can_view()));
 
 drop policy if exists "repairs_insert_authenticated" on public.repairs;
 create policy "repairs_insert_authenticated"
-  on public.repairs for insert to authenticated with check (public.can_edit());
+  on public.repairs for insert to authenticated with check ((select public.can_edit()));
 
 drop policy if exists "repairs_update_authenticated" on public.repairs;
 create policy "repairs_update_authenticated"
-  on public.repairs for update to authenticated using (public.can_edit()) with check (public.can_edit());
+  on public.repairs for update to authenticated using ((select public.can_edit())) with check ((select public.can_edit()));
 
 drop policy if exists "repairs_delete_admin" on public.repairs;
 create policy "repairs_delete_admin"
-  on public.repairs for delete to authenticated using (public.is_admin());
+  on public.repairs for delete to authenticated using ((select public.is_admin()));
 
 revoke all on public.repairs from anon;
 revoke truncate, references, trigger on public.repairs from authenticated;
@@ -1474,16 +1477,16 @@ alter table public.attachments enable row level security;
 
 drop policy if exists "attachments_select_authenticated" on public.attachments;
 create policy "attachments_select_authenticated"
-  on public.attachments for select to authenticated using (public.can_view());
+  on public.attachments for select to authenticated using ((select public.can_view()));
 
 drop policy if exists "attachments_insert_authenticated" on public.attachments;
 create policy "attachments_insert_authenticated"
-  on public.attachments for insert to authenticated with check (public.can_edit());
+  on public.attachments for insert to authenticated with check ((select public.can_edit()));
 
 drop policy if exists "attachments_delete_own_or_admin" on public.attachments;
 create policy "attachments_delete_own_or_admin"
   on public.attachments for delete to authenticated
-  using ((uploaded_by = auth.uid() and public.can_edit()) or public.is_admin());
+  using ((uploaded_by = auth.uid() and (select public.can_edit())) or (select public.is_admin()));
 
 -- No update: a file is replaced by removing it and adding the new one.
 revoke all on public.attachments from anon;
@@ -1502,7 +1505,7 @@ on conflict (id) do update
 drop policy if exists "asset_files_read" on storage.objects;
 create policy "asset_files_read"
   on storage.objects for select to authenticated
-  using (bucket_id = 'asset-files' and public.can_view());
+  using (bucket_id = 'asset-files' and (select public.can_view()));
 
 drop policy if exists "asset_files_upload" on storage.objects;
 -- Only into a real asset's folder, so the 1 GB of free storage cannot be
@@ -1511,7 +1514,7 @@ create policy "asset_files_upload"
   on storage.objects for insert to authenticated
   with check (
     bucket_id = 'asset-files'
-    and public.can_edit()
+    and (select public.can_edit())
     and exists (select 1 from public.assets a where a.id::text = (storage.foldername(name))[1])
   );
 
@@ -1522,8 +1525,8 @@ create policy "asset_files_delete"
   on storage.objects for delete to authenticated
   using (
     bucket_id = 'asset-files' and (
-      public.is_admin()
-      or (public.can_edit() and (
+      (select public.is_admin())
+      or ((select public.can_edit()) and (
             exists (select 1 from public.attachments a
                      where a.storage_path = objects.name and a.uploaded_by = auth.uid())
             or not exists (select 1 from public.attachments a where a.storage_path = objects.name)

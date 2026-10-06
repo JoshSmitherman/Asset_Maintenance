@@ -795,19 +795,21 @@ export default function AppShell() {
           onSubmit={(values) => {
             // A clean dated before an asset's last one would move its due date
             // backwards; those are left as they are and named in the result.
+            // On the same day too: that clean is already recorded, and
+            // re-recording it would only swap who did it.
             const newer = cleanableSelection.filter(
-              (asset) => asset.date_cleaned && asset.date_cleaned > values.date_cleaned
+              (asset) => asset.date_cleaned && asset.date_cleaned >= values.date_cleaned
             );
             const targets = cleanableSelection.filter((asset) => !newer.includes(asset));
             const skipped = newer.length
-              ? ` ${newer.length} skipped - cleaned more recently than that: ${newer
+              ? ` ${newer.length} skipped - already cleaned on or after that date: ${newer
                   .slice(0, 5)
                   .map((asset) => asset.asset_ref)
                   .join(', ')}${newer.length > 5 ? '…' : ''}.`
               : '';
             if (targets.length === 0) {
               return Promise.reject(
-                new Error('Every selected asset has a more recent clean than that date. Nothing was changed.')
+                new Error('Every selected asset already has a clean on or after that date. Nothing was changed.')
               );
             }
             return runBulk(

@@ -86,7 +86,7 @@ async function handle(req: Request): Promise<Response> {
 
   // Only people already given access may have a sign-in made for them.
   const { data: member } = await admin.from('members').select('email').eq('email', email).maybeSingle();
-  if (!member) return fail(404, `${email} has not been given access yet. Add them first.`);
+  if (!member) return fail(422, `${email} has not been given access yet. Add them first.`);
 
   const existing = await findUser(admin, email);
 
