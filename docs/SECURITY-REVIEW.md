@@ -1,5 +1,12 @@
 # Security & QA review
 
+> **Status (October 2026, version 2.10.0):** superseded. Access is now limited to
+> company accounts on an admin-managed members list with view/edit/admin levels,
+> `schema.sql` and the migrations are retired to `supabase/history/`, and every
+> change and delete is recorded. See `supabase/setup.sql` section 4b and the
+> README's "Who can use Orbit". The notes below are kept for the record.
+
+
 Static review of the codebase and database schema. No live/production system was
 tested — findings are from reading `src/**` and `supabase/**`. Ordered
 worst-first. Nothing here is a critical, exploitable-by-anonymous-users hole; the

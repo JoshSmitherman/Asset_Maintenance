@@ -7,6 +7,102 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.10.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.10.0) - 2026-10-06
+
+_Company Sign-In, Departments & a Safer Orbit_
+
+### General
+
+**Signing in**
+
+- **Added:** **Sign in with Microsoft** using your Adaro work account - no separate password to remember
+  - Signing in with an email and password is still there, under the Microsoft button
+- **Added:** New to Orbit? Sign in and press **Ask for access** - an admin will let you in
+  - Until then you see nothing in Orbit, only your request
+- **Security:** Only Adaro accounts can sign in, and only people an admin has given access to can see anything
+  - Taking someone off the list, or switching them off, stops them straight away
+- **Changed:** Your menu shows your department and what you can do: **View only**, **Can edit** or **Admin**
+  - Change password only appears if you sign in with a password
+
+**Easier to use**
+
+- **Changed:** The light/dark switch is in the header, and Orbit follows your computer's setting until you choose
+- **Changed:** Lists show **25 rows** a page, and remember the size you pick
+- **Added:** Pop-up windows ask before closing if you have typed something, so a stray Escape no longer loses your work
+- **Changed:** Better for keyboard and screen-reader users
+  - A clear focus outline in both themes
+  - Keyboard focus stays in a pop-up and returns to where you were
+  - Arrow keys move between tabs
+  - A form with a mistake jumps to the first box that needs fixing
+- **Changed:** Error messages say what went wrong and what to do, instead of database jargon
+- **Fixed:** If Orbit cannot reach the database, it says so instead of showing zero assets and "nothing needs attention"
+
+### Assets
+
+**Recording kit**
+
+- **Changed:** Device types are now **Laptop, Phone, Monitor, Camera (UniFi)** and **Other device**
+  - Kit already recorded as a desktop, dock, tablet or printer keeps its type until someone changes it
+- **Added:** A **Serial number** for each asset, searchable, and in the exports
+- **Added:** **Scan a barcode** into the search box (or type AST-0222 and press Enter) to open that asset straight away
+- **Added:** Adding an asset offers the **next free AST number**
+- **Added:** Click an Asset Ref in the list to open it
+- **Changed:** Unassigning several assets now asks first, naming them
+- **Fixed:** **Next: Specification** went straight to saving the asset without its specs
+  - Pressing Enter on the Details tab now moves on to Specification too
+- **Fixed:** Costs like 1e3 or 12.345, and dates like 31 February, are refused with a clear message
+- **Fixed:** On a phone, the buttons at the bottom of the Add asset form no longer run off the screen
+
+**History**
+
+- **Added:** An asset's History now shows every change, with what it was before
+  - Cost, purchase date, specs, serial number, notes and retirement details
+  - Repairs logged, changed and deleted
+- **Security:** Deleted assets leave a record of what they were and who deleted them
+- **Security:** "Data wiped by" can only be someone on the team, never typed in
+- **Fixed:** Retired and brought-back kit shows properly in History
+
+**Larger registers**
+
+- **Fixed:** Registers of more than 1,000 assets load in full - before, the rest were quietly missing
+- **Fixed:** Changes by several people at once no longer make everyone's screen reload over and over
+- **Changed:** Repairs can no longer be overwritten by two people editing the same one
+
+### Cleaning
+
+**Recording cleans**
+
+- **Changed:** **Cleaned by** is chosen from the team by name, and starts on you
+- **Fixed:** A clean dated before the last one is refused, so a due date can no longer move backwards
+- **Fixed:** Correcting a clean no longer counts it twice in the reports
+- **Fixed:** Between midnight and 1am in summer, a clean, repair or retirement dated today was refused
+
+### Dashboard
+
+**Cards**
+
+- **Changed:** Cards for **Laptops, Phones, Monitors, Cameras** and **Other devices**
+- **Changed:** **Needs attention** shows the ten most urgent, with a link to the rest
+
+### Reports
+
+**Fixes**
+
+- **Fixed:** **Cleaning due this month** no longer lists monitors and phones
+- **Fixed:** Exported numbers stay numbers in Excel, minus signs included, and the file name has today's date
+- **Fixed:** Fleet age counts kit as two on its second anniversary
+
+### Admin
+
+**People & access**
+
+- **Added:** A new **People & access** page: give someone access with their department and what they can do
+  - Departments: Customer Service, Technical Support, Developer, Credit Control, Finance and Exec
+  - Technical Support start on Can edit, everyone else on View only - change it as needed
+- **Added:** Requests for access appear at the top, ready to let in or dismiss
+- **Added:** Switch someone off without removing them, and a **Copy** button for passwords
+- **Security:** You cannot change your own access, and Orbit always keeps at least one admin
+
 ## [2.9.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.9.0) - 2026-10-05
 
 _Say Hello to Orbit_

@@ -8,6 +8,174 @@
 
 export const RELEASES = [
   {
+    version: '2.10.0',
+    title: 'Company Sign-In, Departments & a Safer Orbit',
+    date: '2026-10-06',
+    sections: [
+      {
+        area: 'General',
+        groups: [
+          {
+            heading: 'Signing in',
+            items: [
+              {
+                type: 'added',
+                text: '**Sign in with Microsoft** using your Adaro work account - no separate password to remember',
+                details: ['Signing in with an email and password is still there, under the Microsoft button']
+              },
+              {
+                type: 'added',
+                text: 'New to Orbit? Sign in and press **Ask for access** - an admin will let you in',
+                details: ['Until then you see nothing in Orbit, only your request']
+              },
+              {
+                type: 'security',
+                text: 'Only Adaro accounts can sign in, and only people an admin has given access to can see anything',
+                details: ['Taking someone off the list, or switching them off, stops them straight away']
+              },
+              {
+                type: 'changed',
+                text: 'Your menu shows your department and what you can do: **View only**, **Can edit** or **Admin**',
+                details: ['Change password only appears if you sign in with a password']
+              }
+            ]
+          },
+          {
+            heading: 'Easier to use',
+            items: [
+              { type: 'changed', text: 'The light/dark switch is in the header, and Orbit follows your computer\'s setting until you choose' },
+              { type: 'changed', text: 'Lists show **25 rows** a page, and remember the size you pick' },
+              { type: 'added', text: 'Pop-up windows ask before closing if you have typed something, so a stray Escape no longer loses your work' },
+              {
+                type: 'changed',
+                text: 'Better for keyboard and screen-reader users',
+                details: [
+                  'A clear focus outline in both themes',
+                  'Keyboard focus stays in a pop-up and returns to where you were',
+                  'Arrow keys move between tabs',
+                  'A form with a mistake jumps to the first box that needs fixing'
+                ]
+              },
+              { type: 'changed', text: 'Error messages say what went wrong and what to do, instead of database jargon' },
+              { type: 'fixed', text: 'If Orbit cannot reach the database, it says so instead of showing zero assets and "nothing needs attention"' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Assets',
+        groups: [
+          {
+            heading: 'Recording kit',
+            items: [
+              {
+                type: 'changed',
+                text: 'Device types are now **Laptop, Phone, Monitor, Camera (UniFi)** and **Other device**',
+                details: ['Kit already recorded as a desktop, dock, tablet or printer keeps its type until someone changes it']
+              },
+              { type: 'added', text: 'A **Serial number** for each asset, searchable, and in the exports' },
+              {
+                type: 'added',
+                text: '**Scan a barcode** into the search box (or type AST-0222 and press Enter) to open that asset straight away'
+              },
+              { type: 'added', text: 'Adding an asset offers the **next free AST number**' },
+              { type: 'added', text: 'Click an Asset Ref in the list to open it' },
+              { type: 'changed', text: 'Unassigning several assets now asks first, naming them' },
+              {
+                type: 'fixed',
+                text: '**Next: Specification** went straight to saving the asset without its specs',
+                details: ['Pressing Enter on the Details tab now moves on to Specification too']
+              },
+              { type: 'fixed', text: 'Costs like 1e3 or 12.345, and dates like 31 February, are refused with a clear message' },
+              { type: 'fixed', text: 'On a phone, the buttons at the bottom of the Add asset form no longer run off the screen' }
+            ]
+          },
+          {
+            heading: 'History',
+            items: [
+              {
+                type: 'added',
+                text: 'An asset\'s History now shows every change, with what it was before',
+                details: ['Cost, purchase date, specs, serial number, notes and retirement details', 'Repairs logged, changed and deleted']
+              },
+              { type: 'security', text: 'Deleted assets leave a record of what they were and who deleted them' },
+              { type: 'security', text: '"Data wiped by" can only be someone on the team, never typed in' },
+              { type: 'fixed', text: 'Retired and brought-back kit shows properly in History' }
+            ]
+          },
+          {
+            heading: 'Larger registers',
+            items: [
+              { type: 'fixed', text: 'Registers of more than 1,000 assets load in full - before, the rest were quietly missing' },
+              { type: 'fixed', text: 'Changes by several people at once no longer make everyone\'s screen reload over and over' },
+              { type: 'changed', text: 'Repairs can no longer be overwritten by two people editing the same one' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Cleaning',
+        groups: [
+          {
+            heading: 'Recording cleans',
+            items: [
+              { type: 'changed', text: '**Cleaned by** is chosen from the team by name, and starts on you' },
+              { type: 'fixed', text: 'A clean dated before the last one is refused, so a due date can no longer move backwards' },
+              { type: 'fixed', text: 'Correcting a clean no longer counts it twice in the reports' },
+              { type: 'fixed', text: 'Between midnight and 1am in summer, a clean, repair or retirement dated today was refused' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Dashboard',
+        groups: [
+          {
+            heading: 'Cards',
+            items: [
+              { type: 'changed', text: 'Cards for **Laptops, Phones, Monitors, Cameras** and **Other devices**' },
+              { type: 'changed', text: '**Needs attention** shows the ten most urgent, with a link to the rest' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Reports',
+        groups: [
+          {
+            heading: 'Fixes',
+            items: [
+              { type: 'fixed', text: '**Cleaning due this month** no longer lists monitors and phones' },
+              { type: 'fixed', text: 'Exported numbers stay numbers in Excel, minus signs included, and the file name has today\'s date' },
+              { type: 'fixed', text: 'Fleet age counts kit as two on its second anniversary' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Admin',
+        groups: [
+          {
+            heading: 'People & access',
+            items: [
+              {
+                type: 'added',
+                text: 'A new **People & access** page: give someone access with their department and what they can do',
+                details: [
+                  'Departments: Customer Service, Technical Support, Developer, Credit Control, Finance and Exec',
+                  'Technical Support start on Can edit, everyone else on View only - change it as needed'
+                ]
+              },
+              { type: 'added', text: 'Requests for access appear at the top, ready to let in or dismiss' },
+              { type: 'added', text: 'Switch someone off without removing them, and a **Copy** button for passwords' },
+              { type: 'security', text: 'You cannot change your own access, and Orbit always keeps at least one admin' }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.9.0',
     title: 'Say Hello to Orbit',
     date: '2026-10-05',

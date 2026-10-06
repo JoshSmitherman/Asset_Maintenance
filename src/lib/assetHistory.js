@@ -2,7 +2,7 @@
 // see supabase/setup.sql section 6b) into what the History tab draws: a
 // custody bar of who held it and when, and a newest-first list of events.
 
-import { parseIsoDate } from './dates';
+import { formatDate, parseIsoDate } from './dates';
 
 /** Milliseconds for a timestamp or a plain "YYYY-MM-DD" date (taken as midday,
  *  so a clean on the same day as a change sorts sensibly either side). */
@@ -91,6 +91,26 @@ function describeEvent(event) {
         kind: 'change',
         title: 'Details edited',
         detail: fields.length ? `Changed: ${fields.map(fieldLabel).join(', ')}` : null
+      };
+    }
+    case 'repair_added':
+    case 'repair_edited':
+    case 'repair_deleted': {
+      const details = event.details ?? {};
+      const verb = { repair_added: 'Repair logged', repair_edited: 'Repair changed', repair_deleted: 'Repair deleted' }[
+        event.event_type
+      ];
+      const cost = Number(details.total_cost);
+      return {
+        kind: 'repair',
+        title: `${verb}${details.fault ? `: ${details.fault}` : ''}`,
+        detail: [
+          details.repaired_on ? `Repaired ${formatDate(details.repaired_on)}` : null,
+          Number.isFinite(cost) && cost > 0 ? `parts £${cost.toFixed(2)}` : null,
+          details.fixed_by ? `by ${details.fixed_by}` : null
+        ]
+          .filter(Boolean)
+          .join(' · ')
       };
     }
     default:

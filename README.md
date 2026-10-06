@@ -73,11 +73,12 @@ retired kit.
 | Asset Ref must be unique, ignoring case and surrounding spaces | unique index on `upper(btrim(asset_ref))` |
 | Date Cleaned cannot be in the future | database trigger + form validation |
 | Date Cleaned and Cleaned By must be given together | `assets_clean_record_complete` check constraint |
-| Device Type / Cleaned By must be from the allowed lists | check constraints |
+| Device Type must be from the allowed list | check constraint |
 | `created_at`, `updated_at`, `updated_by` are recorded and cannot be forged by the client | `handle_asset_write()` trigger |
 | Two people editing the same asset cannot silently overwrite each other | `version` column + optimistic concurrency check on update |
-| Every change of user, department, location, type or reference is recorded | `log_asset_change()` trigger into `asset_events` |
-| Only admins can manage accounts | `user_roles` table, checked by the `admin-users` Edge Function |
+| Every change to an asset is recorded with its old and new value, and so are deletes and repairs | `log_asset_change()`, `log_asset_delete()` and `log_repair_change()` triggers into `asset_events` |
+| Only company accounts can sign in; only members see anything; viewers cannot change anything | `orbit_company_email_only` trigger, `members` table and `can_view()` / `can_edit()` in every policy |
+| Only admins manage people, nobody changes their own access, there is always an admin | `members` policies and `handle_member_write()` trigger |
 | Only admins can delete an asset or a repair; anyone else's delete matches nothing | `assets_delete_admin` / `repairs_delete_admin` policies |
 | Retired kit always says when and why; only an admin can restore it | `assets_retirement_complete` check + `handle_asset_write()` trigger |
 | A repair's total is the sum of its parts, worked out by the database | `handle_repair_write()` trigger |
@@ -106,72 +107,93 @@ saved — the database owns the dates and the constraints.
    password, choose the region closest to your team, and create the project.
 3. Wait for provisioning to finish (about a minute).
 
-### 2. Create the database schema
+### 2. Create the database
 
 1. In the project, open **SQL Editor → New query**.
-2. Paste the entire contents of [`supabase/schema.sql`](supabase/schema.sql) and
-   select **Run**.
-3. It should finish with "Success. No rows returned". The script is safe to run
-   again if you need to re-apply it.
+2. Paste the entire contents of [`supabase/setup.sql`](supabase/setup.sql) and
+   select **Run**. It should finish with "Success. No rows returned".
 
-This creates the `assets` table, the `assets_with_status` view, indexes, all
-constraints, the audit trigger, the Row Level Security policies, and enables
-Realtime so open browser tabs update when a colleague saves a change.
+That one script is the whole database: tables, the status logic, history,
+people and access, Row Level Security, file storage and Realtime. It is safe to
+run again at any time, and running it again is also how an existing database is
+updated - it adds whatever is missing and changes nothing else.
 
-> **Setting up a brand-new project?** Run
-> [`supabase/setup.sql`](supabase/setup.sql) instead and skip the rest of this
-> section — it is the whole database in one script, and the only one you need.
-> The files below are the history of how an older database reached the same
-> state.
->
-> **Updating an existing database?** Run `setup.sql` again. It adds whatever is
-> missing - the asset history, admin roles, and the purchase-date rule for Next
-> Clean Due - and changes nothing else. Assets that already exist start their
-> history from that moment. If nobody is an admin yet, the oldest account
-> becomes one.
+> The files in `supabase/history/` are how older databases were built. **Never
+> run them** - they would undo security added since, and they stop themselves if
+> you try.
 
-Then run the migrations, in the same way and **in this order**. Each one is
-safe to run again, and the app expects all of them:
+### 3. (Optional) Load sample data - test projects only
 
-| File | What it adds |
-| --- | --- |
-| [`supabase/migration-001-asset-management.sql`](supabase/migration-001-asset-management.sql) | General asset management: device types, location, purchase date and cost |
-| [`supabase/migration-002-unassigned-assets.sql`](supabase/migration-002-unassigned-assets.sql) | Lets an asset have no user, so spare kit can be listed as unassigned |
-| [`supabase/migration-003-device-specs.sql`](supabase/migration-003-device-specs.sql) | Hardware specification for computers and monitors |
-| [`supabase/migration-004-cleaning-history.sql`](supabase/migration-004-cleaning-history.sql) | Append-only log of every clean, behind the Cleaning page's History tab |
-
-### 3. (Optional) Load the sample data
-
-Run [`supabase/seed.sql`](supabase/seed.sql) the same way. It inserts 14 sample
-assets with dates relative to today, so you get a realistic mix of Overdue, Due
-Soon, OK and Never Cleaned rows. Remove it later with:
+Run [`supabase/seed.sql`](supabase/seed.sql) the same way. It inserts sample
+assets with dates relative to today. Remove them later with:
 
 ```sql
 delete from public.assets where asset_ref like 'SEED-%';
 ```
 
-### 4. Create the team's user accounts
+### 4. Who can use Orbit
 
-There is deliberately no self-service sign-up. Create **your own** account by
-hand first:
+Orbit is for the company only, with three locks:
 
-1. **Authentication → Users → Add user → Create new user**.
-2. Enter your email and a password, and tick **Auto Confirm User** so you can
-   sign in immediately.
-3. Run `setup.sql` again (or run it now if you have not yet): with no admin
-   yet, the oldest account - yours - becomes the admin.
+1. **Company accounts only.** Sign-in accounts can only be made for the email
+   domains in `public.allowed_email_domains` (`adaro.net`). Add another domain
+   with `insert into public.allowed_email_domains values ('example.com');`.
+2. **Members only.** Signing in is not enough: every table checks the person is
+   on the members list, which only admins change (Admin → People & access).
+   Removing someone, or switching them off, stops them straight away.
+3. **Access levels.** Each member has a department (Customer Service, Technical
+   Support, Developer, Credit Control, Finance, Exec) and a level:
+   **View only** (sees everything, changes nothing), **Can edit** (adds, edits,
+   cleans, repairs, retires) or **Admin** (also deletes, restores retired kit
+   and manages people). Technical Support start on Can edit, everyone else on
+   View only.
 
-Everyone else can then be added from the app's **Admin** page once the
-`admin-users` Edge Function is deployed (see [Edge Functions](#edge-functions)
-below), or by repeating steps 1-2 here. Then close the door behind you:
+**The first admin.** Sign in once (see step 6 for Microsoft sign-in, or make a
+password account under **Authentication → Users → Add user**, ticking **Auto
+Confirm User**), then run `setup.sql` again: if nobody is an admin, the oldest
+account becomes one. To make a particular person admin from the SQL Editor:
 
-4. **Authentication → Sign In / Providers → Email**: turn **Allow new users to
-   sign up** OFF.
+```sql
+insert into public.members (email, department, access)
+values ('you@adaro.net', 'Technical Support', 'admin')
+on conflict (email) do update set access = 'admin', active = true;
+```
 
-> This step matters. The anon key is embedded in the deployed JavaScript, and
-> while that is by design (it only grants what your RLS policies allow), leaving
-> public sign-ups enabled would let anyone who finds the key create an account
-> and read your asset register.
+**Everyone else** signs in with Microsoft and presses **Ask for access**; an
+admin lets them in from **Admin → People & access**. Or the admin adds them
+first with **Give someone access**, and they just sign in.
+
+**Supabase settings to check** (Authentication → Sign In / Providers):
+
+- **Allow new users to sign up: ON** - Microsoft sign-in needs it to create a
+  person's account the first time. It is safe: only company addresses can get
+  an account, and an account sees nothing until an admin adds the person.
+- **Allow anonymous sign-ins: OFF.**
+- **Email → Confirm email: ON** (the default).
+
+### 5a. Microsoft (Microsoft 365) sign-in
+
+Free on both sides. Needs someone who can register apps in the company's
+Microsoft Entra ID (Azure AD) - usually IT.
+
+1. **Entra admin centre → App registrations → New registration.**
+   - Name: `Orbit`.
+   - Supported account types: **Accounts in this organizational directory only
+     (single tenant)** - this is what keeps it to Adaro accounts.
+   - Redirect URI: **Web**, `https://<project-ref>.supabase.co/auth/v1/callback`
+     (Supabase shows the exact address on its Azure provider page).
+2. On the new app: copy the **Application (client) ID** and the **Directory
+   (tenant) ID**. Under **Certificates & secrets → New client secret**, copy the
+   secret's **Value** (it is shown once; it expires, so note the date).
+3. **Supabase → Authentication → Sign In / Providers → Azure**: turn it on,
+   paste the client ID and secret, and set **Azure Tenant URL** to
+   `https://login.microsoftonline.com/<tenant-id>`. Save.
+4. **Authentication → URL Configuration**: **Site URL**
+   `https://<your-user>.github.io/<your-repo>/`, and add the same address
+   under **Redirect URLs** (plus `http://localhost:5173/` for local work).
+
+People's Microsoft email must match the one on the members list, which it will
+for normal Microsoft 365 accounts (`first.last@adaro.net`).
 
 ### 5. Get your API credentials
 
@@ -273,25 +295,24 @@ links and underscore-prefixed asset names behave on GitHub Pages.
 
 ### 11. Point Supabase at the deployed URL
 
-**Authentication → URL Configuration → Site URL**: set it to
-`https://<your-user>.github.io/<your-repo>/`. Email/password sign-in works
-without this, but it keeps any future password-reset emails pointing at the right
-place.
+**Authentication → URL Configuration**: set **Site URL** to
+`https://<your-user>.github.io/<your-repo>/` and add it under **Redirect URLs**.
+Microsoft sign-in returns people here, so it must match.
 
 ---
 
 ## Edge Functions
 
-The Admin page runs through one small Supabase Edge Function,
-[`admin-users`](supabase/functions/admin-users/index.ts), because creating or
-removing accounts needs Supabase's service-role key, which must never be in the
-browser. The rest of the site works without it; the Admin page just says the
-function is not deployed yet.
+One small function, [`admin-users`](supabase/functions/admin-users/index.ts),
+handles the few things that need Supabase's service-role key, which must never
+be in the browser: setting a password for someone who cannot use Microsoft
+sign-in, and removing their sign-in. Everything else on the Admin page works
+without it. It checks the caller is an admin on the members list every time.
 
 **Deploy from the dashboard (no tools needed):** **Edge Functions → Deploy a
-new function → Via Editor**, name it exactly `admin-users`, replace the sample
-code with the file's contents, and **Deploy**. Leave **Verify JWT** on. It
-needs no secrets - Supabase gives every function its own service-role key.
+new function → Via Editor** (or open `admin-users` if it is already there),
+name it exactly `admin-users`, replace the code with the file's contents, and
+**Deploy**. Leave **Verify JWT** on. It needs no secrets.
 
 **Or with the Supabase CLI:**
 
@@ -300,58 +321,52 @@ supabase link --project-ref <your-project-ref>
 supabase functions deploy admin-users
 ```
 
-**Why not just make accounts in the browser?** Shipping the service-role key in
-the website would hand full control of the database to anyone who opens the
-browser's developer tools. The function keeps it on Supabase's side and checks
-that the caller is an admin before every action - so accounts stay in Supabase
-Auth, and nobody needs the Supabase dashboard to manage them day to day.
+## Backups
+
+The Supabase Free plan has no backups you can download, so
+[`.github/workflows/backup.yml`](.github/workflows/backup.yml) takes one every
+night: the database's structure, data and roles, encrypted (this repository is
+public) and kept for 30 days under **Actions → Backup → the run → Artifacts**.
+The same job keeps the free project from pausing after a week of quiet.
+
+To turn it on, a repository admin adds two secrets (**Settings → Secrets and
+variables → Actions**):
+
+- `SUPABASE_DB_URL` - **Supabase → Connect → Session pooler** connection
+  string, with the database password filled in.
+- `BACKUP_PASSPHRASE` - a long passphrase. Keep it in the team's password
+  manager: without it a backup cannot be opened.
+
+**To restore** (into a new, empty Supabase project is safest):
+
+```bash
+gpg --decrypt orbit-backup-YYYY-MM-DD.tar.gz.gpg > backup.tar.gz
+tar -xzf backup.tar.gz
+psql "<new project's connection string>" -f backup/roles.sql -f backup/schema.sql \
+  -c "SET session_replication_role = replica" -f backup/data.sql
+```
+
+Attached files (photos, invoices) live in Supabase Storage and are not in the
+nightly copy; download them from **Storage → asset-files** if needed.
+
+GitHub stops scheduled jobs in a public repository after 60 days with no
+commits; a push, or running the workflow by hand, starts it again.
 
 ## What it costs
 
 Nothing, on these free tiers:
 
-| Part | Free allowance | This app's use |
+| Part | Free allowance | Orbit's use |
 | --- | --- | --- |
-| GitHub Pages | Free for a public repository | Hosts the website |
-| Supabase Free plan | 500 MB database, 50,000 monthly active users, 500,000 Edge Function calls a month | A team's asset register is a tiny fraction of each |
+| GitHub Pages and Actions | Free for a public repository | Hosts the site, runs tests and backups |
+| Supabase Free plan | 500 MB database, 1 GB files, 5 GB data out a month, 50,000 monthly users | Thousands of assets fit comfortably |
+| Microsoft sign-in | Included with Microsoft 365 | Company sign-in |
 
-The one catch on Supabase's Free plan: a project with **no activity for a
-week is paused**. Nothing is lost - restore it from the dashboard with one
-click - and normal daily use keeps it awake. Supabase's limits change from time
-to time; check <https://supabase.com/pricing>.
-
---- | --- | --- |
-| [`admin-users`](supabase/functions/admin-users/index.ts) | The Admin page: add, remove and reset accounts, change roles | None to add - Supabase provides its own service-role key to functions |
-| [`spec-lookup`](supabase/functions/spec-lookup/index.ts) | **Look up specs online** on the Specification tab | `ANTHROPIC_API_KEY` |
-
-**Deploy from the dashboard (no tools needed):** **Edge Functions → Deploy a
-new function → Via Editor**, name it exactly `admin-users` (or `spec-lookup`),
-replace the sample code with the file's contents, and **Deploy**. Leave **Verify
-JWT** on.
-
-**Or with the Supabase CLI:**
-
-```bash
-supabase link --project-ref <your-project-ref>
-supabase functions deploy admin-users
-supabase functions deploy spec-lookup
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-```
-
-**The spec lookup's API key:** create one at
-<https://console.anthropic.com> (Settings → API Keys), then add it under
-**Edge Functions → Secrets** as `ANTHROPIC_API_KEY`. Each lookup is a
-Claude request with a handful of web searches; it is billed to that Anthropic
-account - usually a few pence to a few tens of pence per lookup, depending
-on how much it has to read. Usage is visible in the Anthropic
-Console. Only signed-in users can call it.
-
-**Why not just make accounts in the browser?** Creating or deleting a Supabase
-account needs the service-role key, which can do anything to the database.
-Shipping it in the website would hand it to anyone who opens the browser's
-developer tools. The function keeps it on Supabase's side and checks that the
-caller is an admin before every action - so accounts stay in Supabase Auth, and
-nobody needs the Supabase dashboard to manage them day to day.
+Things to keep an eye on: **Storage** (1 GB - mostly photos and PDFs) and
+**data out** (each open tab reloads the register when someone changes it). Both
+are shown under **Supabase → Settings → Usage**. A project with no activity for
+a week is paused; the nightly backup job prevents that. Supabase's limits
+change from time to time; check <https://supabase.com/pricing>.
 
 ---
 
@@ -366,11 +381,9 @@ nobody needs the Supabase dashboard to manage them day to day.
 ├── public/favicon.svg
 ├── supabase/
 │   ├── setup.sql                  the whole database in one script (new projects)
-│   ├── schema.sql                 tables, view, indexes, constraints, trigger, RLS
-│   ├── migration-001-…            general asset management columns
-│   ├── migration-002-…            unassigned assets
-│   ├── migration-003-…            hardware specification columns
-│   ├── migration-004-…            cleaning history log + trigger
+│   ├── setup.sql                  the whole database, safe to re-run
+│   ├── __tests__/                 runs setup.sql in PGlite and tests its rules
+│   ├── history/                   how older databases were built - never run
 │   ├── functions/admin-users/     Edge Function behind the Admin page
 │   └── seed.sql                   sample data for testing
 ├── src/
@@ -433,15 +446,10 @@ fails if it drifts), and once a new version deploys, the Release workflow tags
 the deployed commit and publishes it as a
 [GitHub Release](https://github.com/JoshSmitherman/Asset_Maintenance/releases).
 
-**Add or change the cleaners' initials or device types** — edit the lists in
-`src/lib/constants.js` **and** the matching check constraints in
-`supabase/schema.sql`:
-
-```sql
-alter table public.assets drop constraint assets_cleaned_by_valid;
-alter table public.assets add constraint assets_cleaned_by_valid
-  check (cleaned_by is null or cleaned_by in ('AL', 'BB', 'JS', 'RC', 'TM', 'NEW'));
-```
+**Add a device type or department** — edit the list in `src/lib/constants.js`
+(device types) or `src/lib/access.js` (departments) **and** the matching check
+constraint in `supabase/setup.sql`, then run `setup.sql` again. Cleaners are
+the team's editors and admins, so they need no list.
 
 **Change the default cleaning interval** — update
 `DEFAULT_CLEANING_INTERVAL_MONTHS` in `src/lib/constants.js` and the column
@@ -449,15 +457,10 @@ default (`cleaning_interval_months integer not null default 6`). Individual
 assets can already be put on their own cycle from the form.
 
 **Change the "Due Soon" window** — update `DUE_SOON_WINDOW_DAYS` in
-`src/lib/constants.js` and the `current_date + 30` in `public.asset_status()`.
+`src/lib/constants.js` and the `+ 30` in `public.asset_status()`.
 
-**Restrict deletes to admins** — replace the delete policy in `schema.sql`:
-
-```sql
-drop policy "assets_delete_authenticated" on public.assets;
-create policy "assets_delete_admins" on public.assets for delete to authenticated
-  using (auth.jwt() ->> 'email' in ('alice@example.com', 'bob@example.com'));
-```
+**Who can delete** — only admins, by the `assets_delete_admin` policy in
+`setup.sql`. Everyone else retires kit, which keeps the record.
 
 ---
 
@@ -517,12 +520,22 @@ See step 10; check the workflow's *Work out the Vite base path* step output.
 Supabase, open the user and use **Confirm email**, or recreate them with **Auto
 Confirm User** ticked.
 
-**Rows do not appear, or writes fail with a permissions error** — make sure
-`schema.sql` ran completely; the RLS policies are at the end of it. Signing out
-and back in refreshes an expired token.
+**"You need access to Orbit"** — the person is signed in but not on the members
+list (or is switched off). An admin adds them under **Admin → People & access**.
+
+**"Orbit is only for Adaro accounts"** after Microsoft sign-in — they signed in
+with a personal Microsoft account, or the domain is missing from
+`public.allowed_email_domains`.
+
+**"Microsoft sign-in has not been switched on yet"** — the Azure provider is off
+in Supabase; see step 5a.
+
+**Rows do not appear, or writes fail with a permissions error** — check the
+person's access level on the People & access page, and that `setup.sql` ran
+completely. Signing out and back in refreshes an expired session.
 
 **Colleagues' changes do not appear live** — Realtime may not be enabled for the
-table. Re-run the last section of `schema.sql`, or enable it in **Database →
+table. Run `setup.sql` again, or enable it in **Database →
 Replication**. The app still refreshes on focus and every 10 minutes regardless.
 
 **Dates look a day out** — they should not be: dates are handled as plain

@@ -9,7 +9,8 @@ const KIND_LABEL = {
   change: 'Changed',
   clean: 'Cleaned',
   retired: 'Retired',
-  restored: 'Restored'
+  restored: 'Restored',
+  repair: 'Repair'
 };
 
 /**

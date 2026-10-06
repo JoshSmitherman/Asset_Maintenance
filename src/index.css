@@ -1378,6 +1378,7 @@ code {
 .timeline__item--purchase .timeline__dot { background: var(--heading); }
 .timeline__item--retired .timeline__dot { background: var(--slate-500); }
 .timeline__item--restored .timeline__dot { background: var(--chart-ok); }
+.timeline__item--repair .timeline__dot { background: var(--amber-700); }
 .timeline__item--start .timeline__dot { background: var(--surface); border: 2px solid var(--slate-500); }
 
 .timeline__top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }

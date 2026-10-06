@@ -10,7 +10,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./vitest.setup.js'],
-    environmentMatchGlobs: [['src/components/**', 'jsdom']],
+    environmentMatchGlobs: [['src/components/**', 'jsdom'], ['src/hooks/**', 'jsdom']],
     include: ['src/**/*.test.{js,jsx}', 'supabase/**/*.test.js'],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**']
   }

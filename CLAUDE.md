@@ -50,3 +50,7 @@ What happens on its own after that:
   on an existing database; say in the summary that it needs running.
 - Everything must stay free to run: GitHub Pages and the Supabase Free plan,
   no paid APIs.
+- Access is company-only: `members` (department + view/edit/admin) gates every
+  policy via `can_view()` / `can_edit()` / `is_admin()`. Any new table or
+  bucket must use them, and `supabase/__tests__` should cover the new rules.
+- Never edit or run `supabase/history/`; `setup.sql` is the whole database.
