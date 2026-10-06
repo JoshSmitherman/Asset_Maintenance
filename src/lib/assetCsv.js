@@ -16,6 +16,7 @@ const SHARED = [
 
 export const REGISTER_CSV_COLUMNS = [
   ...SHARED,
+  { key: 'serial_number', label: 'Serial number', format: (row) => row.serial_number ?? '' },
   { key: 'purchase_date', label: 'Purchase date', format: (row) => row.purchase_date ?? '' },
   { key: 'purchase_cost', label: 'Purchase cost', format: (row) => row.purchase_cost ?? '' },
   { key: 'purchase_cost_formatted', label: 'Purchase cost (formatted)', format: (row) => formatCurrency(row.purchase_cost) ?? '' },

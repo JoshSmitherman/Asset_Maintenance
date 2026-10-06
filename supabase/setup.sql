@@ -11,19 +11,21 @@
 --
 -- WHEN TO USE IT
 --   * A brand-new Supabase project: this is the only script you need. The
---     numbered migration files next to it are the history of how an older
---     database reached this same state; a new one does not need them.
+--     files in supabase/history/ are how older databases were built; never
+--     run them (they stop themselves if you try).
 --   * An existing database, however old: run it again. It adds whatever is
---     missing (the asset history, admin roles, the purchase-date rule for
---     Next Clean Due) and leaves everything else as it is.
+--     missing and leaves everything else as it is. The first time it adds
+--     the members list (section 4b), everyone who already has an account is
+--     put on it, so nobody is locked out.
 --
 -- IT NEVER DESTROYS DATA. Nothing here drops a table or deletes a row. The
 -- only things dropped are the read-only view, policies, triggers and
 -- constraints, each recreated immediately afterwards.
 --
--- Reference lists (device types, locations, cleaners) are CHECK constraints
--- rather than lookup tables, so a small team can see the whole list at a
--- glance. To change one, edit the constraint here AND src/lib/constants.js.
+-- Reference lists (device types, locations, departments) are CHECK
+-- constraints rather than lookup tables, so the whole list is visible at a
+-- glance. To change one, edit the constraint here AND the matching list in
+-- src/lib/constants.js or src/lib/access.js.
 -- =====================================================================
 
 create extension if not exists pgcrypto;
@@ -135,6 +137,8 @@ alter table public.assets add column if not exists retired_by_email    text;
 alter table public.assets add column if not exists data_wiped          boolean not null default false;
 alter table public.assets add column if not exists data_wiped_by       uuid references auth.users(id) on delete set null;
 alter table public.assets add column if not exists data_wiped_by_email text;
+-- The maker's serial number, for warranty claims and to tell identical kit apart.
+alter table public.assets add column if not exists serial_number       text;
 
 -- An older database required a user on every asset. It no longer does.
 alter table public.assets alter column owner_name drop not null;
@@ -195,12 +199,18 @@ alter table public.assets add  constraint assets_department_not_blank
   check (btrim(department) <> '');
 
 alter table public.assets drop constraint if exists assets_device_type_valid;
+-- The first line is what new assets can be. The second holds types from
+-- before the list was narrowed: assets already recorded with one keep it.
 alter table public.assets add  constraint assets_device_type_valid check (
   device_type in (
-    'Laptop', 'Desktop', 'Monitor', 'Docking Station',
-    'Phone', 'Tablet', 'Printer', 'Peripheral', 'Other'
+    'Laptop', 'Phone', 'Monitor', 'Camera', 'Device',
+    'Desktop', 'Docking Station', 'Tablet', 'Printer', 'Peripheral', 'Other'
   )
 );
+
+alter table public.assets drop constraint if exists assets_serial_number_sane;
+alter table public.assets add  constraint assets_serial_number_sane
+  check (serial_number is null or (btrim(serial_number) <> '' and char_length(serial_number) <= 60));
 
 alter table public.assets drop constraint if exists assets_location_valid;
 alter table public.assets add  constraint assets_location_valid check (
@@ -211,9 +221,11 @@ alter table public.assets drop constraint if exists assets_purchase_cost_valid;
 alter table public.assets add  constraint assets_purchase_cost_valid
   check (purchase_cost is null or purchase_cost >= 0);
 
+-- Who cleaned it: a person's name, chosen from the team in the app. (It was
+-- once one of five fixed initials; those older records stay as they are.)
 alter table public.assets drop constraint if exists assets_cleaned_by_valid;
 alter table public.assets add  constraint assets_cleaned_by_valid
-  check (cleaned_by is null or cleaned_by in ('AL', 'BB', 'JS', 'RC', 'TM'));
+  check (cleaned_by is null or (btrim(cleaned_by) <> '' and char_length(cleaned_by) <= 80));
 
 -- "Cleaned By" and "Date Cleaned" only make sense together.
 alter table public.assets drop constraint if exists assets_clean_record_complete;
@@ -340,6 +352,298 @@ $$;
 
 
 -- =====================================================================
+-- 4b. People and access
+--     Orbit is for the company only. Three locks, each enough on its own:
+--
+--     1. Sign-in accounts can only be created for company email addresses
+--        (allowed_email_domains). With Microsoft sign-in limited to the
+--        company's own Microsoft 365 tenant, outsiders cannot even start.
+--     2. Signing in is not enough to see anything. Every table checks that
+--        the person is on the members list, which only admins can change.
+--        Taking someone off it (or switching them off) cuts them off at
+--        once, even mid-session.
+--     3. What a member may do comes from their access level:
+--          viewer - sees everything, changes nothing
+--          editor - adds, edits, cleans, repairs and retires kit
+--          admin  - also deletes, restores retired kit and manages people
+--        Their department (Customer Service, Technical Support, ...) is
+--        recorded with them and suggests a level, but the level decides.
+-- =====================================================================
+create table if not exists public.allowed_email_domains (
+  domain text primary key check (domain = lower(btrim(domain)) and domain like '%.%')
+);
+comment on table public.allowed_email_domains is 'Email domains that may have Orbit accounts. Add one here to let another company domain in.';
+insert into public.allowed_email_domains (domain) values ('adaro.net') on conflict (domain) do nothing;
+
+create table if not exists public.members (
+  email            text primary key,
+  full_name        text,
+  department       text not null,
+  access           text not null default 'viewer',
+  active           boolean not null default true,
+  created_at       timestamptz not null default now(),
+  created_by_email text,
+  updated_at       timestamptz not null default now(),
+  updated_by_email text
+);
+comment on table public.members is 'Who may use Orbit, their department and what they may do. Changed by admins only.';
+
+alter table public.members drop constraint if exists members_email_valid;
+alter table public.members add  constraint members_email_valid
+  check (email = lower(btrim(email)) and email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' and char_length(email) <= 254);
+alter table public.members drop constraint if exists members_department_valid;
+alter table public.members add  constraint members_department_valid check (department in (
+  'Customer Service', 'Technical Support', 'Developer', 'Credit Control', 'Finance', 'Exec'
+));
+alter table public.members drop constraint if exists members_access_valid;
+alter table public.members add  constraint members_access_valid check (access in ('viewer', 'editor', 'admin'));
+alter table public.members drop constraint if exists members_name_sane;
+alter table public.members add  constraint members_name_sane
+  check (full_name is null or (btrim(full_name) <> '' and char_length(full_name) <= 80));
+
+-- People who signed in with a company account but are not members yet. An
+-- admin sees them on the Admin page and lets them in, or dismisses them.
+create table if not exists public.access_requests (
+  email        text primary key,
+  full_name    text,
+  user_id      uuid references auth.users(id) on delete cascade,
+  requested_at timestamptz not null default now()
+);
+
+-- The signed-in person's email, as Supabase Auth vouches for it.
+create or replace function public.current_email()
+returns text
+language sql
+stable
+set search_path = public, pg_temp
+as $$
+  select lower(nullif(auth.jwt() ->> 'email', ''));
+$$;
+
+-- Their access level, or null if they are not an active member.
+create or replace function public.my_access()
+returns text
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select m.access from public.members m
+   where m.email = public.current_email() and m.active;
+$$;
+
+create or replace function public.can_view()
+returns boolean language sql stable security definer set search_path = public, pg_temp
+as $$ select public.my_access() is not null; $$;
+
+create or replace function public.can_edit()
+returns boolean language sql stable security definer set search_path = public, pg_temp
+as $$ select coalesce(public.my_access() in ('editor', 'admin'), false); $$;
+
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = public, pg_temp
+as $$ select coalesce(public.my_access() = 'admin', false); $$;
+
+create or replace function public.email_domain_allowed(p_email text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1 from public.allowed_email_domains d
+     where d.domain = lower(split_part(btrim(coalesce(p_email, '')), '@', 2))
+  );
+$$;
+
+create or replace function public.handle_member_write()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  domains text;
+begin
+  if tg_op in ('UPDATE', 'DELETE') then
+    -- One change at a time, so two admins cannot each remove the other and
+    -- leave nobody able to manage access.
+    lock table public.members in share row exclusive mode;
+    if old.access = 'admin' and old.active
+       and (tg_op = 'DELETE' or new.access <> 'admin' or not new.active)
+       and not exists (select 1 from public.members m
+                        where m.access = 'admin' and m.active and m.email <> old.email) then
+      raise exception 'Orbit must always have at least one admin. Make someone else an admin first.'
+        using errcode = 'check_violation';
+    end if;
+    if tg_op = 'DELETE' then
+      return old;
+    end if;
+  end if;
+
+  new.email     := lower(btrim(new.email));
+  new.full_name := nullif(btrim(coalesce(new.full_name, '')), '');
+
+  -- From the app, only company addresses. (Run by hand in the SQL Editor,
+  -- with nobody signed in, anyone can be added - the way back in if the
+  -- domain list is ever wrong.)
+  if auth.uid() is not null and not public.email_domain_allowed(new.email) then
+    select string_agg('@' || domain, ' or ' order by domain) into domains from public.allowed_email_domains;
+    raise exception 'Only company email addresses (%) can be given access.', coalesce(domains, 'none set up')
+      using errcode = 'check_violation';
+  end if;
+
+  if tg_op = 'INSERT' then
+    new.created_at       := now();
+    new.created_by_email := public.current_email();
+  else
+    new.email            := old.email;
+    new.created_at       := old.created_at;
+    new.created_by_email := old.created_by_email;
+  end if;
+  new.updated_at       := now();
+  new.updated_by_email := public.current_email();
+
+  -- Letting someone in answers their request.
+  delete from public.access_requests where email = new.email;
+  return new;
+end;
+$$;
+
+drop trigger if exists members_write_trigger on public.members;
+create trigger members_write_trigger
+  before insert or update or delete on public.members
+  for each row execute function public.handle_member_write();
+
+alter table public.members enable row level security;
+alter table public.access_requests enable row level security;
+alter table public.allowed_email_domains enable row level security;
+
+-- Everyone may read their own row (that is how the app knows what to
+-- show); admins read and change everyone's.
+drop policy if exists "members_select_self_or_admin" on public.members;
+create policy "members_select_self_or_admin"
+  on public.members for select to authenticated
+  using (email = public.current_email() or public.is_admin());
+
+drop policy if exists "members_insert_admin" on public.members;
+create policy "members_insert_admin"
+  on public.members for insert to authenticated with check (public.is_admin());
+
+drop policy if exists "members_update_admin" on public.members;
+create policy "members_update_admin"
+  on public.members for update to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "members_delete_admin" on public.members;
+create policy "members_delete_admin"
+  on public.members for delete to authenticated using (public.is_admin());
+
+drop policy if exists "access_requests_select_self_or_admin" on public.access_requests;
+create policy "access_requests_select_self_or_admin"
+  on public.access_requests for select to authenticated
+  using (email = public.current_email() or public.is_admin());
+
+drop policy if exists "access_requests_delete_admin" on public.access_requests;
+create policy "access_requests_delete_admin"
+  on public.access_requests for delete to authenticated using (public.is_admin());
+
+drop policy if exists "allowed_domains_select_admin" on public.allowed_email_domains;
+create policy "allowed_domains_select_admin"
+  on public.allowed_email_domains for select to authenticated using (public.is_admin());
+
+revoke all on public.members, public.access_requests, public.allowed_email_domains from anon, authenticated;
+grant select, insert, update, delete on public.members to authenticated;
+grant select, delete on public.access_requests to authenticated;
+grant select on public.allowed_email_domains to authenticated;
+
+-- Asking for access: the only way a non-member can write anything, and only
+-- their own request, under their own company email.
+create or replace function public.request_access(p_full_name text default null)
+returns text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  me text := public.current_email();
+begin
+  if me is null or auth.uid() is null then
+    raise exception 'Sign in first.' using errcode = 'insufficient_privilege';
+  end if;
+  if public.can_view() then
+    return 'member';
+  end if;
+  if not public.email_domain_allowed(me) then
+    raise exception 'Orbit is only for company accounts.' using errcode = 'insufficient_privilege';
+  end if;
+  insert into public.access_requests (email, full_name, user_id)
+  values (me, nullif(left(btrim(coalesce(p_full_name, '')), 80), ''), auth.uid())
+  on conflict (email) do update set full_name = excluded.full_name, requested_at = now();
+  return 'requested';
+end;
+$$;
+
+-- The Admin page's list: every member, with when they last signed in.
+create or replace function public.member_directory()
+returns table (
+  email text, full_name text, department text, access text, active boolean,
+  created_at timestamptz, last_sign_in_at timestamptz, has_account boolean
+)
+language sql
+stable
+security definer
+set search_path = public, auth, pg_temp
+as $$
+  select m.email, m.full_name, m.department, m.access, m.active, m.created_at,
+         u.last_sign_in_at, u.id is not null
+    from public.members m
+    left join auth.users u on lower(u.email) = m.email and u.deleted_at is null
+   where public.is_admin()
+   order by m.active desc, coalesce(m.full_name, m.email);
+$$;
+
+revoke all on function public.request_access(text), public.member_directory(),
+  public.my_access(), public.can_view(), public.can_edit(), public.is_admin(),
+  public.current_email(), public.email_domain_allowed(text) from public, anon;
+grant execute on function public.request_access(text), public.member_directory(),
+  public.my_access(), public.can_view(), public.can_edit(), public.is_admin(),
+  public.current_email() to authenticated;
+
+-- Lock 1: no sign-in account for an address outside the company. Applies to
+-- every way an account is made - Microsoft, email sign-up, the Admin page.
+-- Existing accounts are untouched. Changing the auth schema needs the
+-- dashboard's own SQL Editor role; if it is ever refused, the other two
+-- locks still stand, and a notice says so.
+create or replace function public.enforce_company_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if not public.email_domain_allowed(new.email) then
+    raise exception 'Orbit is only for company accounts.' using errcode = 'insufficient_privilege';
+  end if;
+  return new;
+end;
+$$;
+
+do $$
+begin
+  drop trigger if exists orbit_company_email_only on auth.users;
+  create trigger orbit_company_email_only
+    before insert or update of email on auth.users
+    for each row execute function public.enforce_company_email();
+exception
+  when insufficient_privilege then
+    raise notice 'Could not add the company-email check to auth.users; members-only access still applies.';
+end;
+$$;
+
+
+-- =====================================================================
 -- 5. Write trigger: normalisation, validation and audit stamping.
 --    Clients cannot forge created_at, updated_by or version.
 -- =====================================================================
@@ -357,6 +661,8 @@ begin
   new.owner_name := nullif(btrim(coalesce(new.owner_name, '')), '');
   new.department := btrim(new.department);
   new.notes      := nullif(btrim(coalesce(new.notes, '')), '');
+  new.serial_number := nullif(btrim(coalesce(new.serial_number, '')), '');
+  new.cleaned_by := nullif(btrim(coalesce(new.cleaned_by, '')), '');
 
   new.spec_brand        := nullif(btrim(coalesce(new.spec_brand, '')), '');
   new.spec_model        := nullif(btrim(coalesce(new.spec_model, '')), '');
@@ -413,6 +719,14 @@ begin
     new.data_wiped_by_email := null;
   elsif new.data_wiped_by is not null then
     select u.email into new.data_wiped_by_email from auth.users u where u.id = new.data_wiped_by;
+  else
+    -- No account chosen: never take the email from the browser (it would let
+    -- anyone record a wipe in someone else's name). Keep what was recorded
+    -- before, for a wipe whose person's account has since been removed.
+    new.data_wiped_by_email := case
+      when tg_op = 'UPDATE' and old.data_wiped then old.data_wiped_by_email
+      else null
+    end;
   end if;
 
   if tg_op = 'INSERT' then
@@ -428,7 +742,10 @@ begin
 
   new.updated_at       := now();
   new.updated_by       := auth.uid();
-  new.updated_by_email := coalesce(auth.jwt() ->> 'email', new.updated_by_email);
+  new.updated_by_email := coalesce(
+    auth.jwt() ->> 'email',
+    case when tg_op = 'UPDATE' then old.updated_by_email end
+  );
 
   return new;
 end;
@@ -582,7 +899,8 @@ comment on table public.asset_events is 'Append-only change history per asset. W
 alter table public.asset_events drop constraint if exists asset_events_type_valid;
 alter table public.asset_events add  constraint asset_events_type_valid check (
   event_type in ('created', 'tracking_started', 'owner', 'department', 'location', 'device_type', 'asset_ref',
-                 'retired', 'restored')
+                 'retired', 'restored', 'edited', 'deleted',
+                 'repair_added', 'repair_edited', 'repair_deleted')
 );
 
 create index if not exists asset_events_asset_idx on public.asset_events (asset_id, happened_at);
@@ -596,6 +914,7 @@ as $$
 declare
   who_id    uuid := auth.uid();
   who_email text := auth.jwt() ->> 'email';
+  changed   jsonb;
 begin
   if tg_op = 'INSERT' then
     insert into public.asset_events (asset_id, asset_ref, event_type, details, actor_id, actor_email)
@@ -638,9 +957,51 @@ begin
     values (new.id, new.asset_ref, 'restored', who_id, who_email);
   end if;
 
+  -- Every other field that changed - cost, purchase date, specs, notes,
+  -- serial number, interval, retirement details - with its old and new value,
+  -- so nothing can be quietly overwritten. The fields above have their own
+  -- events, cleans have the cleaning log, and the rest are bookkeeping.
+  select jsonb_object_agg(n.key, jsonb_build_object('from', o.value, 'to', n.value))
+    into changed
+    from jsonb_each(to_jsonb(new)) n
+    join jsonb_each(to_jsonb(old)) o on o.key = n.key
+   where n.value is distinct from o.value
+     and n.key <> all (array[
+       'id', 'version', 'created_at', 'created_by', 'updated_at', 'updated_by', 'updated_by_email',
+       'next_clean_due', 'owner_name', 'department', 'location', 'device_type', 'asset_ref',
+       'date_cleaned', 'cleaned_by', 'retired_on', 'retired_by', 'retired_by_email', 'data_wiped_by'
+     ]);
+  -- Retiring sets its details in the same save; the 'retired' event has them.
+  if changed is not null and not (old.retired_on is null and new.retired_on is not null)
+     and not (old.retired_on is not null and new.retired_on is null) then
+    insert into public.asset_events (asset_id, asset_ref, event_type, details, actor_id, actor_email)
+    values (new.id, new.asset_ref, 'edited', jsonb_build_object('fields', changed), who_id, who_email);
+  end if;
+
   return null;
 end;
 $$;
+
+-- A deleted asset leaves a record of what it was and who deleted it. The
+-- event outlives the asset (its link to it is cleared), so "what happened
+-- to AST-0142?" still has an answer.
+create or replace function public.log_asset_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth, pg_temp
+as $$
+begin
+  insert into public.asset_events (asset_id, asset_ref, event_type, details, actor_id, actor_email)
+  values (null, old.asset_ref, 'deleted', to_jsonb(old), auth.uid(), auth.jwt() ->> 'email');
+  return null;
+end;
+$$;
+
+drop trigger if exists assets_log_delete on public.assets;
+create trigger assets_log_delete
+  after delete on public.assets
+  for each row execute function public.log_asset_delete();
 
 drop trigger if exists assets_log_change on public.assets;
 create trigger assets_log_change
@@ -681,9 +1042,9 @@ comment on view public.assets_with_status is 'assets + derived status/days_until
 
 -- =====================================================================
 -- 8. Row Level Security
---    Every signed-in member of the IT team shares one dataset. Anonymous
---    visitors get nothing at all, which is what makes it safe to ship the
---    anon key in the browser bundle.
+--    Members share one dataset: viewers read it, editors and admins change
+--    it (section 4b). Anyone else - signed in or not - gets nothing at all,
+--    which is what makes it safe to ship the anon key in the browser bundle.
 -- =====================================================================
 alter table public.assets       enable row level security;
 alter table public.cleaning_log enable row level security;
@@ -693,20 +1054,20 @@ drop policy if exists "assets_select_authenticated" on public.assets;
 create policy "assets_select_authenticated"
   on public.assets for select
   to authenticated
-  using (true);
+  using (public.can_view());
 
 drop policy if exists "assets_insert_authenticated" on public.assets;
 create policy "assets_insert_authenticated"
   on public.assets for insert
   to authenticated
-  with check (true);
+  with check (public.can_edit());
 
 drop policy if exists "assets_update_authenticated" on public.assets;
 create policy "assets_update_authenticated"
   on public.assets for update
   to authenticated
-  using (true)
-  with check (true);
+  using (public.can_edit())
+  with check (public.can_edit());
 
 -- Deleting is for admins only, and its policy is in section 10 because it
 -- needs is_admin(). This removes the older everyone-can-delete policy.
@@ -719,24 +1080,32 @@ drop policy if exists "cleaning_log_select_authenticated" on public.cleaning_log
 create policy "cleaning_log_select_authenticated"
   on public.cleaning_log for select
   to authenticated
-  using (true);
+  using (public.can_view());
 
 drop policy if exists "asset_events_select_authenticated" on public.asset_events;
 create policy "asset_events_select_authenticated"
   on public.asset_events for select
   to authenticated
-  using (true);
+  using (public.can_view());
 
 revoke all on public.assets             from anon;
 revoke all on public.asset_events       from anon;
 revoke all on public.assets_with_status from anon;
 revoke all on public.cleaning_log       from anon;
 
+-- Supabase grants every table's insert, update, delete and truncate to
+-- signed-in users by default. History is written only by triggers, so those
+-- are taken back - the policies already refuse them; this is a second lock.
+revoke insert, update, delete, truncate on public.cleaning_log, public.asset_events from authenticated;
+revoke truncate, references, trigger on public.assets from authenticated;
+
 grant select, insert, update, delete on public.assets              to authenticated;
 grant select                         on public.assets_with_status  to authenticated;
 grant select                         on public.cleaning_log        to authenticated;
 grant select                         on public.asset_events        to authenticated;
+revoke all on function public.asset_status(text, date, date), public.today_local() from public, anon;
 grant execute on function public.asset_status(text, date, date)    to authenticated;
+grant execute on function public.today_local()                     to authenticated;
 
 
 -- =====================================================================
@@ -757,16 +1126,10 @@ alter table public.assets replica identity full;
 
 
 -- =====================================================================
--- 10. Admins and users
---     Every account is either an admin or a user. Both can add, edit, clean,
---     repair and retire assets; only admins can delete an asset, restore
---     retired kit, and add, remove and manage accounts from the Admin page. Creating an account needs Supabase's service-role key,
---     which must never reach a browser, so the Admin page talks to the
---     admin-users Edge Function (supabase/functions/admin-users), and that
---     checks this table before doing anything.
---
---     No account without a row here is an admin. The app reads its own row
---     to decide whether to show the Admin page; it cannot write any row.
+-- 10. The old admin/user roles, and moving over to the members list
+--     Before section 4b, every account was an admin or a user, kept here.
+--     The members list replaces it; this table stays (read-only) so the
+--     move below can carry admins across.
 -- =====================================================================
 create table if not exists public.user_roles (
   user_id    uuid primary key references auth.users(id) on delete cascade,
@@ -777,17 +1140,8 @@ create table if not exists public.user_roles (
 alter table public.user_roles drop constraint if exists user_roles_role_valid;
 alter table public.user_roles add  constraint user_roles_role_valid check (role in ('admin', 'user'));
 
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = public, pg_temp
-as $$
-  select exists (
-    select 1 from public.user_roles where user_id = auth.uid() and role = 'admin'
-  );
-$$;
+-- is_admin() now reads the members list (section 4b); this table is kept
+-- only so the move below knows who the admins were.
 
 alter table public.user_roles enable row level security;
 
@@ -810,19 +1164,40 @@ create policy "assets_delete_admin"
   to authenticated
   using (public.is_admin());
 
--- Somebody has to be the first admin. If there is none yet, it is the
--- oldest account - in practice whoever set the project up. To choose a
--- different one, run:
---   insert into public.user_roles (user_id, role)
---   select id, 'admin' from auth.users where email = 'you@example.com'
---   on conflict (user_id) do update set role = 'admin';
-insert into public.user_roles (user_id, role)
-select u.id, 'admin'
-from auth.users u
-where not exists (select 1 from public.user_roles where role = 'admin')
-order by u.created_at
-limit 1
-on conflict (user_id) do update set role = 'admin';
+-- Moving over from the old setup, once: everyone who already had an account
+-- keeps working, in Technical Support, as an editor - or an admin if they
+-- were one. Runs only while the members list is empty, so re-running this
+-- script never re-adds someone an admin has removed.
+do $$
+begin
+  if not exists (select 1 from public.members) then
+    insert into public.members (email, full_name, department, access)
+    select lower(u.email),
+           nullif(btrim(coalesce(u.raw_user_meta_data ->> 'full_name', u.raw_user_meta_data ->> 'name', '')), ''),
+           'Technical Support',
+           case when exists (select 1 from public.user_roles r where r.user_id = u.id and r.role = 'admin')
+                then 'admin' else 'editor' end
+      from auth.users u
+     where u.email is not null and u.deleted_at is null
+    on conflict (email) do nothing;
+  end if;
+
+  -- Somebody has to be an admin. If nobody is, it is the oldest account -
+  -- in practice whoever set the project up. To choose someone else, run:
+  --   insert into public.members (email, department, access)
+  --   values ('you@adaro.net', 'Technical Support', 'admin')
+  --   on conflict (email) do update set access = 'admin', active = true;
+  if not exists (select 1 from public.members where access = 'admin' and active) then
+    insert into public.members (email, department, access)
+    select lower(u.email), 'Technical Support', 'admin'
+      from auth.users u
+     where u.email is not null and u.deleted_at is null
+     order by u.created_at
+     limit 1
+    on conflict (email) do update set access = 'admin', active = true;
+  end if;
+end;
+$$;
 
 
 -- =====================================================================
@@ -866,6 +1241,10 @@ alter table public.repairs add  constraint repairs_parts_is_list
 
 alter table public.repairs drop constraint if exists repairs_total_valid;
 alter table public.repairs add  constraint repairs_total_valid check (total_cost >= 0);
+
+-- Bumped on every save, so two people editing one repair cannot silently
+-- overwrite each other: the second save finds the version moved on.
+alter table public.repairs add column if not exists version integer not null default 1;
 
 create index if not exists repairs_asset_idx on public.repairs (asset_id, repaired_on desc);
 create index if not exists repairs_date_idx  on public.repairs (repaired_on desc);
@@ -939,7 +1318,9 @@ begin
     new.created_at       := now();
     new.created_by       := auth.uid();
     new.created_by_email := auth.jwt() ->> 'email';
+    new.version          := 1;
   else
+    new.version          := old.version + 1;
     -- A repair belongs to one asset for good, and its creation is history.
     new.asset_id         := old.asset_id;
     new.created_at       := old.created_at;
@@ -958,25 +1339,61 @@ create trigger repairs_write_trigger
   before insert or update on public.repairs
   for each row execute function public.handle_repair_write();
 
+-- Repairs appear in their asset's history: logged, changed or deleted, by
+-- whom, with what it was.
+create or replace function public.log_repair_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth, pg_temp
+as $$
+declare
+  r public.repairs;
+begin
+  r := case when tg_op = 'DELETE' then old else new end;
+  -- Deleted along with its asset: the asset's own 'deleted' event covers it.
+  if not exists (select 1 from public.assets a where a.id = r.asset_id) then
+    return null;
+  end if;
+  insert into public.asset_events (asset_id, asset_ref, event_type, details, actor_id, actor_email)
+  select r.asset_id, a.asset_ref,
+         case tg_op when 'INSERT' then 'repair_added' when 'UPDATE' then 'repair_edited' else 'repair_deleted' end,
+         jsonb_build_object('repaired_on', r.repaired_on, 'fault', r.fault, 'total_cost', r.total_cost,
+                            'fixed_by', r.fixed_by_email,
+                            'before', case when tg_op = 'UPDATE' then jsonb_build_object(
+                              'repaired_on', old.repaired_on, 'fault', old.fault,
+                              'total_cost', old.total_cost, 'parts', old.parts) end),
+         auth.uid(), auth.jwt() ->> 'email'
+    from public.assets a where a.id = r.asset_id;
+  return null;
+end;
+$$;
+
+drop trigger if exists repairs_log_change on public.repairs;
+create trigger repairs_log_change
+  after insert or update or delete on public.repairs
+  for each row execute function public.log_repair_change();
+
 alter table public.repairs enable row level security;
 
 drop policy if exists "repairs_select_authenticated" on public.repairs;
 create policy "repairs_select_authenticated"
-  on public.repairs for select to authenticated using (true);
+  on public.repairs for select to authenticated using (public.can_view());
 
 drop policy if exists "repairs_insert_authenticated" on public.repairs;
 create policy "repairs_insert_authenticated"
-  on public.repairs for insert to authenticated with check (true);
+  on public.repairs for insert to authenticated with check (public.can_edit());
 
 drop policy if exists "repairs_update_authenticated" on public.repairs;
 create policy "repairs_update_authenticated"
-  on public.repairs for update to authenticated using (true) with check (true);
+  on public.repairs for update to authenticated using (public.can_edit()) with check (public.can_edit());
 
 drop policy if exists "repairs_delete_admin" on public.repairs;
 create policy "repairs_delete_admin"
   on public.repairs for delete to authenticated using (public.is_admin());
 
 revoke all on public.repairs from anon;
+revoke truncate, references, trigger on public.repairs from authenticated;
 grant select, insert, update, delete on public.repairs to authenticated;
 
 
@@ -1051,19 +1468,20 @@ alter table public.attachments enable row level security;
 
 drop policy if exists "attachments_select_authenticated" on public.attachments;
 create policy "attachments_select_authenticated"
-  on public.attachments for select to authenticated using (true);
+  on public.attachments for select to authenticated using (public.can_view());
 
 drop policy if exists "attachments_insert_authenticated" on public.attachments;
 create policy "attachments_insert_authenticated"
-  on public.attachments for insert to authenticated with check (true);
+  on public.attachments for insert to authenticated with check (public.can_edit());
 
 drop policy if exists "attachments_delete_own_or_admin" on public.attachments;
 create policy "attachments_delete_own_or_admin"
   on public.attachments for delete to authenticated
-  using (uploaded_by = auth.uid() or public.is_admin());
+  using ((uploaded_by = auth.uid() and public.can_edit()) or public.is_admin());
 
 -- No update: a file is replaced by removing it and adding the new one.
 revoke all on public.attachments from anon;
+revoke update, truncate, references, trigger on public.attachments from authenticated;
 grant select, insert, delete on public.attachments to authenticated;
 
 -- The bucket. Private: files are opened through short-lived signed links.
@@ -1078,12 +1496,18 @@ on conflict (id) do update
 drop policy if exists "asset_files_read" on storage.objects;
 create policy "asset_files_read"
   on storage.objects for select to authenticated
-  using (bucket_id = 'asset-files');
+  using (bucket_id = 'asset-files' and public.can_view());
 
 drop policy if exists "asset_files_upload" on storage.objects;
+-- Only into a real asset's folder, so the 1 GB of free storage cannot be
+-- filled with files that belong to nothing.
 create policy "asset_files_upload"
   on storage.objects for insert to authenticated
-  with check (bucket_id = 'asset-files');
+  with check (
+    bucket_id = 'asset-files'
+    and public.can_edit()
+    and exists (select 1 from public.assets a where a.id::text = (storage.foldername(name))[1])
+  );
 
 -- Removing a file: whoever added it, or an admin. A file with no record
 -- (an upload whose record never got saved) may be tidied up by anyone.
@@ -1093,9 +1517,11 @@ create policy "asset_files_delete"
   using (
     bucket_id = 'asset-files' and (
       public.is_admin()
-      or exists (select 1 from public.attachments a
-                 where a.storage_path = objects.name and a.uploaded_by = auth.uid())
-      or not exists (select 1 from public.attachments a where a.storage_path = objects.name)
+      or (public.can_edit() and (
+            exists (select 1 from public.attachments a
+                     where a.storage_path = objects.name and a.uploaded_by = auth.uid())
+            or not exists (select 1 from public.attachments a where a.storage_path = objects.name)
+         ))
     )
   );
 
@@ -1106,23 +1532,46 @@ create policy "asset_files_delete"
 --     email - so those choices can offer the whole team. Anonymous
 --     visitors get nothing.
 -- =====================================================================
-create or replace function public.team_members()
-returns table (id uuid, email text)
+-- The people who work on kit (editors and admins), for "cleaned by",
+-- "fixed by" and "wiped by". id is their sign-in account, once they have
+-- signed in at least once (repairs and wipes link to it); null before.
+drop function if exists public.team_members();
+create function public.team_members()
+returns table (id uuid, email text, full_name text, department text)
 language sql
 stable
 security definer
 set search_path = public, auth, pg_temp
 as $$
-  select u.id, u.email::text
-  from auth.users u
-  where auth.uid() is not null
-    and u.email is not null
-    and u.deleted_at is null
-  order by u.email;
+  select u.id, m.email, m.full_name, m.department
+    from public.members m
+    left join auth.users u on lower(u.email) = m.email and u.deleted_at is null
+   where public.can_view()
+     and m.active
+     and m.access in ('editor', 'admin')
+   order by coalesce(m.full_name, m.email);
 $$;
 
 revoke all on function public.team_members() from public, anon;
 grant execute on function public.team_members() to authenticated;
+
+-- Signing everyone out of one account at once: used after an admin resets
+-- someone's password, so a session on a lost laptop ends too. Only the
+-- admin-users Edge Function (service role) may call it.
+create or replace function public.revoke_sessions(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = auth, pg_temp
+as $$
+begin
+  delete from auth.sessions where user_id = p_user_id;
+  delete from auth.refresh_tokens where user_id::text = p_user_id::text;
+end;
+$$;
+
+revoke all on function public.revoke_sessions(uuid) from public, anon, authenticated;
+grant execute on function public.revoke_sessions(uuid) to service_role;
 
 
 -- =====================================================================

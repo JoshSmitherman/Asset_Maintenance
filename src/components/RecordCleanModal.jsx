@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
 import StatusBadge from './StatusBadge';
-import { CLEANERS, defaultIntervalFor } from '../lib/constants';
+import { defaultIntervalFor } from '../lib/constants';
+import CleanerSelect from './CleanerSelect';
+import { useTeam } from '../hooks/useTeam';
+import { useAuth } from '../context/AuthContext';
+import { displayName } from '../lib/access';
 import { previewNextCleanDue, statusFor } from '../lib/assetStatus';
 import { formatDate, isValidIsoDate, todayIso } from '../lib/dates';
 
@@ -11,11 +15,14 @@ import { formatDate, isValidIsoDate, todayIso } from '../lib/dates';
  * deliberately absent - those belong to the register, on the Assets page.
  */
 export default function RecordCleanModal({ asset, onSubmit, onClose }) {
+  const team = useTeam();
+  const { userEmail, userName } = useAuth();
   const [values, setValues] = useState(() => ({
     // A new clean is today's, by whoever does it. Pre-filling the last clean
     // meant pressing Save recorded nothing new.
     date_cleaned: todayIso(),
-    cleaned_by: '',
+    // Usually whoever is recording it did the clean.
+    cleaned_by: displayName({ email: userEmail, full_name: userName }),
     cleaning_interval_months: String(asset.cleaning_interval_months ?? defaultIntervalFor(asset.device_type)),
     notes: asset.notes ?? ''
   }));
@@ -124,16 +131,14 @@ export default function RecordCleanModal({ asset, onSubmit, onClose }) {
 
           <div className="field">
             <label className="field__label" htmlFor="rc_cleaned_by">Cleaned by</label>
-            <select
+            <CleanerSelect
               id="rc_cleaned_by"
-              className={`select${errors.cleaned_by ? ' input--error' : ''}`}
               value={values.cleaned_by}
-              onChange={(event) => setField('cleaned_by', event.target.value)}
+              team={team}
+              onChange={(next) => setField('cleaned_by', next)}
+              invalid={Boolean(errors.cleaned_by)}
               disabled={busy}
-            >
-              <option value="">— Not recorded —</option>
-              {CLEANERS.map((cleaner) => <option key={cleaner} value={cleaner}>{cleaner}</option>)}
-            </select>
+            />
             {errors.cleaned_by ? <span className="field__error">{errors.cleaned_by}</span> : null}
           </div>
 

@@ -1,5 +1,5 @@
 -- =====================================================================
--- Sample data for testing. Run AFTER schema.sql, in the Supabase SQL Editor.
+-- Sample data for testing. Run AFTER setup.sql, in the Supabase SQL Editor. Test projects only.
 -- Dates are relative to today, so the seed always produces a realistic mix of
 -- Overdue / Due Soon / OK / Never Cleaned rows whenever you run it.
 --

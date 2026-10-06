@@ -2,6 +2,8 @@ import { useAuth } from './context/AuthContext';
 import { isSupabaseConfigured } from './lib/supabaseClient';
 import AppShell from './components/AppShell';
 import LoginPage from './components/LoginPage';
+import AccessPending from './components/AccessPending';
+import { describeDatabaseError } from './lib/errors';
 
 function ConfigurationNotice() {
   return (
@@ -20,17 +22,43 @@ function ConfigurationNotice() {
   );
 }
 
+function Waiting({ children }) {
+  return (
+    <div className="login">
+      <p className="empty-state login__waiting" role="status">{children}</p>
+    </div>
+  );
+}
+
+function AccessCheckFailed({ error, onRetry, onSignOut }) {
+  return (
+    <div className="login">
+      <div className="login__card" role="alert">
+        <h1 className="login__title">Could not check your access</h1>
+        <p>{describeDatabaseError(error)}</p>
+        <button type="button" className="btn btn--primary btn--block" onClick={onRetry}>Try again</button>
+        <button type="button" className="link-button login__alt" onClick={onSignOut}>Sign out</button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const { session, initialising } = useAuth();
+  const { session, initialising, membership, refreshMembership, signOut } = useAuth();
 
   if (!isSupabaseConfigured) return <ConfigurationNotice />;
-  if (initialising) {
+  if (initialising) return <Waiting>Checking your session…</Waiting>;
+  if (!session) return <LoginPage />;
+  if (membership.status === 'loading') return <Waiting>Checking your access…</Waiting>;
+  if (membership.status === 'error') {
     return (
-      <div className="login">
-        <p className="empty-state">Checking your session…</p>
-      </div>
+      <AccessCheckFailed
+        error={membership.error}
+        onRetry={refreshMembership}
+        onSignOut={() => signOut().catch(() => {})}
+      />
     );
   }
-  if (!session) return <LoginPage />;
+  if (membership.status === 'none') return <AccessPending />;
   return <AppShell />;
 }

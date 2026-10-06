@@ -21,7 +21,7 @@ import ReleaseNotesPage from './ReleaseNotesPage';
 import { CURRENT_VERSION } from '../lib/releaseNotes';
 import { formatTimestamp } from '../lib/dates';
 import { versionFromSearch } from '../lib/releaseLinks';
-import { assetRefFromSearch, clearAssetFromAddress, findAssetByRef } from '../lib/assetLinks';
+import { assetRefFromSearch, clearAssetFromAddress, findAssetByRef, nextAssetRef } from '../lib/assetLinks';
 import { useAuth } from '../context/AuthContext';
 import TabStrip from './TabStrip';
 import Pagination from './Pagination';
@@ -43,7 +43,13 @@ import {
   uniqueDepartments,
   uniqueUsers
 } from '../lib/assetQueries';
-import { ATTENTION_STATUSES, isCleaningTracked } from '../lib/constants';
+import {
+  ATTENTION_STATUSES,
+  CLEANING_DEVICE_TYPES,
+  DEVICE_TYPES,
+  isCleaningTracked,
+  LEGACY_DEVICE_TYPES
+} from '../lib/constants';
 
 export default function AppShell() {
   const {
@@ -68,7 +74,10 @@ export default function AppShell() {
     assetRefExists
   } = useAssets();
 
-  const { isAdmin } = useAuth();
+  const { isAdmin, canEdit } = useAuth();
+  // View-only people see everything and change nothing: the buttons that
+  // would change something are left out (and the database refuses anyway).
+  const editHandler = (handler) => (canEdit ? handler : undefined);
   // A shared release link (?v=2.6.0) opens straight on the Release Notes.
   const [page, setPage] = useState(() => (versionFromSearch() ? 'releases' : 'dashboard'));
   // Which release notes this browser has opened, so the header can flag a
@@ -134,6 +143,17 @@ export default function AppShell() {
     }
   }, [loading, allAssets]);
 
+  // Enter in the search box (or a barcode scanner, which types the code and
+  // presses Enter): an exact Asset Ref opens that asset straight away.
+  const openByRef = (text) => {
+    const match = findAssetByRef(allAssets, text);
+    if (match) {
+      setDetailsTarget(match);
+    } else if (String(text ?? '').trim()) {
+      setToast({ tone: 'info', message: `No asset is exactly "${String(text).trim()}" - showing everything that matches instead.` });
+    }
+  };
+
   const detailsAsset = detailsTarget
     ? allAssets.find((asset) => asset.id === detailsTarget.id) ?? detailsTarget
     : null;
@@ -143,6 +163,24 @@ export default function AppShell() {
 
   const summary = useMemo(() => summariseAssets(assets), [assets]);
   const departments = useMemo(() => uniqueDepartments(assets), [assets]);
+  // The current types, plus any older type still on the register so its kit
+  // can be found.
+  const deviceTypeOptions = useMemo(() => {
+    const present = new Set(assets.map((asset) => asset.device_type));
+    return [...DEVICE_TYPES, ...LEGACY_DEVICE_TYPES.filter((type) => present.has(type))];
+  }, [assets]);
+  // Everyone who has cleaned something on the register, for the filter.
+  const cleanerNames = useMemo(
+    () =>
+      [...new Set(assets.map((asset) => asset.cleaned_by).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, 'en-GB', { sensitivity: 'base' })
+      ),
+    [assets]
+  );
+  const cleaningDeviceTypes = useMemo(() => {
+    const present = new Set(assets.map((asset) => asset.device_type));
+    return CLEANING_DEVICE_TYPES.filter((type) => type === 'Laptop' || present.has(type));
+  }, [assets]);
   const users = useMemo(() => uniqueUsers(assets), [assets]);
   const totalValue = useMemo(() => totalPurchaseValue(assets), [assets]);
   const kit = useMemo(() => kitSummary(assets), [assets]);
@@ -293,7 +331,10 @@ export default function AppShell() {
 
     // Identical kit: the same details under each reference in the batch.
     const refs = [values.asset_ref, ...extras].map((ref) => ref.trim());
-    await createAssets(refs.map((asset_ref) => ({ ...values, asset_ref })));
+    // A serial number belongs to one machine, so only the first keeps it.
+    await createAssets(
+      refs.map((asset_ref, index) => ({ ...values, asset_ref, serial_number: index === 0 ? values.serial_number : '' }))
+    );
     setFormState(null);
     setToast({ tone: 'success', message: `${refs.length} assets added: ${refs.join(', ')}.` });
   };
@@ -415,7 +456,7 @@ export default function AppShell() {
 
             <AttentionPanel
               assets={cleaningAssets}
-              onRecordClean={setCleaningTarget}
+              onRecordClean={editHandler(setCleaningTarget)}
               onOpenQueue={() => {
                 setFilters({ ...EMPTY_FILTERS });
                 setQueueScope('attention');
@@ -505,10 +546,15 @@ export default function AppShell() {
                   filters={filters}
                   onChange={onFiltersChange}
                   departments={departments}
+                  deviceTypes={cleaningDeviceTypes}
+                  cleaners={cleanerNames}
+                  onFindRef={openByRef}
+                  showOtherKit={false}
                   resultCount={visibleAssets.length}
                   totalCount={sourceAssets.length}
                 />
 
+                {canEdit ? (
                 <BulkActionBar
                   count={selected.length}
                   matchingCount={visibleAssets.length}
@@ -521,16 +567,17 @@ export default function AppShell() {
                   onRetire={() => setRetireTarget({ assets: selected, fromBulk: true })}
                   onDelete={isAdmin ? () => setBulkAction('delete') : undefined}
                 />
+                ) : null}
 
                 <AssetTable
                   assets={cleaningPager.pageItems}
                   sort={sort}
                   onSortChange={setSort}
                   variant="cleaning"
-                  onRecordClean={setCleaningTarget}
+                  onRecordClean={editHandler(setCleaningTarget)}
                   selectedIds={selectedIds}
-                  onToggleSelect={toggleSelect}
-                  onToggleSelectAll={toggleSelectAll}
+                  onToggleSelect={editHandler(toggleSelect)}
+                  onToggleSelectAll={editHandler(toggleSelectAll)}
                 />
                 <Pagination {...cleaningPager} label="the cleaning queue" />
               </>
@@ -547,19 +594,27 @@ export default function AppShell() {
                     Every device we own, with its user, location and purchase details.
                   </p>
                 </div>
-                <button type="button" className="btn btn--primary" onClick={() => setFormState({})}>
-                  + Add asset
-                </button>
+                {canEdit ? (
+                  <button type="button" className="btn btn--primary" onClick={() => setFormState({})}>
+                    + Add asset
+                  </button>
+                ) : (
+                  <span className="pill" title="You can see everything; ask an admin if you need to make changes.">View only</span>
+                )}
               </div>
 
               <AssetToolbar
                 filters={filters}
                 onChange={onFiltersChange}
                 departments={departments}
+                deviceTypes={deviceTypeOptions}
+                cleaners={cleanerNames}
+                onFindRef={openByRef}
                 resultCount={visibleAssets.length}
                 totalCount={sourceAssets.length}
               />
 
+              {canEdit ? (
               <BulkActionBar
                 count={selected.length}
                 matchingCount={visibleAssets.length}
@@ -572,6 +627,7 @@ export default function AppShell() {
                 onRetire={() => setRetireTarget({ assets: selected, fromBulk: true })}
                 onDelete={isAdmin ? () => setBulkAction('delete') : undefined}
               />
+              ) : null}
 
               <AssetTable
                 assets={assignedPager.pageItems}
@@ -580,8 +636,8 @@ export default function AppShell() {
                 variant="full"
                 onViewDetails={setDetailsTarget}
                 selectedIds={selectedIds}
-                onToggleSelect={toggleSelect}
-                onToggleSelectAll={toggleSelectAll}
+                onToggleSelect={editHandler(toggleSelect)}
+                onToggleSelectAll={editHandler(toggleSelectAll)}
               />
               <Pagination {...assignedPager} label="the asset register" />
             </section>
@@ -605,8 +661,8 @@ export default function AppShell() {
                 onViewDetails={setDetailsTarget}
                 emptyMessage="Nothing spare — every asset in this view has a user."
                 selectedIds={selectedIds}
-                onToggleSelect={toggleSelect}
-                onToggleSelectAll={toggleSelectAll}
+                onToggleSelect={editHandler(toggleSelect)}
+                onToggleSelectAll={editHandler(toggleSelectAll)}
               />
               <Pagination {...unassignedPager} label="the unassigned list" />
             </section>
@@ -637,6 +693,7 @@ export default function AppShell() {
           users={users}
           specOptions={specOptions}
           specMemory={specMemory}
+          suggestedRef={formState.asset ? null : nextAssetRef(allAssets)}
           onClose={() => {
             setFormState(null);
             backToDetails();
@@ -651,12 +708,13 @@ export default function AppShell() {
         <AssetDetailsModal
           asset={detailsAsset}
           isAdmin={isAdmin}
+          canEdit={canEdit}
           onToast={setToast}
           onClose={() => setDetailsTarget(null)}
-          onEdit={(asset) => openFromDetails(asset, (item) => setFormState({ asset: item }))}
+          onEdit={editHandler((asset) => openFromDetails(asset, (item) => setFormState({ asset: item })))}
           onDelete={isAdmin ? (asset) => openFromDetails(asset, setPendingDelete) : undefined}
-          onRecordClean={(asset) => openFromDetails(asset, setCleaningTarget)}
-          onRetire={(asset) => openFromDetails(asset, (item) => setRetireTarget({ assets: [item] }))}
+          onRecordClean={editHandler((asset) => openFromDetails(asset, setCleaningTarget))}
+          onRetire={editHandler((asset) => openFromDetails(asset, (item) => setRetireTarget({ assets: [item] })))}
           onRestore={handleRestore}
         />
       ) : null}

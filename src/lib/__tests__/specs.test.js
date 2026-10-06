@@ -36,8 +36,14 @@ describe('specsFor', () => {
     ]);
   });
 
-  it('gives everything else none at all', () => {
-    for (const type of ['Phone', 'Tablet', 'Printer', 'Docking Station', 'Peripheral', 'Other']) {
+  it('gives phones, cameras and other devices the specs that suit them', () => {
+    expect(specsFor('Phone')).toEqual(['spec_brand', 'spec_model', 'spec_storage']);
+    expect(specsFor('Camera')).toEqual(['spec_brand', 'spec_model', 'spec_resolution']);
+    expect(specsFor('Device')).toEqual(['spec_brand', 'spec_model']);
+  });
+
+  it('gives the older types without specs none at all', () => {
+    for (const type of ['Tablet', 'Printer', 'Docking Station', 'Peripheral', 'Other']) {
       expect(specsFor(type)).toEqual([]);
       expect(hasSpecs(type)).toBe(false);
     }
@@ -71,8 +77,12 @@ describe('specPayload', () => {
     expect(asDesktop.spec_screen_size).toBeNull();
     expect(asDesktop.spec_battery_type).toBeNull();
 
+    const asPrinter = specPayload('Printer', wasALaptop);
+    expect(Object.values(asPrinter).every((value) => value === null)).toBe(true);
+
     const asPhone = specPayload('Phone', wasALaptop);
-    expect(Object.values(asPhone).every((value) => value === null)).toBe(true);
+    expect(asPhone.spec_brand).toBe('Dell');
+    expect(asPhone.spec_battery_type).toBeNull();
   });
 });
 

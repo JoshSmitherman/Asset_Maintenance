@@ -1,4 +1,4 @@
-import { formatCurrency, isCleaningTracked, STATUS } from '../lib/constants';
+import { deviceTypeLabel, formatCurrency, isCleaningTracked, STATUS } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import StatusBadge from './StatusBadge';
 
@@ -158,7 +158,7 @@ export default function AssetTable({
                   <span className="note-flag" title={asset.notes} aria-label="Has notes">note</span>
                 ) : null}
               </td>
-              <td className={classOf('device_type')}>{asset.device_type}</td>
+              <td className={classOf('device_type')}>{deviceTypeLabel(asset.device_type)}</td>
               <td>
                 {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
               </td>
@@ -213,13 +213,15 @@ export default function AssetTable({
               ) : null}
               <td className="table__actions">
                 {variant === 'cleaning' ? (
-                  <button
-                    type="button"
-                    className="btn btn--small btn--brand-light"
-                    onClick={() => onRecordClean(asset)}
-                  >
-                    Record clean
-                  </button>
+                  onRecordClean ? (
+                    <button
+                      type="button"
+                      className="btn btn--small btn--brand-light"
+                      onClick={() => onRecordClean(asset)}
+                    >
+                      Record clean
+                    </button>
+                  ) : null
                 ) : (
                   <button
                     type="button"

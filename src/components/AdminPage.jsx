@@ -2,8 +2,20 @@ import { useCallback, useEffect, useState } from 'react';
 import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
 import ModelNameTidy from './ModelNameTidy';
+import { supabase } from '../lib/supabaseClient';
 import { callFunction } from '../lib/edgeFunctions';
 import { formatTimestamp } from '../lib/dates';
+import { describeDatabaseError } from '../lib/errors';
+import { useAuth } from '../context/AuthContext';
+import {
+  ACCESS_LEVELS,
+  accessLabel,
+  COMPANY_DOMAINS,
+  defaultAccessFor,
+  DEPARTMENTS,
+  displayName,
+  isCompanyEmail
+} from '../lib/access';
 
 const MIN_PASSWORD = 8;
 // No 0/O, 1/l/I: these get read out over the phone.
@@ -15,102 +27,236 @@ export function generatePassword(length = 12) {
   return Array.from(bytes, (value) => PASSWORD_CHARS[value % PASSWORD_CHARS.length]).join('');
 }
 
-const admin = (action, fields = {}) => callFunction('admin-users', { action, ...fields });
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-function PasswordField({ id, value, onChange, disabled }) {
+/** Who has access, and who is asking for it. */
+function usePeople() {
+  const [state, setState] = useState({ people: [], requests: [], loading: true, error: null });
+
+  const load = useCallback(async () => {
+    setState((current) => ({ ...current, loading: true }));
+    const [people, requests] = await Promise.all([
+      supabase.rpc('member_directory'),
+      supabase.from('access_requests').select('email, full_name, requested_at').order('requested_at')
+    ]);
+    const failure = people.error || requests.error;
+    setState({
+      people: people.data ?? [],
+      requests: requests.data ?? [],
+      loading: false,
+      error: failure ? describeDatabaseError(failure) : null
+    });
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return { ...state, reload: load };
+}
+
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
   return (
-    <div className="password-field">
-      <input
+    <button
+      type="button"
+      className="btn btn--ghost btn--small"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 2000);
+        } catch {
+          setCopied(false);
+        }
+      }}
+      disabled={!text}
+    >
+      {copied ? 'Copied ✓' : 'Copy'}
+    </button>
+  );
+}
+
+function AccessChoice({ id, value, onChange, disabled, lockedReason }) {
+  const chosen = ACCESS_LEVELS.find((level) => level.value === value);
+  return (
+    <div className="field">
+      <label className="field__label" htmlFor={id}>What they can do</label>
+      <select
         id={id}
-        className="input"
-        type="text"
-        autoComplete="new-password"
-        spellCheck={false}
+        className="select"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-      />
-      <button
-        type="button"
-        className="btn btn--ghost btn--small"
-        onClick={() => onChange(generatePassword())}
-        disabled={disabled}
+        disabled={disabled || Boolean(lockedReason)}
+        aria-describedby={`${id}_hint`}
       >
-        Generate
-      </button>
+        {ACCESS_LEVELS.map((level) => (
+          <option key={level.value} value={level.value}>{level.label}</option>
+        ))}
+      </select>
+      <span className="field__hint" id={`${id}_hint`}>{lockedReason ?? chosen?.description}</span>
     </div>
   );
 }
 
-function AddAccountModal({ onClose, onCreated }) {
-  const [values, setValues] = useState({ email: '', password: generatePassword(), role: 'user' });
-  const [error, setError] = useState(null);
+/** Adding someone, or changing what an existing person can do. */
+function PersonModal({ person, prefill, existingEmails, isSelf, onClose, onSaved }) {
+  const editing = Boolean(person);
+  const [values, setValues] = useState(() => ({
+    email: person?.email ?? prefill?.email ?? '',
+    full_name: person?.full_name ?? prefill?.full_name ?? '',
+    department: person?.department ?? '',
+    access: person?.access ?? 'viewer',
+    active: person?.active ?? true
+  }));
+  // Until someone picks a level by hand, it follows the department.
+  const [accessTouched, setAccessTouched] = useState(editing);
+  const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState(null);
   const [busy, setBusy] = useState(false);
-  const set = (field) => (value) => setValues((current) => ({ ...current, [field]: value }));
+
+  const set = (field, value) => {
+    setValues((current) => {
+      const next = { ...current, [field]: value };
+      if (field === 'department' && !accessTouched) next.access = defaultAccessFor(value);
+      return next;
+    });
+    setErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const validate = () => {
+    const next = {};
+    const email = values.email.trim().toLowerCase();
+    if (!editing) {
+      if (!email) next.email = 'Enter their work email address.';
+      else if (!EMAIL.test(email)) next.email = 'That is not an email address.';
+      else if (!isCompanyEmail(email)) {
+        next.email = `Only company addresses (${COMPANY_DOMAINS.map((d) => `@${d}`).join(', ')}) can be given access.`;
+      } else if (existingEmails.includes(email)) next.email = 'This person already has access.';
+    }
+    if (values.full_name.trim().length > 80) next.full_name = 'Keep the name to 80 characters.';
+    if (!DEPARTMENTS.includes(values.department)) next.department = 'Choose their department.';
+    return next;
+  };
 
   const submit = async (event) => {
     event.preventDefault();
-    if (!values.email.trim()) return setError('Enter their email address.');
-    if (values.password.length < MIN_PASSWORD) {
-      return setError(`The password must be at least ${MIN_PASSWORD} characters.`);
+    setSubmitError(null);
+    const next = validate();
+    setErrors(next);
+    if (Object.keys(next).length > 0) {
+      document.getElementById(`person_${Object.keys(next)[0]}`)?.focus();
+      return;
     }
     setBusy(true);
-    setError(null);
-    try {
-      await admin('create', { email: values.email.trim(), password: values.password, role: values.role });
-      onCreated(values);
-    } catch (caught) {
-      setError(caught.message);
+    const row = {
+      full_name: values.full_name.trim() || null,
+      department: values.department,
+      access: values.access,
+      active: values.active
+    };
+    const request = editing
+      ? supabase.from('members').update(row).eq('email', person.email).select('email')
+      : supabase.from('members').insert({ ...row, email: values.email.trim().toLowerCase() }).select('email');
+    const { data, error } = await request;
+    if (error || !data?.length) {
+      setSubmitError(error ? describeDatabaseError(error) : 'Nothing was saved. Reload the page and try again.');
       setBusy(false);
+      return;
     }
+    onSaved(values);
   };
 
   return (
     <Modal
-      title="Add an account"
-      description="They can sign in straight away, and change the password from the header."
+      title={editing ? `Edit ${displayName(person)}` : 'Give someone access'}
+      description={
+        editing
+          ? person.email
+          : 'They sign in with their Microsoft work account. Nothing is sent to them - let them know it is ready.'
+      }
       onClose={busy ? () => {} : onClose}
       size="sm"
     >
       <form onSubmit={submit} noValidate>
         <div className="modal__body form-grid form-grid--single">
+          {editing ? null : (
+            <div className="field">
+              <label className="field__label" htmlFor="person_email">Work email *</label>
+              <input
+                id="person_email"
+                className={`input${errors.email ? ' input--error' : ''}`}
+                type="email"
+                autoComplete="off"
+                placeholder={`name@${COMPANY_DOMAINS[0]}`}
+                value={values.email}
+                onChange={(event) => set('email', event.target.value)}
+                aria-invalid={errors.email ? true : undefined}
+                aria-describedby={errors.email ? 'person_email_error' : undefined}
+                disabled={busy}
+                autoFocus
+              />
+              {errors.email ? <span className="field__error" id="person_email_error">{errors.email}</span> : null}
+            </div>
+          )}
           <div className="field">
-            <label className="field__label" htmlFor="new_email">Email address</label>
+            <label className="field__label" htmlFor="person_full_name">Name</label>
             <input
-              id="new_email"
-              className="input"
-              type="email"
-              autoComplete="off"
-              value={values.email}
-              onChange={(event) => set('email')(event.target.value)}
+              id="person_full_name"
+              className={`input${errors.full_name ? ' input--error' : ''}`}
+              placeholder="Shown on cleans and repairs they record"
+              value={values.full_name}
+              onChange={(event) => set('full_name', event.target.value)}
+              maxLength={80}
               disabled={busy}
-              autoFocus
             />
+            {errors.full_name ? <span className="field__error">{errors.full_name}</span> : null}
           </div>
           <div className="field">
-            <label className="field__label" htmlFor="new_password">Temporary password</label>
-            <PasswordField id="new_password" value={values.password} onChange={set('password')} disabled={busy} />
-            <span className="field__hint">Copy it now - you will not be able to see it again.</span>
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor="new_role">Role</label>
+            <label className="field__label" htmlFor="person_department">Department *</label>
             <select
-              id="new_role"
-              className="select"
-              value={values.role}
-              onChange={(event) => set('role')(event.target.value)}
+              id="person_department"
+              className={`select${errors.department ? ' input--error' : ''}`}
+              value={values.department}
+              onChange={(event) => set('department', event.target.value)}
+              aria-invalid={errors.department ? true : undefined}
               disabled={busy}
             >
-              <option value="user">User - works with assets</option>
-              <option value="admin">Admin - can also manage accounts</option>
+              <option value="">— Choose —</option>
+              {DEPARTMENTS.map((department) => <option key={department} value={department}>{department}</option>)}
             </select>
+            {errors.department ? <span className="field__error">{errors.department}</span> : null}
           </div>
-          {error ? <p className="form-error" role="alert">{error}</p> : null}
+          <AccessChoice
+            id="person_access"
+            value={values.access}
+            onChange={(access) => {
+              setAccessTouched(true);
+              set('access', access);
+            }}
+            disabled={busy}
+            lockedReason={isSelf ? 'You cannot change your own access. Ask another admin.' : null}
+          />
+          {editing && !isSelf ? (
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={values.active}
+                onChange={(event) => set('active', event.target.checked)}
+                disabled={busy}
+              />
+              <span>
+                <strong>Access switched on</strong>
+                <span className="field__hint"> Untick to stop them using Orbit straight away, without forgetting them.</span>
+              </span>
+            </label>
+          ) : null}
+          {submitError ? <p className="form-error" role="alert">{submitError}</p> : null}
         </div>
         <footer className="modal__footer">
           <button type="button" className="btn btn--ghost" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className="btn btn--primary" disabled={busy}>
-            {busy ? 'Creating…' : 'Create account'}
+            {busy ? 'Saving…' : editing ? 'Save changes' : 'Give access'}
           </button>
         </footer>
       </form>
@@ -118,7 +264,8 @@ function AddAccountModal({ onClose, onCreated }) {
   );
 }
 
-function ResetPasswordModal({ account, onClose, onDone }) {
+/** For the few who cannot use Microsoft sign-in: an Orbit password. */
+function PasswordModal({ person, onClose, onDone }) {
   const [password, setPassword] = useState(generatePassword);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -126,13 +273,14 @@ function ResetPasswordModal({ account, onClose, onDone }) {
   const submit = async (event) => {
     event.preventDefault();
     if (password.length < MIN_PASSWORD) {
-      return setError(`The password must be at least ${MIN_PASSWORD} characters.`);
+      setError(`The password must be at least ${MIN_PASSWORD} characters.`);
+      return;
     }
     setBusy(true);
     setError(null);
     try {
-      await admin('reset_password', { user_id: account.id, password });
-      onDone();
+      const result = await callFunction('admin-users', { action: 'set_password', email: person.email, password });
+      onDone(result?.created);
     } catch (caught) {
       setError(caught.message);
       setBusy(false);
@@ -141,17 +289,37 @@ function ResetPasswordModal({ account, onClose, onDone }) {
 
   return (
     <Modal
-      title={`Reset password for ${account.email}`}
-      description="Their old password stops working immediately."
+      title={`Password for ${displayName(person)}`}
+      description="Only for someone who cannot sign in with Microsoft. Any old password stops working, and they are signed out everywhere."
       onClose={busy ? () => {} : onClose}
       size="sm"
     >
       <form onSubmit={submit} noValidate>
         <div className="modal__body form-grid form-grid--single">
           <div className="field">
-            <label className="field__label" htmlFor="reset_password">New password</label>
-            <PasswordField id="reset_password" value={password} onChange={setPassword} disabled={busy} />
-            <span className="field__hint">Copy it now and pass it on - it is not shown again.</span>
+            <label className="field__label" htmlFor="set_password">New password</label>
+            <div className="password-field">
+              <input
+                id="set_password"
+                className="input"
+                type="text"
+                autoComplete="new-password"
+                spellCheck={false}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                disabled={busy}
+              />
+              <CopyButton text={password} />
+              <button
+                type="button"
+                className="btn btn--ghost btn--small"
+                onClick={() => setPassword(generatePassword())}
+                disabled={busy}
+              >
+                New
+              </button>
+            </div>
+            <span className="field__hint">Copy it now and give it to them in person - it is not shown again.</span>
           </div>
           {error ? <p className="form-error" role="alert">{error}</p> : null}
         </div>
@@ -167,169 +335,218 @@ function ResetPasswordModal({ account, onClose, onDone }) {
 }
 
 /**
- * Admin only: who can sign in, and who can manage everyone else. Accounts
- * live in Supabase Auth; this page drives them through the admin-users Edge
- * Function, which re-checks that the caller is an admin every time.
+ * Admin only: who can use Orbit, their department, and what they can do.
+ * People sign in with Microsoft; an admin decides whether they get in.
  */
 export default function AdminPage({ onToast, specMemory = {}, onMergeModels }) {
-  const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [adding, setAdding] = useState(false);
-  const [resetting, setResetting] = useState(null);
+  const { userEmail } = useAuth();
+  const me = userEmail.toLowerCase();
+  const { people, requests, loading, error, reload } = usePeople();
+  const [editing, setEditing] = useState(null); // { person } | { prefill } | null
+  const [passwordFor, setPasswordFor] = useState(null);
   const [removing, setRemoving] = useState(null);
-  const [savingRole, setSavingRole] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { users } = await admin('list');
-      setAccounts(users ?? []);
-      setError(null);
-    } catch (caught) {
-      setError(caught.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const changeRole = async (account, role) => {
-    setSavingRole(account.id);
-    try {
-      await admin('set_role', { user_id: account.id, role });
-      setAccounts((current) => current.map((item) => (item.id === account.id ? { ...item, role } : item)));
-      onToast({ tone: 'success', message: `${account.email} is now ${role === 'admin' ? 'an admin' : 'a user'}.` });
-    } catch (caught) {
-      onToast({ tone: 'error', message: caught.message });
-    } finally {
-      setSavingRole(null);
-    }
+  const dismissRequest = async (request) => {
+    const { error: deleteError } = await supabase.from('access_requests').delete().eq('email', request.email);
+    if (deleteError) onToast({ tone: 'error', message: describeDatabaseError(deleteError) });
+    else onToast({ tone: 'success', message: `Request from ${request.email} dismissed.` });
+    reload();
   };
+
+  const counts = ACCESS_LEVELS.map((level) => ({
+    ...level,
+    count: people.filter((person) => person.active && person.access === level.value).length
+  }));
 
   return (
     <>
-    <section className="card">
-      <div className="card__header">
-        <div>
-          <h2 className="card__title">Accounts</h2>
-          <p className="card__subtitle">
-            Everyone who can sign in. Users work with assets; admins can also add and remove accounts.
-          </p>
-        </div>
-        <button type="button" className="btn btn--primary" onClick={() => setAdding(true)}>
-          + Add account
-        </button>
-      </div>
+      {requests.length > 0 ? (
+        <section className="card card--attention" aria-labelledby="requests-title">
+          <div className="card__header">
+            <div>
+              <h2 className="card__title" id="requests-title">
+                Waiting for access <span className="pill pill--overdue">{requests.length}</span>
+              </h2>
+              <p className="card__subtitle">Signed in with a company account and asked to use Orbit.</p>
+            </div>
+          </div>
+          <ul className="request-list">
+            {requests.map((request) => (
+              <li key={request.email} className="request-list__item">
+                <div>
+                  <strong>{request.full_name || displayName({ email: request.email })}</strong>
+                  <span className="cell-muted"> {request.email} · asked {formatTimestamp(request.requested_at)}</span>
+                </div>
+                <div className="request-list__actions">
+                  <button type="button" className="btn btn--ghost btn--small" onClick={() => dismissRequest(request)}>
+                    Dismiss
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--primary btn--small"
+                    onClick={() => setEditing({ prefill: request })}
+                  >
+                    Let in…
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
-      {error ? (
-        <div className="alert alert--error" role="alert">
-          <span>{error}</span>
-          <button type="button" className="btn btn--small" onClick={load}>Retry</button>
+      <section className="card">
+        <div className="card__header">
+          <div>
+            <h2 className="card__title">People &amp; access</h2>
+            <p className="card__subtitle">
+              Only people listed here can use Orbit, and only with company accounts.{' '}
+              {counts.map((level) => `${level.count} ${level.label.toLowerCase()}`).join(' · ')}
+            </p>
+          </div>
+          <button type="button" className="btn btn--primary" onClick={() => setEditing({})}>
+            + Give someone access
+          </button>
         </div>
-      ) : loading ? (
-        <p className="empty-state">Loading accounts…</p>
-      ) : (
-        <div className="table-scroll">
-          <table className="table">
-            <thead>
-              <tr>
-                <th scope="col">Email</th>
-                <th scope="col">Role</th>
-                <th scope="col" className="col-hide-sm">Added</th>
-                <th scope="col" className="col-hide-sm">Last signed in</th>
-                <th scope="col" className="table__actions-head">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.map((account) => (
-                <tr key={account.id}>
-                  <td className="cell-strong">
-                    {account.email}
-                    {account.is_you ? <span className="pill pill--inline">You</span> : null}
-                  </td>
-                  <td>
-                    <label className="sr-only" htmlFor={`role-${account.id}`}>Role for {account.email}</label>
-                    <select
-                      id={`role-${account.id}`}
-                      className="select select--compact"
-                      value={account.role}
-                      onChange={(event) => changeRole(account, event.target.value)}
-                      disabled={savingRole === account.id}
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </td>
-                  <td className="col-hide-sm">{formatTimestamp(account.created_at)}</td>
-                  <td className="col-hide-sm">
-                    {account.last_sign_in_at ? formatTimestamp(account.last_sign_in_at) : <span className="cell-muted">Never</span>}
-                  </td>
-                  <td className="table__actions">
-                    <button type="button" className="btn btn--ghost btn--small" onClick={() => setResetting(account)}>
-                      Reset password
-                    </button>{' '}
-                    <button
-                      type="button"
-                      className="btn btn--danger-ghost btn--small"
-                      onClick={() => setRemoving(account)}
-                      disabled={account.is_you}
-                      title={account.is_you ? 'You cannot remove your own account' : undefined}
-                    >
-                      Remove
-                    </button>
-                  </td>
+
+        {error ? (
+          <div className="alert alert--error" role="alert">
+            <span>{error}</span>
+            <button type="button" className="btn btn--small" onClick={reload}>Retry</button>
+          </div>
+        ) : loading && people.length === 0 ? (
+          <p className="empty-state" role="status">Loading people…</p>
+        ) : (
+          <div className="table-scroll">
+            <table className="table table--people">
+              <thead>
+                <tr>
+                  <th scope="col">Person</th>
+                  <th scope="col">Department</th>
+                  <th scope="col">Access</th>
+                  <th scope="col" className="col-hide-sm">Last signed in</th>
+                  <th scope="col" className="table__actions-head">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {people.map((person) => {
+                  const isSelf = person.email === me;
+                  return (
+                    <tr key={person.email} className={person.active ? undefined : 'row--inactive'}>
+                      <td>
+                        <span className="cell-strong">{displayName(person)}</span>
+                        {isSelf ? <span className="pill pill--inline">You</span> : null}
+                        <span className="cell-sub">{person.email}</span>
+                      </td>
+                      <td>{person.department}</td>
+                      <td>
+                        {person.active ? (
+                          <span className={`access-badge access-badge--${person.access}`}>{accessLabel(person.access)}</span>
+                        ) : (
+                          <span className="access-badge access-badge--off">Switched off</span>
+                        )}
+                      </td>
+                      <td className="col-hide-sm">
+                        {person.last_sign_in_at ? (
+                          formatTimestamp(person.last_sign_in_at)
+                        ) : (
+                          <span className="cell-muted">Not yet</span>
+                        )}
+                      </td>
+                      <td className="table__actions">
+                        <div className="table__action-group">
+                          <button type="button" className="btn btn--ghost btn--small" onClick={() => setEditing({ person })}>
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--small"
+                            onClick={() => setPasswordFor(person)}
+                            title="Only for someone who cannot sign in with Microsoft"
+                          >
+                            Password…
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--danger-ghost btn--small"
+                            onClick={() => setRemoving(person)}
+                            disabled={isSelf}
+                            title={isSelf ? 'You cannot remove yourself' : undefined}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
-      {adding ? (
-        <AddAccountModal
-          onClose={() => setAdding(false)}
-          onCreated={(values) => {
-            setAdding(false);
-            onToast({ tone: 'success', message: `Account created for ${values.email.trim()}.` });
-            load();
+      {editing ? (
+        <PersonModal
+          person={editing.person}
+          prefill={editing.prefill}
+          existingEmails={people.map((person) => person.email)}
+          isSelf={editing.person?.email === me}
+          onClose={() => setEditing(null)}
+          onSaved={(values) => {
+            const who = values.full_name.trim() || values.email || editing.person?.email;
+            onToast({
+              tone: 'success',
+              message: editing.person
+                ? `${who} updated.`
+                : `${who} can now sign in with Microsoft (${accessLabel(values.access).toLowerCase()}).`
+            });
+            setEditing(null);
+            reload();
           }}
         />
       ) : null}
 
-      {resetting ? (
-        <ResetPasswordModal
-          account={resetting}
-          onClose={() => setResetting(null)}
-          onDone={() => {
-            onToast({ tone: 'success', message: `New password set for ${resetting.email}.` });
-            setResetting(null);
+      {passwordFor ? (
+        <PasswordModal
+          person={passwordFor}
+          onClose={() => setPasswordFor(null)}
+          onDone={(created) => {
+            onToast({
+              tone: 'success',
+              message: created
+                ? `Password sign-in created for ${displayName(passwordFor)}.`
+                : `New password set for ${displayName(passwordFor)}. They have been signed out everywhere.`
+            });
+            setPasswordFor(null);
+            reload();
           }}
         />
       ) : null}
 
       {removing ? (
         <ConfirmDialog
-          title="Remove account"
-          message={`Remove ${removing.email}? They will no longer be able to sign in. Assets and history they recorded are kept.`}
-          confirmLabel="Remove account"
+          title={`Remove ${displayName(removing)}`}
+          message={`${removing.email} will no longer be able to use Orbit, from now. Assets, cleans and repairs they recorded are kept. To stop them for a while instead, use Edit and switch their access off.`}
+          confirmLabel="Remove access"
           onConfirm={async () => {
-            await admin('remove', { user_id: removing.id });
-            onToast({ tone: 'success', message: `${removing.email} removed.` });
+            // A password sign-in, if they had one, goes first (the function only
+            // acts for people still on the list). Best effort: once they are
+            // off the list, a sign-in opens nothing anyway.
+            await callFunction('admin-users', { action: 'remove_login', email: removing.email }).catch(() => {});
+            const { error: deleteError } = await supabase.from('members').delete().eq('email', removing.email);
+            if (deleteError) throw new Error(describeDatabaseError(deleteError));
+            onToast({ tone: 'success', message: `${displayName(removing)} no longer has access.` });
             setRemoving(null);
-            load();
+            reload();
           }}
           onCancel={() => setRemoving(null)}
         />
       ) : null}
-    </section>
 
-    {onMergeModels ? (
-      <ModelNameTidy specMemory={specMemory} onMerge={onMergeModels} onToast={onToast} />
-    ) : null}
+      {onMergeModels ? (
+        <ModelNameTidy specMemory={specMemory} onMerge={onMergeModels} onToast={onToast} />
+      ) : null}
     </>
   );
 }

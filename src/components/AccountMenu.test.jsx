@@ -5,7 +5,16 @@ import AccountMenu from './AccountMenu';
 
 function setup(props = {}) {
   const handlers = { onChangePassword: vi.fn(), onSignOut: vi.fn() };
-  render(<AccountMenu email="bruce.baldomero@adaro.net" isAdmin {...handlers} {...props} />);
+  render(
+    <AccountMenu
+      email="bruce.baldomero@adaro.net"
+      department="Technical Support"
+      access="admin"
+      isAdmin
+      {...handlers}
+      {...props}
+    />
+  );
   return handlers;
 }
 
@@ -21,7 +30,7 @@ describe('AccountMenu', () => {
     const menu = screen.getByRole('menu');
     expect(menu).toHaveTextContent('Bruce Baldomero');
     expect(menu).toHaveTextContent('bruce.baldomero@adaro.net');
-    expect(menu).toHaveTextContent('Admin');
+    expect(menu).toHaveTextContent('Technical Support · Admin');
     // Focus moves into the menu, ready for the keyboard.
     expect(screen.getByRole('menuitem', { name: /change password/i })).toHaveFocus();
   });
@@ -43,11 +52,19 @@ describe('AccountMenu', () => {
 
   it('closes on Escape and hands focus back to the badge', async () => {
     const user = userEvent.setup();
-    setup({ isAdmin: false });
+    setup({ isAdmin: false, access: 'viewer', department: 'Finance' });
     await user.click(screen.getByRole('button', { name: /account/i }));
-    expect(screen.getByRole('menu')).toHaveTextContent('User');
+    expect(screen.getByRole('menu')).toHaveTextContent('Finance · View only');
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /account/i })).toHaveFocus();
+  });
+
+  it('has no Change password for a Microsoft sign-in', async () => {
+    const user = userEvent.setup();
+    setup({ hasPassword: false });
+    await user.click(screen.getByRole('button', { name: /account/i }));
+    expect(screen.queryByRole('menuitem', { name: /change password/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /sign out/i })).toHaveFocus();
   });
 });

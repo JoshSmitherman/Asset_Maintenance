@@ -1,21 +1,25 @@
-// admin-users: the Admin page's back end.
+// admin-users: the password side of the Admin page.
 //
-// Creating, removing and resetting accounts needs Supabase's service-role
-// key, which must never reach a browser. This function holds it (Supabase
-// provides SUPABASE_SERVICE_ROLE_KEY to every Edge Function automatically),
-// checks that whoever called it is an admin in public.user_roles, and only
-// then acts.
+// Who may use Orbit, their department and access level live in the
+// public.members table, which admins change directly (row-level security
+// lets only them). Microsoft sign-in needs nothing more. This function is
+// only for the few people who sign in with an email and password instead:
+// creating or resetting that password, and removing the sign-in, need
+// Supabase's service-role key, which must never reach a browser.
 //
-// Deploy: Supabase Dashboard -> Edge Functions -> Deploy a new function ->
-// Via editor, name it "admin-users", paste this file, Deploy. Or, with the
-// Supabase CLI: supabase functions deploy admin-users. See README.md.
+// It checks, every time, that the caller is an active admin on the members
+// list, and only then acts.
+//
+// Deploy: Supabase Dashboard -> Edge Functions -> admin-users (or "Deploy a
+// new function" -> Via editor, name it "admin-users") -> paste this file ->
+// Deploy. Or, with the Supabase CLI: supabase functions deploy admin-users.
 //
 // Every request is a POST with a JSON body { action, ... }:
-//   list                                   -> { users: [...] }
-//   create        { email, password, role } -> { user }
-//   set_role      { user_id, role }
-//   reset_password { user_id, password }
-//   remove        { user_id }
+//   set_password  { email, password } -> creates their sign-in if they have
+//                                        none, else changes the password and
+//                                        signs them out everywhere
+//   remove_login  { email }           -> deletes their sign-in account (their
+//                                        access is removed on the members list)
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -25,8 +29,8 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
-const ROLES = ['admin', 'user'];
 const MIN_PASSWORD = 8;
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 function reply(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -42,7 +46,7 @@ Deno.serve(async (req) => {
     return await handle(req);
   } catch (caught) {
     console.error(caught);
-    return fail(500, 'Something went wrong managing accounts. Try again.');
+    return fail(500, 'Something went wrong. Try again.');
   }
 });
 
@@ -58,17 +62,17 @@ async function handle(req: Request): Promise<Response> {
   const authHeader = req.headers.get('Authorization') ?? '';
   const asCaller = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
   const { data: who, error: whoError } = await asCaller.auth.getUser();
-  if (whoError || !who?.user) return fail(401, 'Sign in again.');
-  const callerId = who.user.id;
+  if (whoError || !who?.user?.email) return fail(401, 'Sign in again.');
+  const callerEmail = who.user.email.toLowerCase();
 
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
-  const { data: callerRole } = await admin
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', callerId)
+  const { data: caller } = await admin
+    .from('members')
+    .select('access, active')
+    .eq('email', callerEmail)
     .maybeSingle();
-  if (callerRole?.role !== 'admin') return fail(403, 'Only admins can manage accounts.');
+  if (caller?.access !== 'admin' || !caller.active) return fail(403, 'Only admins can manage sign-ins.');
 
   let body: Record<string, unknown>;
   try {
@@ -77,103 +81,66 @@ async function handle(req: Request): Promise<Response> {
     return fail(400, 'Send a JSON body.');
   }
 
-  const adminCount = async () => {
-    const { count } = await admin
-      .from('user_roles')
-      .select('user_id', { count: 'exact', head: true })
-      .eq('role', 'admin');
-    return count ?? 0;
-  };
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  if (!EMAIL.test(email)) return fail(400, 'Enter a valid email address.');
 
-  const isLastAdmin = async (userId: string) => {
-    const { data } = await admin.from('user_roles').select('role').eq('user_id', userId).maybeSingle();
-    return data?.role === 'admin' && (await adminCount()) <= 1;
-  };
+  // Only people already given access may have a sign-in made for them.
+  const { data: member } = await admin.from('members').select('email').eq('email', email).maybeSingle();
+  if (!member) return fail(404, `${email} has not been given access yet. Add them first.`);
 
-  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const userId = typeof body.user_id === 'string' && UUID.test(body.user_id) ? body.user_id : '';
-  const password = typeof body.password === 'string' ? body.password : '';
-  const role = typeof body.role === 'string' ? body.role : 'user';
+  const existing = await findUser(admin, email);
 
   switch (body.action) {
-    case 'list': {
-      const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
-      if (error) return fail(500, error.message);
-      const { data: roles } = await admin.from('user_roles').select('user_id, role');
-      const roleOf = new Map((roles ?? []).map((row) => [row.user_id, row.role]));
-      const users = data.users
-        .map((user) => ({
-          id: user.id,
-          email: user.email ?? '',
-          role: roleOf.get(user.id) ?? 'user',
-          created_at: user.created_at,
-          last_sign_in_at: user.last_sign_in_at ?? null,
-          is_you: user.id === callerId
-        }))
-        .sort((a, b) => a.email.localeCompare(b.email));
-      return reply(200, { users });
-    }
-
-    case 'create': {
-      const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail(400, 'Enter a valid email address.');
+    case 'set_password': {
+      const password = typeof body.password === 'string' ? body.password : '';
       if (password.length < MIN_PASSWORD) {
         return fail(400, `The password must be at least ${MIN_PASSWORD} characters.`);
       }
-      if (!ROLES.includes(role)) return fail(400, 'Role must be admin or user.');
-
-      const { data, error } = await admin.auth.admin.createUser({
-        email,
-        password,
-        // Admin-made accounts are trusted: no confirmation email to wait for.
-        email_confirm: true
-      });
+      if (!existing) {
+        const { error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+        if (error) {
+          console.error(error);
+          return fail(400, /company accounts|database error/i.test(error.message)
+            ? 'Only company email addresses can have a sign-in.'
+            : 'Could not create the sign-in. Check the address and try again.');
+        }
+        return reply(200, { created: true });
+      }
+      const { error } = await admin.auth.admin.updateUserById(existing.id, { password });
       if (error) {
-        const taken = /already|registered|exists/i.test(error.message);
-        return fail(taken ? 409 : 400, taken ? `${email} already has an account.` : error.message);
+        console.error(error);
+        return fail(400, 'Could not change the password. Try a longer one.');
       }
-      const { error: roleError } = await admin
-        .from('user_roles')
-        .upsert({ user_id: data.user.id, role }, { onConflict: 'user_id' });
-      if (roleError) return fail(500, roleError.message);
-      return reply(200, { user: { id: data.user.id, email, role } });
+      // A reset is often because a laptop went missing: end every session.
+      const { error: revokeError } = await admin.rpc('revoke_sessions', { p_user_id: existing.id });
+      if (revokeError) console.error(revokeError);
+      return reply(200, { created: false });
     }
 
-    case 'set_role': {
-      if (!userId) return fail(400, 'Which account?');
-      if (!ROLES.includes(role)) return fail(400, 'Role must be admin or user.');
-      if (role === 'user' && (await isLastAdmin(userId))) {
-        return fail(409, 'There must always be at least one admin.');
+    case 'remove_login': {
+      if (email === callerEmail) return fail(409, 'You cannot remove your own sign-in.');
+      if (!existing) return reply(200, { removed: false });
+      const { error } = await admin.auth.admin.deleteUser(existing.id);
+      if (error) {
+        console.error(error);
+        return fail(400, 'Could not remove the sign-in. Try again.');
       }
-      const { error } = await admin
-        .from('user_roles')
-        .upsert({ user_id: userId, role }, { onConflict: 'user_id' });
-      if (error) return fail(500, error.message);
-      return reply(200, { ok: true });
-    }
-
-    case 'reset_password': {
-      if (!userId) return fail(400, 'Which account?');
-      if (password.length < MIN_PASSWORD) {
-        return fail(400, `The password must be at least ${MIN_PASSWORD} characters.`);
-      }
-      const { error } = await admin.auth.admin.updateUserById(userId, { password });
-      if (error) return fail(400, error.message);
-      return reply(200, { ok: true });
-    }
-
-    case 'remove': {
-      if (!userId) return fail(400, 'Which account?');
-      if (userId === callerId) return fail(409, 'You cannot remove your own account.');
-      if (await isLastAdmin(userId)) return fail(409, 'There must always be at least one admin.');
-      // The role row goes with the account (on delete cascade). Assets they
-      // edited keep their history: updated_by is set to null, emails stay.
-      const { error } = await admin.auth.admin.deleteUser(userId);
-      if (error) return fail(400, error.message);
-      return reply(200, { ok: true });
+      return reply(200, { removed: true });
     }
 
     default:
       return fail(400, 'Unknown action.');
   }
+}
+
+/** The sign-in account for an email, if there is one. */
+async function findUser(admin: ReturnType<typeof createClient>, email: string) {
+  for (let page = 1; page <= 50; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    const found = data.users.find((user) => user.email?.toLowerCase() === email);
+    if (found) return found;
+    if (data.users.length < 1000) return null;
+  }
+  return null;
 }

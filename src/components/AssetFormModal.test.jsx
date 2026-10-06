@@ -4,6 +4,13 @@ import userEvent from '@testing-library/user-event';
 import AssetFormModal from './AssetFormModal';
 import { todayIso, addMonthsIso } from '../lib/dates';
 
+vi.mock('../hooks/useTeam', () => ({
+  useTeam: () => [
+    { id: 'u1', email: 'al.lee@adaro.net', full_name: 'Al Lee' },
+    { id: 'u2', email: 'bea.bond@adaro.net', full_name: null }
+  ]
+}));
+
 function setup(overrides = {}) {
   const onSubmit = vi.fn().mockResolvedValue(undefined);
   const onClose = vi.fn();
@@ -72,7 +79,7 @@ describe('AssetFormModal validation', () => {
     await user.clear(dateInput);
     // type="date" inputs accept an ISO value directly
     await user.type(dateInput, future);
-    await user.selectOptions(screen.getByLabelText(/cleaned by/i), 'AL');
+    await user.selectOptions(screen.getByLabelText(/cleaned by/i), 'Al Lee');
     await user.click(screen.getByRole('button', { name: /add asset/i }));
     expect(screen.getByText(/date cleaned cannot be in the future/i)).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
@@ -112,7 +119,7 @@ describe('AssetFormModal validation', () => {
     });
   });
 
-  it('offers the specification tab only to computers and monitors', async () => {
+  it('shows the specs that suit each device type', async () => {
     const user = userEvent.setup();
     setup();
     // Laptop is the default.
@@ -125,9 +132,23 @@ describe('AssetFormModal validation', () => {
 
     // Device Type lives on the details tab, so go back before changing it.
     await user.click(screen.getByRole('tab', { name: /details/i }));
-    await user.selectOptions(screen.getByLabelText(/device type/i), 'Printer');
-    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/asset ref/i)).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText(/device type/i), 'Camera');
+    await user.click(screen.getByRole('tab', { name: /specification/i }));
+    expect(screen.getByLabelText(/brand/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/hdmi ports/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/processor/i)).not.toBeInTheDocument();
+  });
+
+  it('only offers the current device types to a new asset', () => {
+    setup();
+    const options = [...screen.getByLabelText(/device type/i).querySelectorAll('option')].map((o) => o.value);
+    expect(options).toEqual(['Laptop', 'Phone', 'Monitor', 'Camera', 'Device']);
+  });
+
+  it('keeps an older type on an asset that already has it', () => {
+    setup({ asset: { id: 'd1', asset_ref: 'DSK-1', device_type: 'Desktop', department: 'IT', version: 1 } });
+    expect(screen.getByLabelText(/device type/i)).toHaveValue('Desktop');
+    expect(screen.getByRole('option', { name: /older type/i })).toBeInTheDocument();
   });
 
   it('opens the tab an error is hiding on', async () => {
@@ -198,12 +219,12 @@ describe('AssetFormModal validation', () => {
 });
 
 describe('AssetFormModal cleaning defaults', () => {
-  it('starts a laptop on 12 months and moves to 6 when switched to a desktop', async () => {
+  it('starts a laptop on 12 months, and drops cleaning for kit that is not cleaned', async () => {
     const user = userEvent.setup();
     setup();
     expect(screen.getByLabelText(/cleaning interval/i)).toHaveValue(12);
-    await user.selectOptions(screen.getByLabelText(/device type/i), 'Desktop');
-    expect(screen.getByLabelText(/cleaning interval/i)).toHaveValue(6);
+    await user.selectOptions(screen.getByLabelText(/device type/i), 'Phone');
+    expect(screen.queryByLabelText(/cleaning interval/i)).not.toBeInTheDocument();
   });
 
   it('keeps an interval someone typed when the type changes', async () => {
@@ -212,7 +233,8 @@ describe('AssetFormModal cleaning defaults', () => {
     const interval = screen.getByLabelText(/cleaning interval/i);
     await user.clear(interval);
     await user.type(interval, '3');
-    await user.selectOptions(screen.getByLabelText(/device type/i), 'Desktop');
+    await user.selectOptions(screen.getByLabelText(/device type/i), 'Phone');
+    await user.selectOptions(screen.getByLabelText(/device type/i), 'Laptop');
     expect(screen.getByLabelText(/cleaning interval/i)).toHaveValue(3);
   });
 
@@ -222,6 +244,16 @@ describe('AssetFormModal cleaning defaults', () => {
     await user.type(screen.getByLabelText(/purchase date/i), todayIso());
     expect(screen.getByText(/first clean is due a year after purchase/i)).toBeInTheDocument();
     expect(screen.queryByText('No clean recorded')).not.toBeInTheDocument();
+  });
+});
+
+describe('AssetFormModal cleaners', () => {
+  it('offers the team by name, plus older initials already on the record', () => {
+    setup({ asset: { id: 'a9', asset_ref: 'LAP-9', device_type: 'Laptop', department: 'IT', version: 1,
+      date_cleaned: '2026-01-02', cleaned_by: 'TM', cleaning_interval_months: 12 } });
+    const options = [...screen.getByLabelText(/cleaned by/i).querySelectorAll('option')].map((o) => o.textContent);
+    expect(options).toEqual(['— Not recorded —', 'TM', 'Al Lee', 'Bea Bond']);
+    expect(screen.getByLabelText(/cleaned by/i)).toHaveValue('TM');
   });
 });
 

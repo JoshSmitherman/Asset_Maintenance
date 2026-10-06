@@ -1,0 +1,92 @@
+name: Backup
+
+# Every night: a full copy of the database (structure, data and roles), and a
+# visit that keeps the Supabase Free project from pausing after a week of
+# quiet. Free plan projects have no backups of their own that you can
+# download, so this is the copy to restore from if anything goes wrong.
+#
+# The copy is encrypted before it is stored, because this repository is
+# public: the file can be downloaded by anyone, but only opened with the
+# passphrase. Kept for 30 days.
+#
+# Needs two repository secrets (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_DB_URL     Supabase -> Connect -> "Session pooler" connection
+#                       string, with the database password filled in.
+#   BACKUP_PASSPHRASE   A long passphrase. Store it in the team's password
+#                       manager - without it the backups cannot be opened.
+# Without them the job only keeps the project awake, and says so.
+#
+# To restore, see "Backups" in the README.
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+    steps:
+      - name: Keep the project awake
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::warning::No VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY secrets; cannot keep the project awake."
+            exit 0
+          fi
+          # Any API request counts as activity. Signed out, it sees nothing.
+          curl -sS -o /dev/null -w "Supabase answered %{http_code}\n" \
+            "$VITE_SUPABASE_URL/rest/v1/assets?select=id&limit=1" \
+            -H "apikey: $VITE_SUPABASE_ANON_KEY" || true
+
+      - name: Check backup settings
+        id: check
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::warning title=No backup taken::Add the SUPABASE_DB_URL and BACKUP_PASSPHRASE secrets to turn on nightly backups."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: supabase/setup-cli@v1
+        if: steps.check.outputs.ready == 'true'
+        with:
+          version: latest
+
+      - name: Dump the database
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          mkdir backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/roles.sql --role-only
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/data.sql --use-copy --data-only
+          ls -l backup
+
+      - name: Encrypt
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y-%m-%d)"
+          tar -czf "orbit-backup-$stamp.tar.gz" backup
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" \
+            --symmetric --cipher-algo AES256 -o "orbit-backup-$stamp.tar.gz.gpg" "orbit-backup-$stamp.tar.gz"
+          rm -rf backup "orbit-backup-$stamp.tar.gz"
+          echo "STAMP=$stamp" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.check.outputs.ready == 'true'
+        with:
+          name: orbit-backup-${{ env.STAMP }}
+          path: orbit-backup-*.tar.gz.gpg
+          retention-days: 30
+          if-no-files-found: error

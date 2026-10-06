@@ -1,18 +1,28 @@
 // Reference data shared by the UI. These lists mirror the CHECK constraints in
-// supabase/schema.sql and supabase/migration-001-asset-management.sql - change
-// both together.
+// supabase/setup.sql - change both together.
 
-export const DEVICE_TYPES = [
-  'Laptop',
-  'Desktop',
-  'Monitor',
-  'Docking Station',
-  'Phone',
-  'Tablet',
-  'Printer',
-  'Peripheral',
-  'Other'
-];
+/** The kinds of asset that can be added. */
+export const DEVICE_TYPES = ['Laptop', 'Phone', 'Monitor', 'Camera', 'Device'];
+
+/**
+ * Types from before the list was narrowed. Assets already recorded with one
+ * keep it (nothing is changed behind anyone's back) and can be moved to a
+ * current type when edited, but new assets cannot use them.
+ */
+export const LEGACY_DEVICE_TYPES = ['Desktop', 'Docking Station', 'Tablet', 'Printer', 'Peripheral', 'Other'];
+
+export const ALL_DEVICE_TYPES = [...DEVICE_TYPES, ...LEGACY_DEVICE_TYPES];
+
+const DEVICE_TYPE_LABELS = { Camera: 'Camera (UniFi)', Device: 'Other device' };
+
+/** How a device type is shown: "Camera (UniFi)" for the stored "Camera". */
+export function deviceTypeLabel(type) {
+  return DEVICE_TYPE_LABELS[type] ?? type;
+}
+
+export function isLegacyDeviceType(type) {
+  return LEGACY_DEVICE_TYPES.includes(type);
+}
 
 /**
  * Cleaning is derived from device type rather than a per-asset switch: add a
@@ -28,13 +38,11 @@ export function isCleaningTracked(deviceType) {
 export const LOCATIONS = ['Remote', 'Hybrid', 'Office', 'Warehouse'];
 
 /** The kit the dashboard counts on its own; everything else is grouped as
- *  "Peripherals & other". */
-export const MAIN_KIT_TYPES = ['Laptop', 'Desktop', 'Monitor'];
+ *  "Other devices". */
+export const MAIN_KIT_TYPES = ['Laptop', 'Phone', 'Monitor', 'Camera'];
 
 /** Device-type filter value for everything outside MAIN_KIT_TYPES. */
 export const OTHER_KIT_FILTER = '__other';
-
-export const CLEANERS = ['AL', 'BB', 'JS', 'RC', 'TM'];
 
 export const DEFAULT_CLEANING_INTERVAL_MONTHS = 6;
 

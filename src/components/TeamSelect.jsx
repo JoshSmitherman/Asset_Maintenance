@@ -1,12 +1,14 @@
-import { displayNameFromEmail } from '../lib/accountName';
+import { displayName } from '../lib/access';
 
 /**
  * Picks a person from the team, shown by name with their email alongside so
- * two people with similar names cannot be confused.
+ * two people with similar names cannot be confused. Only people who have
+ * signed in at least once can be chosen: the record links to their account.
  */
 export default function TeamSelect({ id, value, team, onChange, disabled, invalid }) {
+  const choosable = team.filter((member) => member.id);
   // Someone recorded before their account was removed still shows.
-  const known = team.some((member) => member.id === value);
+  const known = choosable.some((member) => member.id === value);
 
   return (
     <select
@@ -15,11 +17,13 @@ export default function TeamSelect({ id, value, team, onChange, disabled, invali
       value={value ?? ''}
       onChange={(event) => onChange(event.target.value || null)}
       disabled={disabled}
+      aria-invalid={invalid ? true : undefined}
     >
       {!known && value ? <option value={value}>(account removed)</option> : null}
-      {team.map((member) => (
+      {!value ? <option value="">— Choose —</option> : null}
+      {choosable.map((member) => (
         <option key={member.id} value={member.id}>
-          {displayNameFromEmail(member.email)} — {member.email}
+          {displayName(member)} — {member.email}
         </option>
       ))}
     </select>

@@ -15,7 +15,10 @@ function matchesSearch(asset, term) {
   if (!term) return true;
   const needle = term.trim().toLowerCase();
   if (!needle) return true;
-  return [asset.asset_ref, asset.owner_name, asset.department, asset.location, asset.notes, asset.cleaned_by]
+  return [
+    asset.asset_ref, asset.serial_number, asset.owner_name, asset.department, asset.location,
+    asset.notes, asset.cleaned_by, asset.spec_model
+  ]
     .filter(Boolean)
     .some((field) => String(field).toLowerCase().includes(needle));
 }

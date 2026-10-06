@@ -1,4 +1,13 @@
 -- =====================================================================
+-- HISTORY ONLY - DO NOT RUN.
+-- This is how an older version of the database was built. Running it now
+-- would undo security added since (it re-opens deleting to everyone and
+-- drops checks). supabase/setup.sql is the whole, current database: run
+-- that instead. The line below stops this file if it is run by mistake.
+-- =====================================================================
+do $$ begin raise exception 'This file is history - run supabase/setup.sql instead.'; end $$;
+
+-- =====================================================================
 -- Orbit (IT asset management) - database schema
 -- Run this ONCE in the Supabase SQL Editor (Dashboard -> SQL Editor -> New query).
 -- Safe to re-run: every statement is idempotent.

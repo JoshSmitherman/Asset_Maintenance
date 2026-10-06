@@ -13,12 +13,14 @@ const assets = [
 ];
 
 describe('kitSummary', () => {
-  it('counts and values laptops, desktops and monitors, and gathers the rest', () => {
+  it('counts and values laptops, phones, monitors and cameras, and gathers the rest', () => {
     const kit = kitSummary(assets);
     expect(kit.Laptop).toEqual({ count: 2, value: 1700 });
-    expect(kit.Desktop).toEqual({ count: 1, value: 650 });
+    expect(kit.Phone).toEqual({ count: 1, value: 0 });
     expect(kit.Monitor).toEqual({ count: 1, value: 200 });
-    expect(kit.other).toEqual({ count: 2, value: 150 });
+    expect(kit.Camera).toEqual({ count: 0, value: 0 });
+    // A dock and a desktop: older types, counted with other devices.
+    expect(kit.other).toEqual({ count: 2, value: 800 });
   });
 });
 
@@ -34,9 +36,9 @@ describe('purchasesByMonth', () => {
   });
 });
 
-describe('the Peripherals & other filter', () => {
-  it('keeps everything that is not a laptop, desktop or monitor', () => {
+describe('the Other devices filter', () => {
+  it('keeps everything that is not a laptop, phone, monitor or camera', () => {
     const shown = filterAssets(assets, { ...EMPTY_FILTERS, deviceType: OTHER_KIT_FILTER });
-    expect(shown.map((asset) => asset.device_type)).toEqual(['Docking Station', 'Phone']);
+    expect(shown.map((asset) => asset.device_type)).toEqual(['Docking Station', 'Desktop']);
   });
 });

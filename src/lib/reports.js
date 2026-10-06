@@ -1,4 +1,4 @@
-import { formatCurrency, isCleaningTracked, STATUS } from './constants';
+import { deviceTypeLabel, formatCurrency, isCleaningTracked, STATUS } from './constants';
 import { formatDate, formatMonth, monthBoundsIso, parseIsoDate, todayIso } from './dates';
 import { displayNameFromEmail } from './accountName';
 import { CLEANING_CSV_COLUMNS, REGISTER_CSV_COLUMNS } from './assetCsv';
@@ -99,7 +99,7 @@ export const REPORTS = [
     description: 'The shape of the fleet: how many laptops, desktops, monitors and everything else.',
     build: ({ assets }) => ({
       columns: GROUP_COLUMNS('Device type'),
-      rows: groupBy(assets, (asset) => asset.device_type)
+      rows: groupBy(assets, (asset) => deviceTypeLabel(asset.device_type))
     })
   },
   {

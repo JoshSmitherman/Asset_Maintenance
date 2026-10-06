@@ -6,7 +6,7 @@ test.describe('Orbit — end to end (mocked Supabase)', () => {
     await mockSupabase(page);
     await page.goto('/');
     await expect(page.getByRole('heading', { name: /^orbit$/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /sign in with microsoft/i })).toBeVisible();
   });
 
   test('signs in and lists assets with their computed status', async ({ page }) => {
@@ -85,13 +85,47 @@ test.describe('Orbit — end to end (mocked Supabase)', () => {
     await expect(dialog.getByText('Cleaned by AL')).toBeVisible();
   });
 
-  test('only an admin sees the Admin page and its accounts', async ({ page }) => {
-    await mockSupabase(page, { role: 'admin' });
+  test('only an admin sees the Admin page, and can give someone access', async ({ page }) => {
+    const state = await mockSupabase(page, { role: 'admin' });
     await page.goto('/');
     await signIn(page);
     const nav = page.getByRole('navigation', { name: /sections/i });
     await nav.getByRole('button', { name: 'Admin' }).click();
-    await expect(page.getByRole('cell', { name: 'colleague@example.com', exact: true })).toBeVisible();
+    await expect(page.getByText('colleague@adaro.net')).toBeVisible();
+
+    await page.getByRole('button', { name: /give someone access/i }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel(/work email/i).fill('new.starter@adaro.net');
+    await dialog.getByLabel(/department/i).selectOption('Finance');
+    await expect(dialog.getByLabel(/what they can do/i)).toHaveValue('viewer');
+    await dialog.getByRole('button', { name: /^give access$/i }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(state.memberWrites[0]).toMatchObject({
+      method: 'POST',
+      body: { email: 'new.starter@adaro.net', department: 'Finance', access: 'viewer' }
+    });
+  });
+
+  test('a company account without access can ask for it, and sees nothing else', async ({ page }) => {
+    const state = await mockSupabase(page, { role: 'none' });
+    await page.goto('/');
+    await signIn(page);
+    await expect(page.getByRole('heading', { name: /you need access to orbit/i })).toBeVisible();
+    await expect(page.getByText('LAP-001')).toHaveCount(0);
+    await page.getByRole('button', { name: /ask for access/i }).click();
+    await expect(page.getByRole('heading', { name: /access requested/i })).toBeVisible();
+    expect(state.requests).toHaveLength(1);
+  });
+
+  test('view-only access shows the register with nothing to change it', async ({ page }) => {
+    await mockSupabase(page, { role: 'viewer' });
+    await page.goto('/');
+    await signIn(page);
+    const nav = page.getByRole('navigation', { name: /sections/i });
+    await nav.getByRole('button', { name: /^assets/i }).click();
+    await expect(page.getByText('LAP-001')).toBeVisible();
+    await expect(page.getByRole('button', { name: /add asset/i })).toHaveCount(0);
+    await expect(nav.getByRole('button', { name: 'Admin' })).toHaveCount(0);
   });
 
   test('a plain user has no Admin page', async ({ page }) => {

@@ -6,7 +6,7 @@ import { ATTACHMENTS_BUCKET } from '../lib/attachments';
 import { fetchAll } from '../lib/fetchAll';
 
 const COLUMNS =
-  'id, asset_id, repaired_on, fault, parts, total_cost, fixed_by, fixed_by_email, notes, created_at, created_by_email, updated_at, updated_by_email';
+  'id, asset_id, repaired_on, fault, parts, total_cost, fixed_by, fixed_by_email, notes, version, created_at, created_by_email, updated_at, updated_by_email';
 
 /**
  * Repairs, newest first: one asset's, for its Repairs tab, or every asset's,
@@ -52,13 +52,31 @@ export function useRepairs({ assetId = null, enabled }) {
   const saveRepair = useCallback(
     async (values, existing = null) => {
       const payload = repairPayload(values);
-      const request = existing
-        ? supabase.from('repairs').update(payload).eq('id', existing.id)
-        : supabase.from('repairs').insert({ ...payload, asset_id: assetId });
-      const { data, error } = await request.select('id').single();
+      if (!existing) {
+        const { data, error } = await supabase
+          .from('repairs')
+          .insert({ ...payload, asset_id: assetId })
+          .select('id')
+          .single();
+        if (error) throw new Error(describeDatabaseError(error));
+        await load();
+        return data;
+      }
+      // Only matches while the repair is still as this browser last read it.
+      const { data, error } = await supabase
+        .from('repairs')
+        .update(payload)
+        .eq('id', existing.id)
+        .eq('version', existing.version)
+        .select('id');
       if (error) throw new Error(describeDatabaseError(error));
       await load();
-      return data;
+      if (!data || data.length === 0) {
+        throw new Error(
+          'Someone else changed this repair while you were editing it. It has been reloaded - please make your change again.'
+        );
+      }
+      return data[0];
     },
     [assetId, load]
   );

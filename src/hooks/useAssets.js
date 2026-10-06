@@ -37,6 +37,7 @@ function toWritePayload(values) {
     location: values.location || null,
     purchase_cost: cost === '' ? null : Number(cost),
     purchase_date: values.purchase_date || null,
+    serial_number: values.serial_number?.trim() ? values.serial_number.trim() : null,
     date_cleaned: hasCleanRecord ? values.date_cleaned : null,
     cleaned_by: hasCleanRecord ? values.cleaned_by : null,
     cleaning_interval_months: Number(values.cleaning_interval_months),

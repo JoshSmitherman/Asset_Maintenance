@@ -4,7 +4,7 @@
  * Only computers and monitors carry specs; everything else in the register is
  * inventory-only and shows no specification tab at all. Keys are the column
  * names in public.assets, so nothing has to be mapped on the way to the
- * database - see supabase/migration-003-device-specs.sql.
+ * database - see supabase/setup.sql.
  *
  * "suggestions" seed the dropdowns. They are not a closed list: whatever is
  * already recorded against other assets is offered too, and "Add new" takes
@@ -84,7 +84,10 @@ const SPECS_BY_DEVICE_TYPE = {
     'spec_screen_size', 'spec_battery_type', 'spec_charger_type'
   ],
   Desktop: ['spec_brand', 'spec_model', 'spec_processor', 'spec_ram', 'spec_storage'],
-  Monitor: ['spec_brand', 'spec_model', 'spec_screen_size', 'spec_resolution', 'spec_hdmi_ports', 'spec_dp_ports']
+  Monitor: ['spec_brand', 'spec_model', 'spec_screen_size', 'spec_resolution', 'spec_hdmi_ports', 'spec_dp_ports'],
+  Phone: ['spec_brand', 'spec_model', 'spec_storage'],
+  Camera: ['spec_brand', 'spec_model', 'spec_resolution'],
+  Device: ['spec_brand', 'spec_model']
 };
 
 /** The spec columns that apply to a device type, in the order they are shown. */

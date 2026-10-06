@@ -16,7 +16,7 @@ export function fakeJwt(overrides = {}) {
   const header = { alg: 'HS256', typ: 'JWT' };
   const payload = {
     sub: 'user-123',
-    email: 'tech@example.com',
+    email: 'tech@adaro.net',
     role: 'authenticated',
     aud: 'authenticated',
     exp: Math.floor(Date.now() / 1000) + 3600,
@@ -28,7 +28,7 @@ export function fakeJwt(overrides = {}) {
 
 export const USER = {
   id: 'user-123',
-  email: 'tech@example.com',
+  email: 'tech@adaro.net',
   role: 'authenticated',
   aud: 'authenticated',
   app_metadata: { provider: 'email' },
@@ -43,7 +43,7 @@ export function seedAssets() {
       department: 'IT', location: 'Office', date_cleaned: '2026-01-01', cleaned_by: 'AL',
       notes: null, cleaning_interval_months: 6, next_clean_due: '2026-07-01', version: 1,
       purchase_cost: 899, purchase_date: '2025-01-01', created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z', updated_by_email: 'tech@example.com',
+      updated_at: '2026-01-01T00:00:00Z', updated_by_email: 'tech@adaro.net',
       status: 'Overdue', days_until_due: -74
     },
     {
@@ -52,7 +52,7 @@ export function seedAssets() {
       notes: 'awaiting first clean', cleaning_interval_months: 6, next_clean_due: null,
       version: 1, purchase_cost: 650, purchase_date: '2025-06-01',
       created_at: '2026-02-01T00:00:00Z', updated_at: '2026-02-01T00:00:00Z',
-      updated_by_email: 'tech@example.com', status: 'Never Cleaned', days_until_due: null
+      updated_by_email: 'tech@adaro.net', status: 'Never Cleaned', days_until_due: null
     }
   ];
 }
@@ -65,28 +65,31 @@ export function seedEvents() {
     {
       id: 'ev1', asset_id: 'a1', event_type: 'created',
       details: { owner: 'Alice', department: 'IT', location: 'Office' },
-      happened_at: '2025-01-05T09:00:00Z', actor_email: 'tech@example.com'
+      happened_at: '2025-01-05T09:00:00Z', actor_email: 'tech@adaro.net'
     },
     {
       id: 'ev2', asset_id: 'a1', event_type: 'owner', old_value: 'Alice', new_value: 'Carol',
-      happened_at: '2025-08-01T09:00:00Z', actor_email: 'tech@example.com'
+      happened_at: '2025-08-01T09:00:00Z', actor_email: 'tech@adaro.net'
     },
     {
       id: 'ev3', asset_id: 'a1', event_type: 'location', old_value: 'Office', new_value: 'Remote',
-      happened_at: '2025-08-01T09:00:00Z', actor_email: 'tech@example.com'
+      happened_at: '2025-08-01T09:00:00Z', actor_email: 'tech@adaro.net'
     },
     {
       id: 'ev4', asset_id: 'a1', event_type: 'owner', old_value: 'Carol', new_value: 'Alice',
-      happened_at: '2026-03-01T09:00:00Z', actor_email: 'tech@example.com'
+      happened_at: '2026-03-01T09:00:00Z', actor_email: 'tech@adaro.net'
     }
   ];
 }
 
 /** The team, as public.team_members() returns it. */
 export const TEAM = [
-  { id: 'user-456', email: 'colleague@example.com' },
-  { id: 'user-123', email: 'tech@example.com' }
+  { id: 'user-456', email: 'colleague@adaro.net', full_name: 'Colleague', department: 'Technical Support' },
+  { id: 'user-123', email: 'tech@adaro.net', full_name: null, department: 'Technical Support' }
 ];
+
+/** role: 'admin', 'user' (an editor), 'viewer', or 'none' (signed in, not a member). */
+const ACCESS_FOR_ROLE = { admin: 'admin', user: 'editor', editor: 'editor', viewer: 'viewer' };
 
 /** PostgREST filters arrive as "eq.a1" or "in.(a1,a2)". */
 function idsFrom(value) {
@@ -97,7 +100,19 @@ function idsFrom(value) {
 }
 
 export async function mockSupabase(page, { assets = seedAssets(), events = seedEvents(), role = 'user' } = {}) {
-  const state = { assets: [...assets], inserted: [], repairs: [], attachments: [], uploads: [] };
+  const state = {
+    assets: [...assets], inserted: [], repairs: [], attachments: [], uploads: [],
+    members: [
+      { email: USER.email, full_name: null, department: 'Technical Support',
+        access: ACCESS_FOR_ROLE[role] ?? null, active: true, last_sign_in_at: '2026-10-05T08:00:00Z', has_account: true },
+      { email: 'colleague@adaro.net', full_name: 'Colleague', department: 'Customer Service',
+        access: 'viewer', active: true, last_sign_in_at: null, has_account: false }
+    ].filter((member) => member.access),
+    requests: [],
+    memberWrites: []
+  };
+  // One row (maybeSingle/single) or a list, as PostgREST would answer.
+  const wantsObject = (req) => (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
 
   await page.route('https://stub.supabase.co/**', async (route) => {
     const req = route.request();
@@ -245,21 +260,52 @@ export async function mockSupabase(page, { assets = seedAssets(), events = seedE
       const cleans = [{ id: 'c1', asset_id: 'a1', cleaned_on: '2026-01-01', cleaned_by: 'AL' }];
       return json(200, id ? cleans.filter((clean) => clean.asset_id === id) : cleans);
     }
-    if (url.pathname === '/rest/v1/user_roles') {
-      return json(200, role ? [{ user_id: USER.id, role }] : []);
+    // --- People and access ---
+    if (url.pathname === '/rest/v1/members') {
+      const email = url.searchParams.get('email')?.replace(/^eq\./, '');
+      if (method === 'GET') {
+        const rows = state.members.filter((member) => !email || member.email === email);
+        if (wantsObject(req)) return rows.length ? json(200, rows[0]) : json(406, { code: 'PGRST116', message: 'no rows' });
+        return json(200, rows);
+      }
+      if (role !== 'admin') return json(403, { code: '42501', message: 'new row violates row-level security policy' });
+      const body = method === 'DELETE' ? null : JSON.parse(req.postData() || '{}');
+      state.memberWrites.push({ method, email, body });
+      if (method === 'POST') {
+        state.members.push({ active: true, last_sign_in_at: null, has_account: false, ...body });
+        return json(201, [{ email: body.email }]);
+      }
+      if (method === 'PATCH') {
+        state.members = state.members.map((member) => (member.email === email ? { ...member, ...body } : member));
+        return json(200, [{ email }]);
+      }
+      if (method === 'DELETE') {
+        state.members = state.members.filter((member) => member.email !== email);
+        return json(200, [{ email }]);
+      }
+    }
+    if (url.pathname === '/rest/v1/access_requests') {
+      const email = url.searchParams.get('email')?.replace(/^eq\./, '');
+      if (method === 'DELETE') {
+        state.requests = state.requests.filter((request) => request.email !== email);
+        return json(200, []);
+      }
+      const rows = role === 'admin' ? state.requests : state.requests.filter((request) => request.email === email);
+      if (wantsObject(req)) return rows.length ? json(200, rows[0]) : json(406, { code: 'PGRST116', message: 'no rows' });
+      return json(200, rows);
+    }
+    if (url.pathname === '/rest/v1/rpc/request_access') {
+      state.requests.push({ email: USER.email, full_name: 'Tech', requested_at: new Date().toISOString() });
+      return json(200, 'requested');
+    }
+    if (url.pathname === '/rest/v1/rpc/member_directory') {
+      return json(200, role === 'admin' ? state.members : []);
     }
 
     // --- Edge Functions ---
     if (url.pathname === '/functions/v1/admin-users') {
-      if (role !== 'admin') return json(403, { error: 'Only admins can manage accounts.' });
-      return json(200, {
-        users: [
-          { id: USER.id, email: USER.email, role: 'admin', created_at: '2026-01-01T00:00:00Z',
-            last_sign_in_at: '2026-10-05T08:00:00Z', is_you: true },
-          { id: 'user-456', email: 'colleague@example.com', role: 'user', created_at: '2026-03-01T00:00:00Z',
-            last_sign_in_at: null, is_you: false }
-        ]
-      });
+      if (role !== 'admin') return json(403, { error: 'Only admins can manage sign-ins.' });
+      return json(200, { created: true });
     }
 
     // Anything else the client probes for (settings, etc.)
@@ -281,8 +327,10 @@ export async function gotoAssets(page) {
   await page.getByRole('button', { name: /add asset/i }).waitFor();
 }
 
+/** Signs in with an email and password (the fallback to Microsoft sign-in). */
 export async function signIn(page) {
-  await page.getByLabel(/email address/i).fill('tech@example.com');
+  await page.getByRole('button', { name: /email and password instead/i }).click();
+  await page.getByLabel(/email address/i).fill('tech@adaro.net');
   await page.getByLabel(/^password$/i).fill('correct-horse');
-  await page.getByRole('button', { name: /sign in/i }).click();
+  await page.getByRole('button', { name: /^sign in$/i }).click();
 }

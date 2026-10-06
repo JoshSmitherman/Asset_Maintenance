@@ -29,3 +29,35 @@ export function findAssetByRef(assets, assetRef) {
   const wanted = String(assetRef ?? '').trim().toUpperCase();
   return assets.find((asset) => String(asset.asset_ref).trim().toUpperCase() === wanted) ?? null;
 }
+
+/**
+ * The next free reference in the register's main series: with AST-0221 and
+ * AST-0222 in use, AST-0223. The series is whichever prefix most assets use,
+ * keeping its zero padding. Null when there is no such series yet.
+ */
+export function nextAssetRef(assets) {
+  const series = new Map();
+  for (const asset of assets) {
+    const match = /^([A-Za-z]+-)(\d+)$/.exec(String(asset.asset_ref ?? '').trim());
+    if (!match) continue;
+    const prefix = match[1].toUpperCase();
+    const entry = series.get(prefix) ?? { count: 0, max: 0, width: 0 };
+    entry.count += 1;
+    entry.max = Math.max(entry.max, Number(match[2]));
+    entry.width = Math.max(entry.width, match[2].length);
+    series.set(prefix, entry);
+  }
+  let best = null;
+  for (const [prefix, entry] of series) {
+    if (!best || entry.count > best.entry.count) best = { prefix, entry };
+  }
+  if (!best) return null;
+  const taken = new Set(assets.map((asset) => String(asset.asset_ref ?? '').trim().toUpperCase()));
+  let next = best.entry.max + 1;
+  let ref = `${best.prefix}${String(next).padStart(best.entry.width, '0')}`;
+  while (taken.has(ref)) {
+    next += 1;
+    ref = `${best.prefix}${String(next).padStart(best.entry.width, '0')}`;
+  }
+  return ref;
+}

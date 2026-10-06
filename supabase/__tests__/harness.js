@@ -46,11 +46,29 @@ export async function freshDatabase() {
 
 /** Acts as a signed-in account: auth.uid() and auth.jwt() answer for them. */
 export async function signInAs(db, { id, email }) {
+  await signOut(db);
   await db.query(`insert into auth.users (id, email) values ($1, $2) on conflict (id) do nothing`, [id, email]);
   await db.query(`select set_config('request.uid', $1, false), set_config('request.jwt', $2, false)`, [
     id,
     JSON.stringify({ sub: id, email, role: 'authenticated' })
   ]);
+}
+
+/** Nobody signed in: how the SQL Editor runs. */
+export async function signOut(db) {
+  await db.query(`select set_config('request.uid', '', false), set_config('request.jwt', '', false)`);
+}
+
+/** Puts someone on the members list, as the SQL Editor would. */
+export async function addMember(db, { email, access = 'editor', department = 'Technical Support', full_name = null }) {
+  const uid = (await db.query(`select current_setting('request.uid', true) as uid, current_setting('request.jwt', true) as jwt`)).rows[0];
+  await signOut(db);
+  await db.query(
+    `insert into public.members (email, access, department, full_name) values ($1, $2, $3, $4)
+     on conflict (email) do update set access = excluded.access, department = excluded.department, active = true`,
+    [email, access, department, full_name]
+  );
+  await db.query(`select set_config('request.uid', $1, false), set_config('request.jwt', $2, false)`, [uid.uid ?? '', uid.jwt ?? '']);
 }
 
 /** Runs one statement as the authenticated role, so row-level security applies. */

@@ -69,9 +69,11 @@ export default function AttentionPanel({ assets, onRecordClean, onOpenQueue }) {
                   </td>
                   <td><StatusBadge status={asset.status} /></td>
                   <td className="table__actions">
-                    <button type="button" className="btn btn--small btn--brand-light" onClick={() => onRecordClean(asset)}>
-                      Record clean
-                    </button>
+                    {onRecordClean ? (
+                      <button type="button" className="btn btn--small btn--brand-light" onClick={() => onRecordClean(asset)}>
+                        Record clean
+                      </button>
+                    ) : null}
                   </td>
                 </tr>
               ))}

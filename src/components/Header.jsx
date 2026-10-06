@@ -8,7 +8,7 @@ import { formatTimestamp } from '../lib/dates';
 import { CURRENT_VERSION } from '../lib/releaseNotes';
 
 export default function Header({ lastSyncedAt, connectionError = false, onOpenReleaseNotes, hasUnseenRelease = false }) {
-  const { userEmail, isAdmin, signOut } = useAuth();
+  const { userEmail, userName, department, access, isAdmin, hasPassword, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [toast, setToast] = useState(null);
@@ -61,7 +61,11 @@ export default function Header({ lastSyncedAt, connectionError = false, onOpenRe
 
         <AccountMenu
           email={userEmail}
+          fullName={userName}
+          department={department}
+          access={access}
           isAdmin={isAdmin}
+          hasPassword={hasPassword}
           onChangePassword={() => setChangingPassword(true)}
           onSignOut={handleSignOut}
           signingOut={signingOut}

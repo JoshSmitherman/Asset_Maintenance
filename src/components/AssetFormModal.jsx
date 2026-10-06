@@ -3,9 +3,12 @@ import Modal from './Modal';
 import TabStrip from './TabStrip';
 import ComboSelect from './ComboSelect';
 import StatusBadge from './StatusBadge';
+import CleanerSelect from './CleanerSelect';
+import { useTeam } from '../hooks/useTeam';
 import {
-  CLEANERS,
   DEVICE_TYPES,
+  deviceTypeLabel,
+  isLegacyDeviceType,
   defaultIntervalFor,
   isCleaningTracked,
   LOCATIONS
@@ -46,6 +49,7 @@ function blankValues(prefill = {}) {
     department: '',
     location: '',
     purchase_cost: '',
+    serial_number: '',
     purchase_date: '',
     date_cleaned: '',
     cleaned_by: '',
@@ -65,6 +69,7 @@ function valuesFromAsset(asset, prefill = {}) {
     department: asset.department ?? '',
     location: asset.location ?? '',
     purchase_cost: asset.purchase_cost ?? '',
+    serial_number: asset.serial_number ?? '',
     purchase_date: asset.purchase_date ?? '',
     date_cleaned: asset.date_cleaned ?? '',
     cleaned_by: asset.cleaned_by ?? '',
@@ -79,6 +84,7 @@ function refError(ref, { assetRefExists, others }) {
   const text = ref.trim();
   if (!text) return 'Asset Ref is required.';
   if (text.length > 40) return 'Asset Ref must be 40 characters or fewer.';
+  if (!REF_PATTERN.test(text)) return REF_HELP;
   if (assetRefExists(text, null)) return 'Another asset already uses this Asset Ref.';
   if (others.filter((other) => other.trim().toUpperCase() === text.toUpperCase()).length > 1) {
     return 'This Asset Ref is repeated in this batch.';
@@ -86,7 +92,11 @@ function refError(ref, { assetRefExists, others }) {
   return null;
 }
 
-function validate(values, { assetRefExists, ignoreId }) {
+// Letters, numbers and simple separators, as printed on a barcode: AST-0222.
+const REF_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._/-]*$/;
+const REF_HELP = 'Use letters, numbers and dashes, like AST-0222.';
+
+function validate(values, { assetRefExists, ignoreId, originalType = null }) {
   const errors = {};
   const today = todayIso();
   const tracked = isCleaningTracked(values.device_type);
@@ -95,6 +105,8 @@ function validate(values, { assetRefExists, ignoreId }) {
     errors.asset_ref = 'Asset Ref is required.';
   } else if (values.asset_ref.trim().length > 40) {
     errors.asset_ref = 'Asset Ref must be 40 characters or fewer.';
+  } else if (!REF_PATTERN.test(values.asset_ref.trim())) {
+    errors.asset_ref = REF_HELP;
   } else if (assetRefExists(values.asset_ref, ignoreId)) {
     errors.asset_ref = 'Another asset already uses this Asset Ref.';
   }
@@ -111,7 +123,8 @@ function validate(values, { assetRefExists, ignoreId }) {
     if (first) errors.asset_ref = first;
   }
 
-  if (!DEVICE_TYPES.includes(values.device_type)) {
+  // An older type is only allowed on an asset that already has it.
+  if (!DEVICE_TYPES.includes(values.device_type) && values.device_type !== originalType) {
     errors.device_type = 'Choose a device type.';
   }
   if (!values.department.trim()) {
@@ -129,6 +142,9 @@ function validate(values, { assetRefExists, ignoreId }) {
   } else if (values.purchase_date && values.purchase_date < '1990-01-01') {
     errors.purchase_date = 'Check the purchase date - it is before 1990.';
   }
+
+  const serial = String(values.serial_number ?? '').trim();
+  if (serial.length > 60) errors.serial_number = 'Serial number must be 60 characters or fewer.';
 
   const costText = String(values.purchase_cost ?? '').trim();
   if (costText) {
@@ -185,9 +201,11 @@ export default function AssetFormModal({
   departments = [],
   users = [],
   specOptions = {},
-  specMemory = {}
+  specMemory = {},
+  suggestedRef = null
 }) {
   const isEditing = Boolean(asset);
+  const team = useTeam();
   const [tab, setTab] = useState('details');
   const [values, setValues] = useState(() =>
     isEditing ? valuesFromAsset(asset, prefill) : blankValues(prefill)
@@ -266,7 +284,7 @@ export default function AssetFormModal({
   // check the details first, then move on rather than saving straight away.
   const goToSpecs = () => {
     const detailErrors = Object.fromEntries(
-      Object.entries(validate(values, { assetRefExists, ignoreId: asset?.id ?? null })).filter(
+      Object.entries(validate(values, { assetRefExists, ignoreId: asset?.id ?? null, originalType: asset?.device_type ?? null })).filter(
         ([key]) => !specKeys.includes(key)
       )
     );
@@ -289,7 +307,7 @@ export default function AssetFormModal({
       return;
     }
 
-    const nextErrors = validate(values, { assetRefExists, ignoreId: asset?.id ?? null });
+    const nextErrors = validate(values, { assetRefExists, ignoreId: asset?.id ?? null, originalType: asset?.device_type ?? null });
     setErrors(nextErrors);
     const failed = Object.keys(nextErrors);
     if (failed.length > 0) {
@@ -413,12 +431,34 @@ export default function AssetFormModal({
               className={`input${errors.asset_ref ? ' input--error' : ''}`}
               value={values.asset_ref}
               onChange={(event) => setField('asset_ref', event.target.value)}
-              placeholder="e.g. LAP-0142"
+              placeholder={suggestedRef ? `e.g. ${suggestedRef}` : 'e.g. AST-0222'}
               maxLength={40}
               autoFocus
+              autoComplete="off"
+              aria-invalid={errors.asset_ref ? true : undefined}
+              aria-describedby="asset_ref_hint"
               disabled={busy}
             />
-            {errors.asset_ref ? <span className="field__error">{errors.asset_ref}</span> : null}
+            {errors.asset_ref ? (
+              <span className="field__error">{errors.asset_ref}</span>
+            ) : (
+              <span className="field__hint" id="asset_ref_hint">
+                As on its barcode sticker - you can scan it into this box.
+                {!isEditing && suggestedRef && !values.asset_ref ? (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => setField('asset_ref', suggestedRef)}
+                      disabled={busy}
+                    >
+                      Use next free: {suggestedRef}
+                    </button>
+                  </>
+                ) : null}
+              </span>
+            )}
           </div>
 
           {/* Several identical machines usually arrive together. Fill the form
@@ -472,7 +512,7 @@ export default function AssetFormModal({
                   next[index] = event.target.value;
                   setExtraRefs(next);
                 }}
-                placeholder="e.g. LAP-0143"
+                placeholder="Its own barcode, e.g. AST-0223"
                 maxLength={40}
                 disabled={busy}
               />
@@ -491,7 +531,12 @@ export default function AssetFormModal({
               onChange={(event) => setDeviceType(event.target.value)}
               disabled={busy}
             >
-              {DEVICE_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+              {DEVICE_TYPES.map((type) => (
+                <option key={type} value={type}>{deviceTypeLabel(type)}</option>
+              ))}
+              {asset && isLegacyDeviceType(asset.device_type) ? (
+                <option value={asset.device_type}>{asset.device_type} (older type - choose a current one)</option>
+              ) : null}
             </select>
             {errors.device_type ? <span className="field__error">{errors.device_type}</span> : null}
           </div>
@@ -561,6 +606,22 @@ export default function AssetFormModal({
           </div>
 
           <div className="field">
+            <label className="field__label" htmlFor="serial_number">Serial number</label>
+            <input
+              id="serial_number"
+              className={`input${errors.serial_number ? ' input--error' : ''}`}
+              value={values.serial_number}
+              onChange={(event) => setField('serial_number', event.target.value)}
+              placeholder="From the label underneath - for warranty claims"
+              maxLength={60}
+              autoComplete="off"
+              spellCheck={false}
+              disabled={busy}
+            />
+            {errors.serial_number ? <span className="field__error">{errors.serial_number}</span> : null}
+          </div>
+
+          <div className="field">
             <label className="field__label" htmlFor="purchase_cost">Purchase Cost (£)</label>
             <input
               id="purchase_cost"
@@ -598,16 +659,15 @@ export default function AssetFormModal({
 
           <div className="field">
             <label className="field__label" htmlFor="cleaned_by">Cleaned By</label>
-            <select
+            <CleanerSelect
               id="cleaned_by"
-              className={`select${errors.cleaned_by ? ' input--error' : ''}`}
               value={values.cleaned_by}
-              onChange={(event) => setField('cleaned_by', event.target.value)}
+              team={team}
+              onChange={(next) => setField('cleaned_by', next)}
+              invalid={Boolean(errors.cleaned_by)}
+              blankLabel="— Not recorded —"
               disabled={busy}
-            >
-              <option value="">— Not recorded —</option>
-              {CLEANERS.map((cleaner) => <option key={cleaner} value={cleaner}>{cleaner}</option>)}
-            </select>
+            />
             {errors.cleaned_by ? <span className="field__error">{errors.cleaned_by}</span> : null}
           </div>
 

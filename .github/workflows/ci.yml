@@ -8,6 +8,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Read the code, nothing more: CI never needs to write to the repository.
+permissions:
+  contents: read
+
 jobs:
   unit:
     name: Unit & component tests

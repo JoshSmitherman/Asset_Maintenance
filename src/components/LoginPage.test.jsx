@@ -1,58 +1,93 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import LoginPage from './LoginPage';
+import LoginPage, { describeSignInError } from './LoginPage';
 
 const signIn = vi.fn();
+const signInWithMicrosoft = vi.fn();
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ signIn })
+  useAuth: () => ({ signIn, signInWithMicrosoft })
 }));
-// BrandLogo pulls in an <img> using import.meta.env.BASE_URL; render is enough.
 
 beforeEach(() => {
   signIn.mockReset();
+  signInWithMicrosoft.mockReset();
+  window.history.replaceState(null, '', '/');
 });
 
+const openPasswordForm = async (user) => {
+  await user.click(screen.getByRole('button', { name: /email and password instead/i }));
+};
+
 describe('LoginPage', () => {
-  it('does not attempt sign-in with empty fields (native required validation blocks it)', async () => {
+  it('leads with Microsoft sign-in', async () => {
+    signInWithMicrosoft.mockResolvedValue(undefined);
     const user = userEvent.setup();
     render(<LoginPage />);
-    // The email/password inputs are `required` and the form has no noValidate,
-    // so the browser suppresses the submit before signIn is ever reached.
-    await user.click(screen.getByRole('button', { name: /sign in/i }));
-    expect(signIn).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/^password$/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /sign in with microsoft/i }));
+    expect(signInWithMicrosoft).toHaveBeenCalled();
   });
 
-  it('calls signIn with a trimmed email and the raw password', async () => {
+  it('explains when Microsoft sign-in is not switched on yet', async () => {
+    signInWithMicrosoft.mockRejectedValue(new Error('Unsupported provider: provider is not enabled'));
+    const user = userEvent.setup();
+    render(<LoginPage />);
+    await user.click(screen.getByRole('button', { name: /sign in with microsoft/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/not been switched on yet/i);
+  });
+
+  it('turns away a non-company account coming back from Microsoft', () => {
+    window.history.replaceState(null, '', '/?error=server_error&error_description=Database+error+saving+new+user');
+    render(<LoginPage />);
+    expect(screen.getByRole('alert')).toHaveTextContent(/only for adaro accounts/i);
+    // Cleared, so a reload does not show it again.
+    expect(window.location.search).toBe('');
+  });
+
+  it('does not attempt sign-in with empty fields', async () => {
+    const user = userEvent.setup();
+    render(<LoginPage />);
+    await openPasswordForm(user);
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }));
+    expect(signIn).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/enter your email address and password/i);
+  });
+
+  it('calls signIn with the email and the raw password', async () => {
     signIn.mockResolvedValue(undefined);
     const user = userEvent.setup();
     render(<LoginPage />);
-    await user.type(screen.getByLabelText(/email address/i), 'tech@example.com');
+    await openPasswordForm(user);
+    await user.type(screen.getByLabelText(/email address/i), 'tech@adaro.net');
     await user.type(screen.getByLabelText(/^password$/i), 'sup3rsecret');
-    await user.click(screen.getByRole('button', { name: /sign in/i }));
-    // type="email" sanitizes whitespace, so the sanitized value reaches signIn.
-    expect(signIn).toHaveBeenCalledWith('tech@example.com', 'sup3rsecret');
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }));
+    expect(signIn).toHaveBeenCalledWith('tech@adaro.net', 'sup3rsecret');
   });
 
   it('maps an invalid-login error to a friendly message', async () => {
     signIn.mockRejectedValue(new Error('Invalid login credentials'));
     const user = userEvent.setup();
     render(<LoginPage />);
-    await user.type(screen.getByLabelText(/email address/i), 'tech@example.com');
+    await openPasswordForm(user);
+    await user.type(screen.getByLabelText(/email address/i), 'tech@adaro.net');
     await user.type(screen.getByLabelText(/^password$/i), 'wrong');
-    await user.click(screen.getByRole('button', { name: /sign in/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/incorrect email or password/i);
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/do not match/i);
   });
 
-  it('does not leak internal error text for unexpected failures', async () => {
-    signIn.mockRejectedValue(new Error('fetch failed: ETIMEDOUT 10.0.0.1:5432'));
+  it('never shows internal error text', () => {
+    expect(describeSignInError('fetch failed: ETIMEDOUT 10.0.0.1:5432')).not.toMatch(/10\.0\.0\.1|ETIMEDOUT/);
+    expect(describeSignInError('something odd')).toMatch(/could not sign you in/i);
+  });
+
+  it('can show the password while typing it', async () => {
     const user = userEvent.setup();
     render(<LoginPage />);
-    await user.type(screen.getByLabelText(/email address/i), 'tech@example.com');
-    await user.type(screen.getByLabelText(/^password$/i), 'whatever');
-    await user.click(screen.getByRole('button', { name: /sign in/i }));
-    // Current behaviour surfaces the raw message; this test documents it so a
-    // future change to redact it is a deliberate, visible decision.
-    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    await openPasswordForm(user);
+    const field = screen.getByLabelText(/^password$/i);
+    expect(field).toHaveAttribute('type', 'password');
+    await user.click(screen.getByRole('button', { name: /show/i }));
+    expect(field).toHaveAttribute('type', 'text');
   });
 });

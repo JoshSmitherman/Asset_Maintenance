@@ -343,7 +343,7 @@ code {
 
 .toolbar__row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
 .toolbar__row--filters { align-items: flex-end; }
-.toolbar__search { flex: 1 1 320px; }
+.toolbar__search { flex: 1 1 320px; margin: 0; }
 
 .toolbar__meta {
   margin-left: auto;
@@ -722,6 +722,7 @@ code {
 }
 .toast--success { background: var(--navy-800); }
 .toast--error { background: var(--red-solid); }
+.toast--info { background: var(--navy-800); }
 
 /* ---------------------------------------------------------------- Login */
 .login {
@@ -755,6 +756,29 @@ code {
 .login__title { font-size: 19px; }
 .login__subtitle { margin: 3px 0 0; font-size: 13px; color: var(--slate-500); }
 .login__hint { margin: 0; font-size: 12px; color: var(--slate-500); text-align: center; }
+.login__alt { align-self: center; font-size: 13px; }
+.login__password { display: flex; flex-direction: column; gap: 14px; }
+.login__password .password-field .input { font-family: inherit; }
+.login__divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--slate-500);
+}
+.login__divider::before,
+.login__divider::after { content: ''; flex: 1; border-top: 1px solid var(--slate-200); }
+
+/* Microsoft's own sign-in button style: plain, with the four squares. */
+.btn--microsoft {
+  min-height: 44px;
+  background: #fff;
+  border-color: #8c8c8c;
+  color: #5e5e5e;
+  font-size: 15px;
+}
+.btn--microsoft:hover:not(:disabled) { background: #f3f3f3; }
+.btn__icon { width: 20px; height: 20px; flex: 0 0 auto; }
 
 .config-list { margin: 0; padding-left: 18px; font-size: 13px; color: var(--slate-700); display: grid; gap: 8px; }
 
@@ -1733,10 +1757,10 @@ body.no-scroll .theme-toggle { display: none; }
 }
 .stat-group__note { margin-left: 6px; font-weight: 500; text-transform: none; letter-spacing: 0; }
 
-.stat-grid--assets { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.stat-grid--assets { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .stat-grid--cleaning { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 1100px) {
-  .stat-grid--assets { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stat-grid--assets { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
   .stat-grid--assets,
@@ -2087,4 +2111,69 @@ body.no-scroll .theme-toggle { display: none; }
   color: #fff;
   background: repeating-linear-gradient(135deg, #8c4a9c 0 14px, #7d4190 14px 28px);
   border-bottom-color: #5e2f6c;
+}
+
+/* A button that reads as a link, for small inline actions in hints. */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-button:disabled { opacity: 0.6; cursor: default; }
+
+/* ---------------------------------------------------------- People & access */
+.card--attention { border-left: 4px solid var(--amber-700); }
+.request-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.request-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-sm);
+}
+.request-list__actions { display: flex; gap: 8px; }
+
+.cell-sub { display: block; font-size: 12px; color: var(--slate-500); overflow-wrap: anywhere; }
+.row--inactive td { opacity: 0.65; }
+.table__action-group { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+.access-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid var(--slate-300);
+  color: var(--slate-700);
+}
+.access-badge--admin { background: var(--red-100); border-color: var(--red-border); color: var(--red-700); }
+.access-badge--editor { background: var(--green-100); border-color: var(--green-border); color: var(--green-700); }
+.access-badge--viewer { background: var(--slate-050); }
+.access-badge--off { background: var(--amber-100); border-color: var(--amber-border); color: var(--amber-700); }
+
+.checkbox-row { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+.checkbox-row input { margin-top: 3px; width: 18px; height: 18px; }
+
+.login__waiting { color: #fff; }
+
+/* On a phone the people table becomes one card per person, so nothing is
+   squeezed or cut off. */
+@media (max-width: 600px) {
+  .table--people thead { display: none; }
+  .table--people,
+  .table--people tbody,
+  .table--people tr,
+  .table--people td { display: block; width: 100%; }
+  .table--people tr { padding: 10px 0; border-bottom: 1px solid var(--slate-200); }
+  .table--people td { border: 0; padding: 3px 0; text-align: left; }
+  .table--people .col-hide-sm { display: none; }
+  .table--people .table__action-group { justify-content: flex-start; margin-top: 6px; }
 }

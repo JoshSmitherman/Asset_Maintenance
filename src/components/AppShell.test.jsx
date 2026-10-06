@@ -57,7 +57,7 @@ const hook = {
 };
 
 // Who is signed in. Most tests act as an admin; the role tests say otherwise.
-const auth = { isAdmin: true };
+const auth = { isAdmin: true, canEdit: true };
 
 vi.mock('../hooks/useAssets', () => ({ useAssets: () => hook }));
 vi.mock('../hooks/useCleaningLog', () => ({
@@ -75,6 +75,11 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
     user: { id: 'u-josh', email: 'josh.smitherman@adaro.net' },
     isAdmin: auth.isAdmin,
+    canEdit: auth.canEdit,
+    access: auth.isAdmin ? 'admin' : auth.canEdit ? 'editor' : 'viewer',
+    department: 'Technical Support',
+    userEmail: 'josh.smitherman@adaro.net',
+    hasPassword: true,
     signOut: vi.fn()
   })
 }));
@@ -88,6 +93,7 @@ beforeEach(() => {
   hook.assets = [asset];
   hook.retiredAssets = [];
   auth.isAdmin = true;
+  auth.canEdit = true;
 });
 
 describe('AppShell bulk actions and paging', () => {
@@ -202,7 +208,7 @@ describe('AppShell reports', () => {
 
     await user.click(within(menu).getByRole('button', { name: /^cleaning activity/i }));
     await user.click(screen.getByRole('button', { name: 'By person' }));
-    expect(screen.getByText('JS')).toBeInTheDocument();
+    expect(within(screen.getByRole('main')).getByRole('cell', { name: 'JS' })).toBeInTheDocument();
   });
 });
 
@@ -301,7 +307,7 @@ describe('AppShell cleaning queue', () => {
 });
 
 describe('AppShell record clean', () => {
-  it('starts on today, with the cleaner to choose and the last clean shown', async () => {
+  it('starts on today, cleaned by whoever records it, with the last clean shown', async () => {
     hook.assets = [asset];
     const user = userEvent.setup();
     render(<AppShell />);
@@ -313,7 +319,7 @@ describe('AppShell record clean', () => {
     const today = new Date();
     const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     expect(within(dialog).getByLabelText(/date cleaned/i)).toHaveValue(iso);
-    expect(within(dialog).getByLabelText(/cleaned by/i)).toHaveValue('');
+    expect(within(dialog).getByLabelText(/cleaned by/i)).toHaveValue('Josh Smitherman');
     expect(within(dialog).getByText(/last cleaned 14 feb 2026 by josh smitherman/i)).toBeInTheDocument();
 
     // Cancelling hands back to the details it came from.
@@ -462,5 +468,27 @@ describe('AppShell reports by person', () => {
     await user.selectOptions(screen.getByLabelText(/^person$/i), 'Person 3');
     expect(screen.getByRole('cell', { name: 'AST-103' })).toBeInTheDocument();
     expect(screen.queryByRole('cell', { name: 'AST-100' })).not.toBeInTheDocument();
+  });
+});
+
+describe('AppShell for someone with view-only access', () => {
+  beforeEach(() => {
+    auth.isAdmin = false;
+    auth.canEdit = false;
+  });
+
+  it('shows the register but nothing that changes it', async () => {
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Assets' }));
+    expect(screen.queryByRole('button', { name: /add asset/i })).not.toBeInTheDocument();
+    expect(screen.getByText('View only')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /view details for AST-0041/i }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).queryByRole('button', { name: /edit details/i })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /retire/i })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /record clean/i })).not.toBeInTheDocument();
   });
 });

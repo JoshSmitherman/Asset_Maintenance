@@ -1,8 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { canEditWith } from '../lib/access';
 
 const AuthContext = createContext(null);
 
+/**
+ * The signed-in session, and what that person may do in Orbit.
+ *
+ * Signing in proves who someone is; the members list (supabase/setup.sql,
+ * section 4b) says whether they may use Orbit at all and at what level. A
+ * company account that is not on it gets the "ask for access" page.
+ */
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [initialising, setInitialising] = useState(true);
@@ -36,34 +44,56 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Admin or user, from public.user_roles. Read on every sign-in; an account
-  // with no row (or a database without the table yet) is a plain user.
-  const [role, setRole] = useState('user');
-  const userId = session?.user?.id ?? null;
+  // { status: 'loading' | 'member' | 'none' | 'error', access, department, fullName, requested, error }
+  const [membership, setMembership] = useState({ status: 'loading' });
+  const email = session?.user?.email?.toLowerCase() ?? '';
+
+  const loadMembership = useCallback(async () => {
+    if (!supabase || !email) {
+      setMembership({ status: 'loading' });
+      return;
+    }
+    const [member, request] = await Promise.all([
+      supabase.from('members').select('access, department, full_name, active').eq('email', email).maybeSingle(),
+      supabase.from('access_requests').select('requested_at').eq('email', email).maybeSingle()
+    ]);
+    if (member.error) {
+      setMembership({ status: 'error', error: member.error });
+      return;
+    }
+    const row = member.data;
+    if (!row || !row.active) {
+      setMembership({ status: 'none', requested: Boolean(request.data), inactive: Boolean(row && !row.active) });
+      return;
+    }
+    setMembership({
+      status: 'member',
+      access: row.access,
+      department: row.department,
+      fullName: row.full_name
+    });
+  }, [email]);
 
   useEffect(() => {
-    if (!supabase || !userId) {
-      setRole('user');
-      return undefined;
-    }
-    let active = true;
-    supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (active) setRole(data?.role === 'admin' ? 'admin' : 'user');
-      });
-    return () => {
-      active = false;
-    };
-  }, [userId]);
+    loadMembership();
+  }, [loadMembership]);
 
-  const signIn = useCallback(async (email, password) => {
+  const signIn = useCallback(async (address, password) => {
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: address.trim(),
       password
+    });
+    if (error) throw error;
+  }, []);
+
+  /** Microsoft 365 sign-in. Leaves the page, and comes back signed in. */
+  const signInWithMicrosoft = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'azure',
+      options: {
+        scopes: 'openid email profile',
+        redirectTo: `${window.location.origin}${import.meta.env.BASE_URL ?? '/'}`
+      }
     });
     if (error) throw error;
   }, []);
@@ -81,18 +111,38 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }, []);
 
+  const requestAccess = useCallback(async (fullName) => {
+    const { error } = await supabase.rpc('request_access', { p_full_name: fullName ?? null });
+    if (error) throw error;
+    await loadMembership();
+  }, [loadMembership]);
+
+  const user = session?.user ?? null;
+  // Microsoft sign-in has no password to change.
+  const hasPassword = (user?.app_metadata?.providers ?? [user?.app_metadata?.provider]).includes('email');
+
   const value = useMemo(
     () => ({
       session,
-      user: session?.user ?? null,
-      userEmail: session?.user?.email ?? '',
-      isAdmin: role === 'admin',
+      user,
+      userEmail: user?.email ?? '',
+      userName:
+        membership.fullName || user?.user_metadata?.full_name || user?.user_metadata?.name || '',
+      membership,
+      access: membership.access ?? null,
+      department: membership.department ?? null,
+      isAdmin: membership.access === 'admin',
+      canEdit: canEditWith(membership.access),
+      hasPassword,
       initialising,
       signIn,
+      signInWithMicrosoft,
       signOut,
-      changePassword
+      changePassword,
+      requestAccess,
+      refreshMembership: loadMembership
     }),
-    [session, role, initialising, signIn, signOut, changePassword]
+    [session, user, membership, hasPassword, initialising, signIn, signInWithMicrosoft, signOut, changePassword, requestAccess, loadMembership]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

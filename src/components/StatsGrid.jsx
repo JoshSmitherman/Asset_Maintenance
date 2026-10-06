@@ -4,13 +4,14 @@ const money = (value) => formatCurrency(value) ?? '£0.00';
 
 const KIT_CARDS = [
   { key: 'Laptop', label: 'Laptops', filter: 'Laptop' },
-  { key: 'Desktop', label: 'Desktops', filter: 'Desktop' },
+  { key: 'Phone', label: 'Phones', filter: 'Phone' },
   { key: 'Monitor', label: 'Monitors', filter: 'Monitor' },
+  { key: 'Camera', label: 'Cameras', filter: 'Camera', hint: 'UniFi cameras' },
   {
     key: 'other',
-    label: 'Peripherals & other',
+    label: 'Other devices',
     filter: OTHER_KIT_FILTER,
-    hint: 'Docks, phones, tablets, printers and anything else'
+    hint: 'Other devices, plus desktops, docks and anything recorded under an older type'
   }
 ];
 
@@ -60,7 +61,7 @@ export default function StatsGrid({ summary, kit, totalValue, onSelectType, onSe
 
       <section className="stat-group" aria-labelledby="stat-group-cleaning">
         <h2 className="stat-group__title" id="stat-group-cleaning">
-          Cleaning <span className="stat-group__note">{trackedTotal} laptops and desktops</span>
+          Cleaning <span className="stat-group__note">{trackedTotal} on the cleaning rota</span>
         </h2>
         <div className="stat-grid stat-grid--cleaning">
           {CLEANING_CARDS.map((card) => {

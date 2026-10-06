@@ -9,7 +9,7 @@ const CLEANING_LOG_TABLE = 'cleaning_log';
  * The cleaning history: one row per clean, newest first.
  *
  * Written by a database trigger rather than by the app (see
- * supabase/migration-004-cleaning-history.sql), so it records every clean
+ * supabase/setup.sql, section 6), so it records every clean
  * however it was recorded - one at a time, or a whole batch at once.
  */
 export function useCleaningLog({ enabled }) {

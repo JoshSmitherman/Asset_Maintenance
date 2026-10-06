@@ -1,24 +1,34 @@
-import { CLEANERS, DEVICE_TYPES, LOCATIONS, OTHER_KIT_FILTER, STATUS_FILTER_VALUES } from '../lib/constants';
+import { DEVICE_TYPES, deviceTypeLabel, LOCATIONS, OTHER_KIT_FILTER, STATUS_FILTER_VALUES } from '../lib/constants';
 import { EMPTY_FILTERS } from '../lib/assetQueries';
 
-export default function AssetToolbar({ filters, onChange, departments, resultCount, totalCount }) {
+export default function AssetToolbar({ filters, onChange, departments, resultCount, totalCount, deviceTypes, showOtherKit = true, onFindRef, cleaners = [] }) {
   const update = (patch) => onChange({ ...filters, ...patch });
   const isFiltered = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
 
   return (
     <div className="toolbar">
       <div className="toolbar__row">
-        <div className="toolbar__search">
-          <label className="sr-only" htmlFor="asset-search">Search assets</label>
+        {/* A form so Enter does something: a barcode scanner types the code
+            on the sticker and presses Enter, which opens that asset. */}
+        <form
+          className="toolbar__search"
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onFindRef?.(filters.search);
+          }}
+        >
+          <label className="sr-only" htmlFor="asset-search">Search assets, or scan a barcode</label>
           <input
             id="asset-search"
             className="input"
             type="search"
-            placeholder="Search asset ref, user, department, location or notes…"
+            placeholder="Search or scan a barcode (e.g. AST-0222) - asset ref, user, department, notes…"
             value={filters.search}
             onChange={(event) => update({ search: event.target.value })}
+            autoComplete="off"
           />
-        </div>
+        </form>
       </div>
 
       <div className="toolbar__row toolbar__row--filters">
@@ -31,8 +41,12 @@ export default function AssetToolbar({ filters, onChange, departments, resultCou
             onChange={(event) => update({ deviceType: event.target.value })}
           >
             <option value="all">All</option>
-            {DEVICE_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-            <option value={OTHER_KIT_FILTER}>Peripherals &amp; other (not laptops, desktops or monitors)</option>
+            {(deviceTypes ?? DEVICE_TYPES).map((type) => (
+              <option key={type} value={type}>{deviceTypeLabel(type)}</option>
+            ))}
+            {showOtherKit ? (
+              <option value={OTHER_KIT_FILTER}>Everything except laptops, phones, monitors and cameras</option>
+            ) : null}
           </select>
         </div>
 
@@ -74,7 +88,7 @@ export default function AssetToolbar({ filters, onChange, departments, resultCou
             onChange={(event) => update({ cleanedBy: event.target.value })}
           >
             <option value="all">All</option>
-            {CLEANERS.map((cleaner) => <option key={cleaner} value={cleaner}>{cleaner}</option>)}
+            {cleaners.map((cleaner) => <option key={cleaner} value={cleaner}>{cleaner}</option>)}
             <option value="unassigned">Not recorded</option>
           </select>
         </div>

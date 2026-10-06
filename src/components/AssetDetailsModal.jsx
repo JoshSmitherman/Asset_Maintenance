@@ -8,7 +8,7 @@ import AssetFiles from './AssetFiles';
 import { useAssetHistory } from '../hooks/useAssetHistory';
 import { useRepairs } from '../hooks/useRepairs';
 import { useAttachments } from '../hooks/useAttachments';
-import { formatCurrency, isCleaningTracked } from '../lib/constants';
+import { deviceTypeLabel, formatCurrency, isCleaningTracked } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import { SPEC_FIELDS, hasSpecs, specsFor } from '../lib/specs';
 import { assetLink } from '../lib/assetLinks';
@@ -85,6 +85,7 @@ function RetiredBanner({ asset }) {
 export default function AssetDetailsModal({
   asset,
   isAdmin = false,
+  canEdit = true,
   onEdit,
   onDelete,
   onRecordClean,
@@ -114,7 +115,7 @@ export default function AssetDetailsModal({
   return (
     <Modal
       title={asset.asset_ref}
-      description={`${asset.device_type}${asset.owner_name ? ` · ${asset.owner_name}` : ' · Unassigned'}`}
+      description={`${deviceTypeLabel(asset.device_type)}${asset.owner_name ? ` · ${asset.owner_name}` : ' · Unassigned'}`}
       onClose={onClose}
     >
       <TabStrip
@@ -143,12 +144,12 @@ export default function AssetDetailsModal({
             repairs={repairs}
             files={files}
             isAdmin={isAdmin}
-            readOnly={retired}
+            readOnly={retired || !canEdit}
             onToast={onToast}
             onEditingChange={setWritingRepair}
           />
         ) : activeTab === 'files' ? (
-          <AssetFiles files={files} repairs={repairs.repairs} isAdmin={isAdmin} readOnly={retired} />
+          <AssetFiles files={files} repairs={repairs.repairs} isAdmin={isAdmin} readOnly={retired || !canEdit} />
         ) : activeTab === 'specs' ? (
           <dl className="detail-list">
             {specKeys.map((key) => (
@@ -164,12 +165,13 @@ export default function AssetDetailsModal({
           {retired ? <RetiredBanner asset={asset} /> : null}
           <dl className="detail-list">
             <Row label="Asset Ref">{asset.asset_ref}</Row>
-            <Row label="Device type">{asset.device_type}</Row>
+            <Row label="Device type">{deviceTypeLabel(asset.device_type)}</Row>
             <Row label="User">
               {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
             </Row>
             <Row label="Department">{asset.department}</Row>
             <Row label="Location">{asset.location ?? EMPTY}</Row>
+            <Row label="Serial number">{asset.serial_number ?? EMPTY}</Row>
             <Row label="Purchase date">
               {asset.purchase_date ? formatDate(asset.purchase_date) : EMPTY}
             </Row>
@@ -252,9 +254,11 @@ export default function AssetDetailsModal({
               Record clean
             </button>
           ) : null}
-          <button type="button" className="btn btn--primary" onClick={() => onEdit(asset)}>
-            Edit details
-          </button>
+          {onEdit ? (
+            <button type="button" className="btn btn--primary" onClick={() => onEdit(asset)}>
+              Edit details
+            </button>
+          ) : null}
         </div>
       </footer>
       )}

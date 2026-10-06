@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import Modal from './Modal';
-import { CLEANERS } from '../lib/constants';
+import CleanerSelect from './CleanerSelect';
+import { useTeam } from '../hooks/useTeam';
+import { useAuth } from '../context/AuthContext';
+import { displayName } from '../lib/access';
 import { isValidIsoDate, todayIso } from '../lib/dates';
 
 /**
@@ -12,7 +15,12 @@ import { isValidIsoDate, todayIso } from '../lib/dates';
  * their next-due dates still differ.
  */
 export default function BulkCleanModal({ count, onSubmit, onClose }) {
-  const [values, setValues] = useState({ date_cleaned: todayIso(), cleaned_by: '' });
+  const team = useTeam();
+  const { userEmail, userName } = useAuth();
+  const [values, setValues] = useState(() => ({
+    date_cleaned: todayIso(),
+    cleaned_by: displayName({ email: userEmail, full_name: userName })
+  }));
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -72,16 +80,14 @@ export default function BulkCleanModal({ count, onSubmit, onClose }) {
 
           <div className="field">
             <label className="field__label" htmlFor="bulk_cleaned_by">Cleaned by</label>
-            <select
+            <CleanerSelect
               id="bulk_cleaned_by"
-              className={`select${errors.cleaned_by ? ' input--error' : ''}`}
               value={values.cleaned_by}
-              onChange={(event) => setField('cleaned_by', event.target.value)}
+              team={team}
+              onChange={(next) => setField('cleaned_by', next)}
+              invalid={Boolean(errors.cleaned_by)}
               disabled={busy}
-            >
-              <option value="">— Choose —</option>
-              {CLEANERS.map((cleaner) => <option key={cleaner} value={cleaner}>{cleaner}</option>)}
-            </select>
+            />
             {errors.cleaned_by ? <span className="field__error">{errors.cleaned_by}</span> : null}
           </div>
 
