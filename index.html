@@ -9,38 +9,17 @@
     <title>Orbit · IT Asset Management</title>
   </head>
   <body>
-    <!-- Theme toggle. Runs before the app so the saved theme is on <body>
-         before first paint; React renders into #root and never touches it. -->
+    <!-- Theme. Runs before the app so the right theme is on <body> before
+         first paint. A theme someone chose (the header's sun/moon button)
+         wins; otherwise it follows the computer's light or dark setting. -->
     <script>
       (function () {
-        var KEY = 'theme';
-        var body = document.body;
         var saved = null;
-        try { saved = localStorage.getItem(KEY); } catch (e) { /* storage blocked */ }
-        var theme = saved === 'light' ? 'light' : 'dark';
-
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'theme-toggle';
-
-        function apply(next) {
-          theme = next;
-          body.classList.toggle('dark-mode', theme === 'dark');
-          body.classList.toggle('light-mode', theme === 'light');
-          // Sun in dark mode (click for light), moon in light mode.
-          button.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
-          var label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-          button.setAttribute('aria-label', label);
-          button.title = label;
-        }
-
-        button.addEventListener('click', function () {
-          apply(theme === 'dark' ? 'light' : 'dark');
-          try { localStorage.setItem(KEY, theme); } catch (e) { /* storage blocked */ }
-        });
-
-        apply(theme);
-        body.appendChild(button);
+        try { saved = localStorage.getItem('theme'); } catch (e) { /* storage blocked */ }
+        var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        var theme = saved === 'light' || saved === 'dark' ? saved : prefersLight ? 'light' : 'dark';
+        document.body.classList.toggle('dark-mode', theme === 'dark');
+        document.body.classList.toggle('light-mode', theme === 'light');
       })();
     </script>
     <div id="root"></div>

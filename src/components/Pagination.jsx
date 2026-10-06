@@ -1,4 +1,4 @@
-const PAGE_SIZES = [5, 10, 25, 50];
+const PAGE_SIZES = [10, 25, 50, 100];
 
 /**
  * Page controls for a table. Five at a time keeps a list short enough to take

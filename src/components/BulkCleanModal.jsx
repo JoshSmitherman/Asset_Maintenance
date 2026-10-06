@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useFieldErrors } from '../hooks/useFieldErrors';
 import Modal from './Modal';
 import CleanerSelect from './CleanerSelect';
 import { useTeam } from '../hooks/useTeam';
@@ -14,6 +15,8 @@ import { isValidIsoDate, todayIso } from '../lib/dates';
  * wipe twenty individual ones. Each asset keeps its own cleaning interval, so
  * their next-due dates still differ.
  */
+const FIELD_IDS = { date_cleaned: 'bulk_date_cleaned', cleaned_by: 'bulk_cleaned_by' };
+
 export default function BulkCleanModal({ count, onSubmit, onClose }) {
   const team = useTeam();
   const { userEmail, userName } = useAuth();
@@ -22,6 +25,8 @@ export default function BulkCleanModal({ count, onSubmit, onClose }) {
     cleaned_by: displayName({ email: userEmail, full_name: userName })
   }));
   const [errors, setErrors] = useState({});
+  const formRef = useRef(null);
+  useFieldErrors(formRef, errors, { ids: FIELD_IDS });
   const [submitError, setSubmitError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -61,7 +66,7 @@ export default function BulkCleanModal({ count, onSubmit, onClose }) {
       size="sm"
       onClose={busy ? () => {} : onClose}
     >
-      <form onSubmit={handleSubmit} noValidate>
+      <form ref={formRef} onSubmit={handleSubmit} noValidate>
         <div className="modal__body field-stack">
           <div className="field">
             <label className="field__label" htmlFor="bulk_date_cleaned">Date cleaned</label>

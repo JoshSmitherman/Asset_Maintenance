@@ -117,6 +117,8 @@ export default function AssetDetailsModal({
       title={asset.asset_ref}
       description={`${deviceTypeLabel(asset.device_type)}${asset.owner_name ? ` · ${asset.owner_name}` : ' · Unassigned'}`}
       onClose={onClose}
+      // A repair half-written in the Repairs tab is not lost to a stray Escape.
+      confirmDiscard={writingRepair}
     >
       <TabStrip
         tabs={[

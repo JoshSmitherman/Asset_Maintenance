@@ -1037,7 +1037,8 @@ code {
    whole. Breaking a word mid-way is the lesser evil against a table that has
    to be dragged sideways to be read. */
 @media (max-width: 430px) {
-  .table th, .table td { padding: 8px 6px; overflow-wrap: anywhere; }
+  .table th, .table td { padding: 8px 6px; overflow-wrap: break-word; hyphens: auto; }
+  .table td.cell-strong { overflow-wrap: anywhere; }
 }
 
 @media (max-width: 720px) {
@@ -1613,9 +1614,7 @@ code {
 .queue-scope { padding: 14px 20px 0; }
 .modal__footer-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 
-/* Room under the last row for the floating theme button, so it never sits on
-   top of a Record clean or a page control. */
-main.container { padding-bottom: 96px; }
+main.container { padding-bottom: 32px; }
 
 .card__header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 
@@ -2177,3 +2176,117 @@ body.no-scroll .theme-toggle { display: none; }
   .table--people .col-hide-sm { display: none; }
   .table--people .table__action-group { justify-content: flex-start; margin-top: 6px; }
 }
+
+/* ---------------------------------------------------------- Header actions */
+.app-header__actions { display: flex; align-items: center; gap: 10px; }
+.theme-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+}
+.theme-switch:hover { background: rgba(255, 255, 255, 0.14); }
+.theme-switch svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.theme-switch svg path:only-child { fill: currentColor; stroke: none; }
+.theme-switch:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* ---------------------------------------------------------- Accessibility
+   One focus ring, clearly visible in both themes (the accent purple is 6:1
+   on the dark surface), on everything that can take keyboard focus. */
+:root { --focus-ring: var(--accent); }
+.input:focus, .select:focus, .textarea:focus {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.input--error:focus { border-color: var(--red-600); box-shadow: 0 0 0 3px var(--red-100); }
+.btn:focus-visible,
+.app-nav__tab:focus-visible,
+.icon-action:focus-visible,
+.icon-button:focus-visible,
+.link-button:focus-visible,
+.table__sort:focus-visible,
+.stat:focus-visible,
+.tab-strip button:focus-visible,
+[role='tab']:focus-visible,
+input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Input borders strong enough to see where a box is (3:1). */
+.input, .select, .textarea { border-color: var(--input-border, var(--slate-300)); }
+body.light-mode { --input-border: #8a97a8; }
+body:not(.light-mode) { --input-border: #6b7d93; }
+
+/* A selected row reads as selected without relying on the tick alone. */
+.row--selected { background: var(--brand-purple-050); box-shadow: inset 4px 0 0 var(--accent); }
+.row--selected:hover { background: var(--brand-purple-100); }
+
+/* Fingers, not mouse pointers: small controls get room to be tapped. */
+@media (pointer: coarse) {
+  .btn--small { min-height: 36px; }
+  .icon-action, .icon-button { min-width: 40px; min-height: 40px; }
+  .table input[type='checkbox'] { width: 22px; height: 22px; }
+  .table__sort { min-height: 32px; }
+}
+
+/* For anyone who has asked their computer for less movement. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skip straight to the page content from the keyboard. */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 100;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+}
+.skip-link:focus { top: 12px; outline: 2px solid var(--focus-ring); }
+
+/* An asset reference that opens the asset. */
+.ref-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--accent-text);
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.ref-link:hover { text-decoration: underline; }
+.ref-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 2px; }
+.cell-nowrap { white-space: nowrap; }
+.cell-ellipsis { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.card__more { margin: 12px 0 0; text-align: center; font-size: 14px; }
+.release-notes__back { display: inline-block; margin-bottom: 8px; font-size: 14px; }
+.form-section {
+  margin: 8px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--slate-200);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--slate-500);
+}
+.field > .link-button { align-self: flex-start; text-align: left; }

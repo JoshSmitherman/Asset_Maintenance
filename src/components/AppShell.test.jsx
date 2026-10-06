@@ -25,11 +25,12 @@ const asset = {
   updated_by_email: 'josh.smitherman@adaro.net'
 };
 
-const many = Array.from({ length: 7 }, (_, index) => ({
+// Thirty with a user and one spare: more than one page of 25.
+const many = Array.from({ length: 31 }, (_, index) => ({
   ...asset,
   id: `bulk-${index}`,
-  asset_ref: `AST-10${index}`,
-  owner_name: index === 6 ? null : `Person ${index}`
+  asset_ref: `AST-1${String(index).padStart(2, '0')}`,
+  owner_name: index === 30 ? null : `Person ${index}`
 }));
 
 const hook = {
@@ -101,18 +102,18 @@ describe('AppShell bulk actions and paging', () => {
     hook.assets = many;
   });
 
-  it('shows five rows at a time and pages through the rest', async () => {
+  it('shows 25 rows at a time and pages through the rest', async () => {
     const user = userEvent.setup();
     render(<AppShell />);
     await user.click(screen.getByRole('button', { name: 'Assets' }));
 
-    // Six assigned assets, five to a page.
+    // Thirty assigned assets, 25 to a page.
     expect(screen.getByText('AST-100')).toBeInTheDocument();
-    expect(screen.queryByText('AST-105')).not.toBeInTheDocument();
-    expect(screen.getByText('1–5 of 6')).toBeInTheDocument();
+    expect(screen.queryByText('AST-125')).not.toBeInTheDocument();
+    expect(screen.getByText('1–25 of 30')).toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /next page of the asset register/i })[0]);
-    expect(screen.getByText('AST-105')).toBeInTheDocument();
+    expect(screen.getByText('AST-125')).toBeInTheDocument();
     expect(screen.queryByText('AST-100')).not.toBeInTheDocument();
   });
 
@@ -123,12 +124,16 @@ describe('AppShell bulk actions and paging', () => {
 
     await user.click(screen.getByRole('checkbox', { name: /select AST-100/i }));
     await user.click(screen.getAllByRole('button', { name: /next page of the asset register/i })[0]);
-    await user.click(screen.getByRole('checkbox', { name: /select AST-105/i }));
+    await user.click(screen.getByRole('checkbox', { name: /select AST-125/i }));
 
     expect(screen.getByText('2')).toBeInTheDocument(); // the bulk bar's count
     await user.click(screen.getByRole('button', { name: /^unassign$/i }));
+    // Asks first, naming what moves.
+    expect(hook.bulkAssign).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toHaveTextContent('AST-100, AST-125');
+    await user.click(screen.getByRole('button', { name: /^unassign 2$/i }));
 
-    expect(hook.bulkAssign).toHaveBeenCalledWith(['bulk-0', 'bulk-5'], null);
+    expect(hook.bulkAssign).toHaveBeenCalledWith(['bulk-0', 'bulk-25'], null);
   });
 
   it('confirms before deleting a batch, naming what goes', async () => {
@@ -141,9 +146,9 @@ describe('AppShell bulk actions and paging', () => {
     await user.click(screen.getByRole('button', { name: /^delete$/i }));
 
     expect(screen.getByText(/cannot be undone/i)).toHaveTextContent('AST-100');
-    await user.click(screen.getByRole('button', { name: /^delete 5$/i }));
+    await user.click(screen.getByRole('button', { name: /^delete 25$/i }));
     expect(hook.bulkDelete).toHaveBeenCalledTimes(1);
-    expect(hook.bulkDelete.mock.calls[0][0]).toHaveLength(5);
+    expect(hook.bulkDelete.mock.calls[0][0]).toHaveLength(25);
   });
 });
 
@@ -301,7 +306,7 @@ describe('AppShell cleaning queue', () => {
     expect(screen.getByText('AST-0041')).toBeInTheDocument();
     expect(screen.queryByText('AST-0099')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /all laptops and desktops \(2\)/i }));
+    await user.click(screen.getByRole('button', { name: /everything on the rota \(2\)/i }));
     expect(screen.getByText('AST-0099')).toBeInTheDocument();
   });
 });

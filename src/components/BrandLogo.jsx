@@ -4,8 +4,8 @@ import { useState } from 'react';
 // Several extensions are tried in turn so the upload does not have to be a
 // particular format - the first one that loads wins.
 const CANDIDATES = [
-  'adaro-logo.svg',
   'adaro-logo.png',
+  'adaro-logo.svg',
   'adaro-logo.jpg',
   'adaro-logo.jpeg',
   'adaro-logo.webp'

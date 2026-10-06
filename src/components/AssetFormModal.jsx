@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { useFieldErrors } from '../hooks/useFieldErrors';
 import Modal from './Modal';
 import TabStrip from './TabStrip';
 import ComboSelect from './ComboSelect';
@@ -206,14 +207,21 @@ export default function AssetFormModal({
 }) {
   const isEditing = Boolean(asset);
   const team = useTeam();
+  // New kit is usually uncleaned; the last-clean boxes wait until asked for.
+  const [showLastClean, setShowLastClean] = useState(() => Boolean(prefill?.date_cleaned));
   const [tab, setTab] = useState('details');
   const [values, setValues] = useState(() =>
     isEditing ? valuesFromAsset(asset, prefill) : blankValues(prefill)
   );
+  // What the form opened with, to tell whether anything has been typed.
+  const [initialValues] = useState(values);
+  const dirty = JSON.stringify(values) !== JSON.stringify(initialValues);
   // Copying specs merges into what the form holds at that moment.
   const latestValues = useRef(values);
   latestValues.current = values;
   const [errors, setErrors] = useState({});
+  const formRef = useRef(null);
+  useFieldErrors(formRef, errors);
   const [submitError, setSubmitError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -335,8 +343,9 @@ export default function AssetFormModal({
           : 'Next Clean Due and Status are calculated automatically.'
       }
       onClose={busy ? () => {} : onClose}
+      confirmDiscard={dirty && !busy}
     >
-      <form onSubmit={handleSubmit} noValidate>
+      <form ref={formRef} onSubmit={handleSubmit} noValidate>
         {showSpecs ? (
           <TabStrip
             tabs={[
@@ -637,7 +646,17 @@ export default function AssetFormModal({
             {errors.purchase_cost ? <span className="field__error">{errors.purchase_cost}</span> : null}
           </div>
 
+          <h3 className="form-section field--full">Cleaning</h3>
+          {tracked && !isEditing && !showLastClean ? (
+            <div className="field field--full">
+              <button type="button" className="link-button" onClick={() => setShowLastClean(true)} disabled={busy}>
+                Already been cleaned? Record its last clean
+              </button>
+            </div>
+          ) : null}
           {tracked ? (
+            <>
+          {isEditing || showLastClean ? (
             <>
           <div className="field">
             <label className="field__label" htmlFor="date_cleaned">Date Cleaned</label>
@@ -670,6 +689,8 @@ export default function AssetFormModal({
             />
             {errors.cleaned_by ? <span className="field__error">{errors.cleaned_by}</span> : null}
           </div>
+            </>
+          ) : null}
 
           <div className="field">
             <label className="field__label" htmlFor="cleaning_interval_months">Cleaning interval (months)</label>
@@ -707,8 +728,8 @@ export default function AssetFormModal({
           ) : (
             <div className="field field--full">
               <p className="field__hint">
-                Cleaning is tracked for laptops and desktops only. This asset is recorded
-                for inventory and will not appear in the cleaning area.
+                Only laptops are on the cleaning rota. This {deviceTypeLabel(values.device_type).toLowerCase()} is
+                recorded for the register and will not appear on the Cleaning page.
               </p>
             </div>
           )}

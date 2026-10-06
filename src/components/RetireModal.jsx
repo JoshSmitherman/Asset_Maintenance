@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useFieldErrors } from '../hooks/useFieldErrors';
 import Modal from './Modal';
 import TeamSelect from './TeamSelect';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +26,8 @@ export default function RetireModal({ assets, onSubmit, onClose }) {
     data_wiped_by: user?.id ?? null
   });
   const [errors, setErrors] = useState({});
+  const formRef = useRef(null);
+  useFieldErrors(formRef, errors);
   const [submitError, setSubmitError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -69,7 +72,7 @@ export default function RetireModal({ assets, onSubmit, onClose }) {
       size="sm"
       onClose={busy ? () => {} : onClose}
     >
-      <form onSubmit={handleSubmit} noValidate>
+      <form ref={formRef} onSubmit={handleSubmit} noValidate>
         <div className="modal__body field-stack">
           {single ? null : (
             <p className="field__hint">

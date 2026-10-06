@@ -1,10 +1,14 @@
-import { ATTENTION_STATUSES, STATUS } from '../lib/constants';
+import { ATTENTION_STATUSES, deviceTypeLabel, STATUS } from '../lib/constants';
 import { describeDayOffset, formatDate } from '../lib/dates';
 import { sortByUrgency } from '../lib/assetQueries';
 import StatusBadge from './StatusBadge';
 
+// The dashboard shows the most urgent few; the cleaning queue has the rest.
+const SHOWN = 10;
+
 export default function AttentionPanel({ assets, onRecordClean, onOpenQueue }) {
   const needsAttention = sortByUrgency(assets.filter((asset) => ATTENTION_STATUSES.includes(asset.status)));
+  const shown = needsAttention.slice(0, SHOWN);
 
   // Worst case first: red once anything is overdue or was never cleaned,
   // amber if the rest is only due soon - a plain grey count was easy to miss.
@@ -32,7 +36,7 @@ export default function AttentionPanel({ assets, onRecordClean, onOpenQueue }) {
 
       {needsAttention.length === 0 ? (
         <p className="empty-state empty-state--positive">
-          Nothing needs attention — every asset has been cleaned within the last cycle.
+          Nothing needs attention — every laptop has been cleaned within its cycle.
         </p>
       ) : (
         <div className="table-scroll">
@@ -49,10 +53,10 @@ export default function AttentionPanel({ assets, onRecordClean, onOpenQueue }) {
               </tr>
             </thead>
             <tbody>
-              {needsAttention.map((asset) => (
+              {shown.map((asset) => (
                 <tr key={asset.id}>
                   <td className="cell-strong">{asset.asset_ref}</td>
-                  <td className="col-hide-sm">{asset.device_type}</td>
+                  <td className="col-hide-sm">{deviceTypeLabel(asset.device_type)}</td>
                   <td className="col-hide-xs">
                     {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
                   </td>
@@ -79,6 +83,13 @@ export default function AttentionPanel({ assets, onRecordClean, onOpenQueue }) {
               ))}
             </tbody>
           </table>
+          {needsAttention.length > shown.length && onOpenQueue ? (
+            <p className="card__more">
+              <button type="button" className="link-button" onClick={onOpenQueue}>
+                See all {needsAttention.length} in the cleaning queue
+              </button>
+            </p>
+          ) : null}
         </div>
       )}
     </section>

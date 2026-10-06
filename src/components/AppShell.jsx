@@ -30,7 +30,7 @@ import Toast from './Toast';
 import { useAssets } from '../hooks/useAssets';
 import { useCleaningLog } from '../hooks/useCleaningLog';
 import { useRepairs } from '../hooks/useRepairs';
-import { DEFAULT_PAGE_SIZE, usePagination } from '../hooks/usePagination';
+import { savedPageSize, savePageSize, usePagination } from '../hooks/usePagination';
 import { summariseAssets } from '../lib/assetStatus';
 import { kitSummary, totalPurchaseValue } from '../lib/dashboardStats';
 import { knownModels, specSuggestions } from '../lib/specs';
@@ -119,7 +119,11 @@ export default function AppShell() {
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkAction, setBulkAction] = useState(null); // 'assign' | 'clean' | 'delete'
   const [cleaningTab, setCleaningTab] = useState('queue');
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSizeState] = useState(savedPageSize);
+  const setPageSize = (size) => {
+    setPageSizeState(size);
+    savePageSize(size);
+  };
 
   const cleaningLog = useCleaningLog({
     enabled: (page === 'cleaning' && cleaningTab === 'history') || page === 'reports'
@@ -280,6 +284,9 @@ export default function AppShell() {
     // Each page has its own natural order: urgency for the queue, asset
     // reference for the register.
     setSort(next === 'cleaning' ? { key: 'status', direction: 'asc' } : { ...DEFAULT_SORT });
+    // A new page starts at its top, not wherever the last one was scrolled
+    // to (which left its heading hidden under the sticky header).
+    window.scrollTo?.({ top: 0 });
   };
 
   const onFiltersChange = (next) => {
@@ -388,6 +395,7 @@ export default function AppShell() {
 
   return (
     <div className="app">
+      <a className="skip-link" href="#main">Skip to content</a>
       {/* Header and nav stick as one block so they cannot pin to the same
           offset and overlap each other. */}
       <div className="app-chrome">
@@ -405,7 +413,7 @@ export default function AppShell() {
         />
       </div>
 
-      <main className="container">
+      <main className="container" id="main" tabIndex={-1}>
         {/* Once the register has loaded, a failed refresh keeps what is on
             screen and says so. Before it has, there is nothing true to show:
             zeros and "nothing needs attention" would be a false all-clear. */}
@@ -419,7 +427,7 @@ export default function AppShell() {
         ) : null}
 
         {page === 'releases' ? (
-          <ReleaseNotesPage />
+          <ReleaseNotesPage onBack={() => goToPage('dashboard')} />
         ) : page === 'admin' && isAdmin ? (
           <AdminPage onToast={setToast} specMemory={specMemory} onMergeModels={bulkRenameModel} />
         ) : error && !lastSyncedAt ? (
@@ -490,7 +498,7 @@ export default function AppShell() {
                 <p className="card__subtitle">
                   {cleaningTab === 'history'
                     ? 'Every clean that has been recorded, newest first.'
-                    : 'Laptops and desktops, most urgent first. Record a clean straight from the list.'}
+                    : 'Laptops on the cleaning rota, most urgent first. Record a clean straight from the list.'}
                 </p>
               </div>
               {cleaningTab === 'queue' ? (
@@ -504,12 +512,14 @@ export default function AppShell() {
                 { id: 'history', label: 'History' }
               ]}
               active={cleaningTab}
+              label="Cleaning"
               onChange={(next) => {
                 setCleaningTab(next);
                 clearSelection();
               }}
             />
 
+            <div role="tabpanel" id={`panel-${cleaningTab}`} aria-labelledby={`tab-${cleaningTab}`}>
             {cleaningTab === 'history' ? (
               <CleaningHistory
                 entries={cleaningLog.entries}
@@ -524,7 +534,7 @@ export default function AppShell() {
                   <div className="segmented" role="group" aria-label="Which machines to list">
                     {[
                       { id: 'attention', label: `Needs attention (${attentionCount})` },
-                      { id: 'all', label: `All laptops and desktops (${cleaningAssets.length})` }
+                      { id: 'all', label: `Everything on the rota (${cleaningAssets.length})` }
                     ].map((option) => (
                       <button
                         key={option.id}
@@ -562,7 +572,7 @@ export default function AppShell() {
                   onSelectAllMatching={() => setSelectedIds(new Set(visibleAssets.map((asset) => asset.id)))}
                   onClear={clearSelection}
                   onAssign={() => setBulkAction('assign')}
-                  onUnassign={handleBulkUnassign}
+                  onUnassign={() => setBulkAction('unassign')}
                   onRecordClean={() => setBulkAction('clean')}
                   onRetire={() => setRetireTarget({ assets: selected, fromBulk: true })}
                   onDelete={isAdmin ? () => setBulkAction('delete') : undefined}
@@ -582,6 +592,7 @@ export default function AppShell() {
                 <Pagination {...cleaningPager} label="the cleaning queue" />
               </>
             )}
+            </div>
           </section>
         ) : (
           /* The register: everything owned, and what we know about it. */
@@ -622,7 +633,7 @@ export default function AppShell() {
                 onSelectAllMatching={() => setSelectedIds(new Set(visibleAssets.map((asset) => asset.id)))}
                 onClear={clearSelection}
                 onAssign={() => setBulkAction('assign')}
-                onUnassign={handleBulkUnassign}
+                onUnassign={() => setBulkAction('unassign')}
                 onRecordClean={() => setBulkAction('clean')}
                 onRetire={() => setRetireTarget({ assets: selected, fromBulk: true })}
                 onDelete={isAdmin ? () => setBulkAction('delete') : undefined}
@@ -635,6 +646,13 @@ export default function AppShell() {
                 onSortChange={setSort}
                 variant="full"
                 onViewDetails={setDetailsTarget}
+                emptyMessage={
+                  allAssets.length === 0
+                    ? canEdit
+                      ? 'No assets yet. Add the first with + Add asset - you can scan its barcode into the Asset Ref box.'
+                      : 'No assets have been recorded yet.'
+                    : 'No assets match the current search and filters.'
+                }
                 selectedIds={selectedIds}
                 onToggleSelect={editHandler(toggleSelect)}
                 onToggleSelectAll={editHandler(toggleSelectAll)}
@@ -678,11 +696,13 @@ export default function AppShell() {
 
       </main>
 
+      {page === 'cleaning' ? (
       <footer className="app-footer">
         <span>
           Cleaning cycle defaults to 6 months (12 for laptops); new kit is first due a year after purchase. Status: Overdue (past due) · Due Soon (within 30 days) · OK (more than 30 days).
         </span>
       </footer>
+      ) : null}
 
       {formState ? (
         <AssetFormModal
@@ -795,6 +815,17 @@ export default function AppShell() {
               (count) => `Clean recorded for ${count} asset${count === 1 ? '' : 's'}.${skipped}`
             );
           }}
+        />
+      ) : null}
+
+      {bulkAction === 'unassign' ? (
+        <ConfirmDialog
+          title={`Unassign ${selected.length} asset${selected.length === 1 ? '' : 's'}`}
+          message={`${selected.map((asset) => asset.asset_ref).slice(0, 8).join(', ')}${selected.length > 8 ? ` and ${selected.length - 8} more` : ''} will no longer show who has them, and move to Unassigned Assets. Each asset's history keeps who had it.`}
+          confirmLabel={`Unassign ${selected.length}`}
+          tone="primary"
+          onConfirm={handleBulkUnassign}
+          onCancel={() => setBulkAction(null)}
         />
       ) : null}
 

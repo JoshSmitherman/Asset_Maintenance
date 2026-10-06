@@ -1,6 +1,7 @@
 import { deviceTypeLabel, formatCurrency, isCleaningTracked, STATUS } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import StatusBadge from './StatusBadge';
+import { displayNameFromEmail } from '../lib/accountName';
 
 const LABELS = {
   asset_ref: 'Asset Ref',
@@ -13,7 +14,7 @@ const LABELS = {
   date_cleaned: 'Date Cleaned',
   cleaned_by: 'Cleaned By',
   next_clean_due: 'Next Clean Due',
-  status: 'Status',
+  status: 'Clean status',
   updated_at: 'Last updated'
 };
 
@@ -153,7 +154,19 @@ export default function AssetTable({
                 </td>
               ) : null}
               <td className="cell-strong">
-                {asset.asset_ref}
+                {/* The reference opens the asset - the obvious thing to click. */}
+                {onViewDetails ? (
+                  <button
+                    type="button"
+                    className="ref-link"
+                    onClick={() => onViewDetails(asset)}
+                    aria-label={`Open ${asset.asset_ref}`}
+                  >
+                    {asset.asset_ref}
+                  </button>
+                ) : (
+                  asset.asset_ref
+                )}
                 {asset.notes ? (
                   <span className="note-flag" title={asset.notes} aria-label="Has notes">note</span>
                 ) : null}
@@ -200,15 +213,20 @@ export default function AssetTable({
                 </td>
               ) : null}
               <td>
-                <StatusBadge
-                  status={asset.status}
-                  title={asset.cleaning_interval_months !== 6 ? `${asset.cleaning_interval_months}-month cycle` : undefined}
-                />
+                {asset.status === STATUS.NOT_TRACKED ? (
+                  // Phones, monitors and cameras are not on the cleaning rota.
+                  <span className="cell-muted" title="Not on the cleaning rota">—</span>
+                ) : (
+                  <StatusBadge
+                    status={asset.status}
+                    title={asset.cleaning_interval_months !== 6 ? `${asset.cleaning_interval_months}-month cycle` : undefined}
+                  />
+                )}
               </td>
               {shown.has('updated_at') ? (
-                <td className={classOf('updated_at')}>
-                  <span className="cell-block">{formatTimestamp(asset.updated_at)}</span>
-                  <span className="cell-muted cell-block">{asset.updated_by_email || 'unknown user'}</span>
+                <td className={classOf('updated_at')} title={`${formatTimestamp(asset.updated_at)} by ${asset.updated_by_email || 'unknown user'}`}>
+                  <span className="cell-nowrap">{formatDate(String(asset.updated_at ?? '').slice(0, 10))}</span>
+                  <span className="cell-muted cell-block cell-ellipsis">{displayNameFromEmail(asset.updated_by_email) || '—'}</span>
                 </td>
               ) : null}
               <td className="table__actions">

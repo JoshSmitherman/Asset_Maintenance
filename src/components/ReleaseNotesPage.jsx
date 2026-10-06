@@ -44,7 +44,7 @@ function RichText({ text }) {
  * What changed in each version, newest first, one version at a time - pick
  * another from the list. The notes themselves live in src/lib/releaseNotes.js.
  */
-export default function ReleaseNotesPage() {
+export default function ReleaseNotesPage({ onBack }) {
   const [version, setVersion] = useState(() => versionFromSearch() ?? RELEASES[0].version);
   const release = RELEASES.find((item) => item.version === version) ?? RELEASES[0];
 
@@ -57,6 +57,11 @@ export default function ReleaseNotesPage() {
 
   return (
     <div className="release-notes">
+      {onBack ? (
+        <button type="button" className="link-button release-notes__back" onClick={onBack}>
+          ← Back to the dashboard
+        </button>
+      ) : null}
       <h2 className="release-notes__title">Release Notes</h2>
 
       <div className="release-notes__layout">

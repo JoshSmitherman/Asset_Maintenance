@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useFieldErrors } from '../hooks/useFieldErrors';
 import Modal from './Modal';
 import StatusBadge from './StatusBadge';
 import { defaultIntervalFor } from '../lib/constants';
@@ -14,6 +15,8 @@ import { formatDate, isValidIsoDate, todayIso } from '../lib/dates';
  * they clean a machine. Purchase cost, location and the asset reference are
  * deliberately absent - those belong to the register, on the Assets page.
  */
+const FIELD_IDS = { date_cleaned: 'rc_date_cleaned', cleaned_by: 'rc_cleaned_by', cleaning_interval_months: 'rc_interval', notes: 'rc_notes' };
+
 export default function RecordCleanModal({ asset, onSubmit, onClose }) {
   const team = useTeam();
   const { userEmail, userName } = useAuth();
@@ -27,6 +30,8 @@ export default function RecordCleanModal({ asset, onSubmit, onClose }) {
     notes: asset.notes ?? ''
   }));
   const [errors, setErrors] = useState({});
+  const formRef = useRef(null);
+  useFieldErrors(formRef, errors, { ids: FIELD_IDS });
   const [submitError, setSubmitError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -104,7 +109,7 @@ export default function RecordCleanModal({ asset, onSubmit, onClose }) {
       onClose={busy ? () => {} : onClose}
       size="sm"
     >
-      <form onSubmit={handleSubmit} noValidate>
+      <form ref={formRef} onSubmit={handleSubmit} noValidate>
         <div className="modal__body field-stack">
           <div className="field">
             <label className="field__label" htmlFor="rc_date_cleaned">Date cleaned</label>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import AccountMenu from './AccountMenu';
+import ThemeToggle from './ThemeToggle';
 import BrandLogo from './BrandLogo';
 import ChangePasswordModal from './ChangePasswordModal';
 import Toast from './Toast';
@@ -59,6 +60,8 @@ export default function Header({ lastSyncedAt, connectionError = false, onOpenRe
           </div>
         </div>
 
+        <div className="app-header__actions">
+        <ThemeToggle />
         <AccountMenu
           email={userEmail}
           fullName={userName}
@@ -70,6 +73,7 @@ export default function Header({ lastSyncedAt, connectionError = false, onOpenRe
           onSignOut={handleSignOut}
           signingOut={signingOut}
         />
+        </div>
       </div>
 
       {changingPassword ? (

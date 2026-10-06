@@ -74,7 +74,8 @@ describe('AssetFormModal validation', () => {
     await user.type(screen.getByLabelText(/asset ref/i), 'LAP-777');
     await addNew(user, /^user$/i, 'Bob');
     await addNew(user, /department/i, 'Finance');
-    // Laptop is the default device type, so cleaning fields are present.
+    // Laptop is the default device type; its last clean is one click away.
+    await user.click(screen.getByRole('button', { name: /record its last clean/i }));
     const dateInput = screen.getByLabelText(/date cleaned/i);
     await user.clear(dateInput);
     // type="date" inputs accept an ISO value directly

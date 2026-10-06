@@ -1,6 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 
-export const DEFAULT_PAGE_SIZE = 5;
+export const DEFAULT_PAGE_SIZE = 25;
+
+const KEY = 'page-size';
+
+/** The page size this browser last chose, or the default. */
+export function savedPageSize() {
+  try {
+    const value = Number(window.localStorage.getItem(KEY));
+    return Number.isInteger(value) && value > 0 && value <= 500 ? value : DEFAULT_PAGE_SIZE;
+  } catch {
+    return DEFAULT_PAGE_SIZE;
+  }
+}
+
+export function savePageSize(size) {
+  try {
+    window.localStorage.setItem(KEY, String(size));
+  } catch {
+    // Storage blocked: the choice lasts until the page is reloaded.
+  }
+}
 
 /**
  * Slices a list into pages.
