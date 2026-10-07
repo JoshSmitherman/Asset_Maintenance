@@ -96,6 +96,34 @@ test.describe('Orbit — end to end (mocked Supabase)', () => {
     await expect(page.getByText('LAP-001')).toBeVisible();
   });
 
+  test('coming back after a long break means signing in again', async ({ page }) => {
+    await mockSupabase(page);
+    await page.goto('/');
+    await signIn(page);
+    await expect(page.getByText('LAP-001')).toBeVisible();
+    // Last activity two hours ago, as if the laptop was left overnight.
+    await page.evaluate(() => localStorage.setItem('orbit-last-active', String(Date.now() - 2 * 60 * 60 * 1000)));
+    await page.reload();
+    await expect(page.getByText(/signed out after 1 hour without activity/i)).toBeVisible();
+    await expect(page.getByText('LAP-001')).toHaveCount(0);
+  });
+
+  test('warns before signing out, and Stay signed in keeps you in', async ({ page }) => {
+    await page.clock.install();
+    await mockSupabase(page);
+    await page.goto('/');
+    await signIn(page);
+    await expect(page.getByText('LAP-001')).toBeVisible();
+    await page.clock.fastForward('58:30');
+    await expect(page.getByRole('dialog', { name: /still there/i })).toBeVisible();
+    await page.getByRole('button', { name: /stay signed in/i }).click();
+    await expect(page.getByRole('dialog', { name: /still there/i })).toHaveCount(0);
+    await page.clock.fastForward('30:00');
+    await expect(page.getByText('LAP-001')).toBeVisible();
+    await page.clock.fastForward('31:00');
+    await expect(page.getByText(/signed out after 1 hour/i)).toBeVisible();
+  });
+
   test('coming back from Microsoft finishes signing in', async ({ page }) => {
     await mockSupabase(page);
     // What supabase-js saved before leaving for Microsoft (PKCE).

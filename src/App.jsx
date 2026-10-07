@@ -4,6 +4,8 @@ import AppShell from './components/AppShell';
 import LoginPage from './components/LoginPage';
 import AccessPending from './components/AccessPending';
 import { describeDatabaseError } from './lib/errors';
+import IdleWarning from './components/IdleWarning';
+import { useIdleSignOut } from './hooks/useIdleSignOut';
 
 function ConfigurationNotice() {
   return (
@@ -44,8 +46,24 @@ function AccessCheckFailed({ error, onRetry, onSignOut }) {
 }
 
 export default function App() {
-  const { session, initialising, membership, refreshMembership, signOut } = useAuth();
+  const { session, initialising, membership, refreshMembership, signOut, signOutForIdle } = useAuth();
+  // Signed in but idle for too long: warn, then sign out.
+  const idle = useIdleSignOut({ enabled: Boolean(session), onExpire: signOutForIdle });
+  const warning =
+    session && idle.secondsLeft !== null ? (
+      <IdleWarning secondsLeft={idle.secondsLeft} onStay={idle.stayActive} onSignOut={signOutForIdle} />
+    ) : null;
 
+  return (
+    <>
+      <Screen session={session} initialising={initialising} membership={membership}
+        refreshMembership={refreshMembership} signOut={signOut} />
+      {warning}
+    </>
+  );
+}
+
+function Screen({ session, initialising, membership, refreshMembership, signOut }) {
   if (!isSupabaseConfigured) return <ConfigurationNotice />;
   if (initialising) return <Waiting>Checking your session…</Waiting>;
   if (!session) return <LoginPage />;

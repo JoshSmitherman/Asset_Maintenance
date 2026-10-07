@@ -8,6 +8,33 @@
 
 export const RELEASES = [
   {
+    version: '2.12.0',
+    title: 'Signed Out When Idle',
+    date: '2026-10-07',
+    sections: [
+      {
+        area: 'General',
+        groups: [
+          {
+            heading: 'Signing out',
+            items: [
+              {
+                type: 'security',
+                text: 'Orbit signs you out after **1 hour** with nothing done',
+                details: [
+                  'Two minutes before, it asks "Still there?" - press Stay signed in to carry on',
+                  'Working in any Orbit tab keeps all of them signed in',
+                  'Opening Orbit again after a long break (a laptop left overnight) asks you to sign in',
+                  'The sign-in page says why you were signed out'
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.11.0',
     title: 'Any Device Type, and the Dashboard Cards Back',
     date: '2026-10-06',

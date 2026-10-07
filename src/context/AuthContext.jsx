@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { canEditWith } from '../lib/access';
+import { forgetActivity, isIdleExpired, rememberSignOutReason } from '../lib/idle';
 
 const AuthContext = createContext(null);
 
@@ -25,8 +26,18 @@ export function AuthProvider({ children }) {
 
     supabase.auth
       .getSession()
-      .then(({ data }) => {
-        if (active) setSession(data.session ?? null);
+      .then(async ({ data }) => {
+        let current = data.session ?? null;
+        // Back after a long break (a laptop opened in the morning): the
+        // session would still be valid, but nobody has used Orbit for longer
+        // than the idle limit, so sign out before showing anything.
+        if (current && isIdleExpired()) {
+          rememberSignOutReason('idle');
+          forgetActivity();
+          await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+          current = null;
+        }
+        if (active) setSession(current);
       })
       .finally(() => {
         if (active) setInitialising(false);
@@ -115,6 +126,15 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }, []);
 
+  /** Signs this browser out after too long with nothing done. */
+  const signOutForIdle = useCallback(async () => {
+    rememberSignOutReason('idle');
+    forgetActivity();
+    // This browser only: someone idle here may be busy on another computer.
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+    setSession(null);
+  }, []);
+
   /** Changes the signed-in user's own password. The current session already
    *  proves who they are, so - unlike signing in - no current password is
    *  required; Supabase authorises the change against the active session. */
@@ -150,11 +170,12 @@ export function AuthProvider({ children }) {
       signIn,
       signInWithMicrosoft,
       signOut,
+      signOutForIdle,
       changePassword,
       requestAccess,
       refreshMembership: loadMembership
     }),
-    [session, user, membership, hasPassword, initialising, signIn, signInWithMicrosoft, signOut, changePassword, requestAccess, loadMembership]
+    [session, user, membership, hasPassword, initialising, signIn, signInWithMicrosoft, signOut, signOutForIdle, changePassword, requestAccess, loadMembership]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

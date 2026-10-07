@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo from './BrandLogo';
 import { fetchSignInMethods } from '../lib/supabaseClient';
+import { describeIdleLimit, takeSignOutReason } from '../lib/idle';
 
 /**
  * Why a Microsoft sign-in bounced back, from the error Supabase puts in the
@@ -50,6 +51,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(() => takeRedirectError());
+  // Why they are here, if Orbit signed them out itself.
+  const [notice] = useState(() =>
+    takeSignOutReason() === 'idle'
+      ? `You were signed out after ${describeIdleLimit()} without activity. Sign in again to carry on.`
+      : null
+  );
   const [busy, setBusy] = useState(null); // 'microsoft' | 'password' | null
   // Most people sign in with Microsoft; email and password is the fallback.
   const [showPassword, setShowPassword] = useState(false);
@@ -134,6 +141,7 @@ export default function LoginPage() {
         </>
         )}
 
+        {notice && !error ? <p className="form-notice" role="status">{notice}</p> : null}
         {error ? <p className="form-error" role="alert">{error}</p> : null}
 
         {passwordOpen ? (

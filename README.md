@@ -181,6 +181,12 @@ first with **Give someone access**, and they just sign in.
 - **Allow anonymous sign-ins: OFF.**
 - **Email → Confirm email: ON** (the default).
 
+**Signing out when idle.** Orbit signs a browser out after an hour with
+nothing done in any Orbit tab, with a "Still there?" warning two minutes
+before, and asks for sign-in again when it is reopened after a longer break.
+Change the hour with `IDLE_LIMIT_MS` in `src/lib/idle.js`. (Supabase can also
+cap session length on its own servers, but only on a paid plan.)
+
 ### 5a. Microsoft (Microsoft 365) sign-in
 
 Free on both sides. Needs someone who can register apps in the company's

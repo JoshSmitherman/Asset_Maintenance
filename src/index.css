@@ -2291,3 +2291,14 @@ body:not(.light-mode) { --input-border: #6b7d93; }
   color: var(--slate-500);
 }
 .field > .link-button { align-self: flex-start; text-align: left; }
+
+.form-notice {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--amber-100);
+  border: 1px solid var(--amber-border);
+  color: var(--amber-700);
+  font-size: 13.5px;
+}
+.idle-countdown { font-variant-numeric: tabular-nums; }

@@ -7,6 +7,20 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.12.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.12.0) - 2026-10-07
+
+_Signed Out When Idle_
+
+### General
+
+**Signing out**
+
+- **Security:** Orbit signs you out after **1 hour** with nothing done
+  - Two minutes before, it asks "Still there?" - press Stay signed in to carry on
+  - Working in any Orbit tab keeps all of them signed in
+  - Opening Orbit again after a long break (a laptop left overnight) asks you to sign in
+  - The sign-in page says why you were signed out
+
 ## [2.11.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.11.0) - 2026-10-06
 
 _Any Device Type, and the Dashboard Cards Back_
