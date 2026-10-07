@@ -27,7 +27,26 @@ export const RELEASES = [
                   'Opening Orbit again after a long break (a laptop left overnight) asks you to sign in',
                   'The sign-in page says why you were signed out'
                 ]
-              }
+              },
+              { type: 'fixed', text: 'The sign-in page no longer flashes a Microsoft button that is not switched on yet' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Assets',
+        groups: [
+          {
+            heading: 'Device types',
+            items: [
+              {
+                type: 'fixed',
+                text: 'Typing "laptop" (or "monitor", "desktop"...) as a new type now uses the one already in the list',
+                details: ['Before, a laptop typed in lower case dropped off the cleaning rota']
+              },
+              { type: 'fixed', text: '"Choose from the list instead" puts back the type the asset had, rather than Laptop' },
+              { type: 'changed', text: 'Assets added as "Device" in the last few days are now "Other"' },
+              { type: 'changed', text: 'Search also finds device types and brands - try "projector" or "Dell"' }
             ]
           }
         ]

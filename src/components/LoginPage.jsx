@@ -64,13 +64,20 @@ export default function LoginPage() {
   // password form is the way in. Unknown (still checking, or the check
   // failed) shows both.
   const [microsoftOn, setMicrosoftOn] = useState(null);
+  // Until the check answers (or 2 seconds pass), neither option shows, so
+  // nobody clicks a Microsoft button that is about to vanish.
+  const [checked, setChecked] = useState(false);
   useEffect(() => {
     let active = true;
+    const giveUp = window.setTimeout(() => active && setChecked(true), 2000);
     fetchSignInMethods().then((methods) => {
-      if (active && methods) setMicrosoftOn(methods.microsoft);
+      if (!active) return;
+      if (methods) setMicrosoftOn(methods.microsoft);
+      setChecked(true);
     });
     return () => {
       active = false;
+      window.clearTimeout(giveUp);
     };
   }, []);
   const passwordOpen = showPassword || microsoftOn === false;
@@ -121,7 +128,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {microsoftOn === false ? null : (
+        {!checked ? (
+          <p className="login__hint" role="status">Loading sign-in…</p>
+        ) : microsoftOn === false ? null : (
         <>
         <button
           type="button"
@@ -144,7 +153,7 @@ export default function LoginPage() {
         {notice && !error ? <p className="form-notice" role="status">{notice}</p> : null}
         {error ? <p className="form-error" role="alert">{error}</p> : null}
 
-        {passwordOpen ? (
+        {!checked ? null : passwordOpen ? (
           <form className="login__password" onSubmit={handleSubmit} noValidate>
             {microsoftOn === false ? null : (
               <div className="login__divider" role="separator"><span>or with a password</span></div>
@@ -159,7 +168,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 disabled={Boolean(busy)}
-                autoFocus={showPassword}
+                autoFocus={showPassword || microsoftOn === false}
                 required
               />
             </div>

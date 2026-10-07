@@ -269,7 +269,11 @@ export default function AssetFormModal({
 
   // Changing the type moves the interval to the new type's default, but only
   // while it is still the old type's default - a number someone typed stays.
-  const setDeviceType = (nextType) => {
+  const setDeviceType = (typed) => {
+    // "laptop" or "Laptop " is the Laptop already in the list, not a new type:
+    // a near-miss would quietly drop a laptop off the cleaning rota.
+    const match = deviceTypes.find((type) => type.toLowerCase() === String(typed ?? '').trim().toLowerCase());
+    const nextType = match ?? typed;
     setValues((current) => {
       const untouched = Number(current.cleaning_interval_months) === defaultIntervalFor(current.device_type);
       return {

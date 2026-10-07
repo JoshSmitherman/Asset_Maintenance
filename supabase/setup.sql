@@ -664,6 +664,14 @@ as $$
 begin
   new.asset_ref  := btrim(new.asset_ref);
   new.device_type := btrim(new.device_type);
+  -- "laptop" is the Laptop: the usual types keep one spelling, or a laptop
+  -- typed in lower case would quietly leave the cleaning rota. Mirrors
+  -- DEVICE_TYPES in src/lib/constants.js.
+  new.device_type := coalesce(
+    (select t from unnest(array['Laptop', 'Desktop', 'Monitor', 'Phone', 'Camera', 'Docking Station',
+                                'Tablet', 'Printer', 'Peripheral', 'Other']) as t
+      where lower(t) = lower(new.device_type)),
+    new.device_type);
   new.owner_name := nullif(btrim(coalesce(new.owner_name, '')), '');
   new.department := btrim(new.department);
   new.notes      := nullif(btrim(coalesce(new.notes, '')), '');
@@ -761,6 +769,18 @@ drop trigger if exists assets_write_trigger on public.assets;
 create trigger assets_write_trigger
   before insert or update on public.assets
   for each row execute function public.handle_asset_write();
+
+-- Tidying types already saved (re-running finds nothing to do): "Device",
+-- offered briefly in 2.10, is "Other"; and any usual type saved with
+-- different capitals or spaces gets its one spelling. The trigger above does
+-- the respelling.
+update public.assets set device_type = 'Other' where device_type = 'Device';
+update public.assets a set device_type = a.device_type
+ where btrim(a.device_type) <> a.device_type
+    or (lower(btrim(a.device_type)) in ('laptop', 'desktop', 'monitor', 'phone', 'camera', 'docking station',
+                                        'tablet', 'printer', 'peripheral', 'other')
+        and a.device_type not in ('Laptop', 'Desktop', 'Monitor', 'Phone', 'Camera', 'Docking Station',
+                                  'Tablet', 'Printer', 'Peripheral', 'Other'));
 
 
 -- =====================================================================

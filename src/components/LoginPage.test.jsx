@@ -19,7 +19,7 @@ beforeEach(() => {
 });
 
 const openPasswordForm = async (user) => {
-  await user.click(screen.getByRole('button', { name: /email and password instead/i }));
+  await user.click(await screen.findByRole('button', { name: /email and password instead/i }));
 };
 
 describe('LoginPage', () => {
@@ -28,7 +28,7 @@ describe('LoginPage', () => {
     const user = userEvent.setup();
     render(<LoginPage />);
     expect(screen.queryByLabelText(/^password$/i)).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /sign in with microsoft/i }));
+    await user.click(await screen.findByRole('button', { name: /sign in with microsoft/i }));
     expect(signInWithMicrosoft).toHaveBeenCalled();
   });
 
@@ -36,7 +36,7 @@ describe('LoginPage', () => {
     signInWithMicrosoft.mockRejectedValue(new Error('Unsupported provider: provider is not enabled'));
     const user = userEvent.setup();
     render(<LoginPage />);
-    await user.click(screen.getByRole('button', { name: /sign in with microsoft/i }));
+    await user.click(await screen.findByRole('button', { name: /sign in with microsoft/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/not been switched on yet/i);
   });
 

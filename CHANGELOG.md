@@ -20,6 +20,17 @@ _Signed Out When Idle_
   - Working in any Orbit tab keeps all of them signed in
   - Opening Orbit again after a long break (a laptop left overnight) asks you to sign in
   - The sign-in page says why you were signed out
+- **Fixed:** The sign-in page no longer flashes a Microsoft button that is not switched on yet
+
+### Assets
+
+**Device types**
+
+- **Fixed:** Typing "laptop" (or "monitor", "desktop"...) as a new type now uses the one already in the list
+  - Before, a laptop typed in lower case dropped off the cleaning rota
+- **Fixed:** "Choose from the list instead" puts back the type the asset had, rather than Laptop
+- **Changed:** Assets added as "Device" in the last few days are now "Other"
+- **Changed:** Search also finds device types and brands - try "projector" or "Dell"
 
 ## [2.11.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.11.0) - 2026-10-06
 

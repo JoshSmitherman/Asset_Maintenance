@@ -17,7 +17,7 @@ function matchesSearch(asset, term) {
   if (!needle) return true;
   return [
     asset.asset_ref, asset.serial_number, asset.owner_name, asset.department, asset.location,
-    asset.notes, asset.cleaned_by, asset.spec_model
+    asset.notes, asset.cleaned_by, asset.device_type, asset.spec_brand, asset.spec_model
   ]
     .filter(Boolean)
     .some((field) => String(field).toLowerCase().includes(needle));

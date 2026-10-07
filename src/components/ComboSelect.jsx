@@ -25,6 +25,9 @@ export default function ComboSelect({
   maxLength = 60
 }) {
   const [adding, setAdding] = useState(false);
+  // What was chosen before "Add new", so "Choose from the list instead" puts
+  // it back rather than jumping to the first option.
+  const [before, setBefore] = useState(null);
 
   const choices = useMemo(() => {
     const all = new Set(options.filter(Boolean));
@@ -54,7 +57,8 @@ export default function ComboSelect({
           onClick={() => {
             // With no blank choice, go back to the first option rather than
             // leave a value the list cannot show.
-            onChange(blankLabel === null ? choices[0] ?? '' : '');
+            onChange(before ?? (blankLabel === null ? choices[0] ?? '' : ''));
+            setBefore(null);
             setAdding(false);
           }}
           disabled={disabled}
@@ -73,6 +77,7 @@ export default function ComboSelect({
       disabled={disabled}
       onChange={(event) => {
         if (event.target.value === ADD_NEW) {
+          setBefore(value || null);
           onChange('');
           setAdding(true);
           return;

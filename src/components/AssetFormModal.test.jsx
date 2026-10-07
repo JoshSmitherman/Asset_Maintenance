@@ -155,6 +155,23 @@ describe('AssetFormModal validation', () => {
     expect(onSubmit.mock.calls[0][0]).toMatchObject({ device_type: 'Projector' });
   });
 
+  it('treats "laptop" typed in as the Laptop, so it stays on the cleaning rota', async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.selectOptions(screen.getByLabelText(/device type/i), 'Monitor');
+    await user.selectOptions(screen.getByLabelText(/device type/i), '+ Add another type…');
+    await user.type(screen.getByLabelText(/device type/i), 'laptop');
+    expect(screen.getByLabelText(/device type/i)).toHaveValue('Laptop');
+  });
+
+  it('"Choose from the list instead" puts back the type it had', async () => {
+    const user = userEvent.setup();
+    setup({ asset: { id: 'p1', asset_ref: 'PRJ-1', device_type: 'Projector', department: 'IT', version: 1 } });
+    await user.selectOptions(screen.getByLabelText(/device type/i), '+ Add another type…');
+    await user.click(screen.getByRole('button', { name: /choose from the list instead/i }));
+    expect(screen.getByLabelText(/device type/i)).toHaveValue('Projector');
+  });
+
   it('keeps a type nobody else uses on an asset that has it', () => {
     setup({ asset: { id: 'd1', asset_ref: 'PRJ-1', device_type: 'Projector', department: 'IT', version: 1 } });
     expect(screen.getByLabelText(/device type/i)).toHaveValue('Projector');

@@ -83,6 +83,13 @@ describe('setup.sql', () => {
     await expect(addLaptop('TYPE-2', { device_type: '   ' })).rejects.toThrow(/assets_device_type_valid/);
   });
 
+  it('gives the usual types one spelling, however they are typed', async () => {
+    const asset = await addLaptop('TYPE-3', { device_type: 'laptop', date_cleaned: '2026-01-01', cleaned_by: 'AL' });
+    expect(asset.device_type).toBe('Laptop');
+    const [row] = await rows(db, `select status from public.assets_with_status where id = $1`, [asset.id]);
+    expect(row.status).not.toBe('Not Tracked');
+  });
+
   it('refuses a clean dated in the future', async () => {
     await expect(addLaptop('FUT-1', { date_cleaned: '2999-01-01', cleaned_by: 'AL' })).rejects.toThrow(
       /cannot be in the future/
