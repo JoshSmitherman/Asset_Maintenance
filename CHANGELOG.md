@@ -7,6 +7,39 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.13.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.13.0) - 2026-10-07
+
+_Everything in Its Place_
+
+### Assets
+
+**The register**
+
+- **Changed:** The Assets page is just the register now - cleaning lives on the Cleaning page
+  - No clean status column, no Cleaned by or Status filters, no Record clean in the bulk actions
+  - Overdue rows are no longer tinted red here
+  - The register export leaves out cleaning too; the cleaning export still has it
+- **Added:** A **Device** column says what each machine is - "Dell 14 Pro Plus", with "Laptop" underneath
+  - From the make and model on the Specification tab; kit without them shows its type
+- **Changed:** An asset's Details tab is grouped: **The asset**, **Cleaning** and **Record**
+  - The make and model show at the top, beside the device type
+- **Changed:** Search also finds serial numbers
+
+### Dashboard
+
+**Layout**
+
+- **Changed:** The dashboard reads in two halves: **Assets** (cards, by type, by location, purchases), then **Cleaning** (cards, status and what needs attention)
+- **Changed:** Needs attention and the cleaning queue name each machine by its make and model
+
+### Reports
+
+**Reports**
+
+- **Changed:** **Assets by group** no longer counts overdue cleans - the Cleaning reports cover that
+- **Added:** **By person** lists each item's make, model and serial number
+- **Added:** Exports include a **Make and model** column
+
 ## [2.12.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.12.0) - 2026-10-07
 
 _Signed Out When Idle_

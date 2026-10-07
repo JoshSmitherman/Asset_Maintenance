@@ -11,6 +11,7 @@ import { buildTimeline } from '../assetHistory';
 import { nextAssetRef } from '../assetLinks';
 import { describeDatabaseError } from '../errors';
 import { STATUS } from '../constants';
+import { deviceName } from '../assetStatus';
 
 /** A pretend Supabase query that serves `total` rows a page at a time. */
 function pagedSource(total, { failOnPage = null } = {}) {
@@ -180,5 +181,15 @@ describe('database errors people can act on', () => {
       .toBe('The repair date cannot be in the future.');
     expect(describeDatabaseError({ message: 'TypeError: Failed to fetch' })).toMatch(/internet connection/i);
     expect(describeDatabaseError({ code: 'XX000', message: 'internal_error { detail }' })).toMatch(/having trouble/i);
+  });
+});
+
+describe('what a device is called', () => {
+  it('puts make and model together, without saying the make twice', () => {
+    expect(deviceName({ spec_brand: 'Dell', spec_model: '14 Pro Plus' })).toBe('Dell 14 Pro Plus');
+    expect(deviceName({ spec_brand: 'Dell', spec_model: 'Dell 14 Pro Plus' })).toBe('Dell 14 Pro Plus');
+    expect(deviceName({ spec_brand: null, spec_model: 'ThinkPad T14' })).toBe('ThinkPad T14');
+    expect(deviceName({ spec_brand: 'Samsung', spec_model: '' })).toBe('Samsung');
+    expect(deviceName({})).toBeNull();
   });
 });

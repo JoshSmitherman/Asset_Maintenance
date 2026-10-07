@@ -44,7 +44,7 @@ export default function AttentionPanel({ assets, onRecordClean, onOpenQueue }) {
             <thead>
               <tr>
                 <th scope="col">Asset Ref</th>
-                <th scope="col" className="col-hide-sm">Type</th>
+                <th scope="col" className="col-hide-sm">Device</th>
                 <th scope="col" className="col-hide-xs">User</th>
                 <th scope="col" className="col-hide-md">Department</th>
                 <th scope="col" className="col-hide-xs">Next Clean Due</th>
@@ -56,7 +56,7 @@ export default function AttentionPanel({ assets, onRecordClean, onOpenQueue }) {
               {shown.map((asset) => (
                 <tr key={asset.id}>
                   <td className="cell-strong">{asset.asset_ref}</td>
-                  <td className="col-hide-sm">{asset.device_type}</td>
+                  <td className="col-hide-sm">{asset.device_label ?? asset.device_type}</td>
                   <td className="col-hide-xs">
                     {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
                   </td>

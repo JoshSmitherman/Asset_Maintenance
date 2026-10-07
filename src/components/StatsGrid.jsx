@@ -26,11 +26,12 @@ const CLEANING_CARDS = [
  * where the cleaning stands. Every card but the total value is a shortcut to
  * the matching list.
  */
-export default function StatsGrid({ summary, kit, totalValue, otherBreakdown = '', onSelectType, onSelectStatus }) {
+export default function StatsGrid({ summary, kit, totalValue, otherBreakdown = '', onSelectType, onSelectStatus, group = 'both' }) {
   const trackedTotal = CLEANING_CARDS.reduce((sum, card) => sum + (summary[card.key] ?? 0), 0);
 
   return (
     <div className="stat-groups">
+      {group === 'cleaning' ? null : (
       <section className="stat-group" aria-labelledby="stat-group-assets">
         <h2 className="stat-group__title" id="stat-group-assets">Assets</h2>
         <div className="stat-grid stat-grid--assets">
@@ -58,7 +59,9 @@ export default function StatsGrid({ summary, kit, totalValue, otherBreakdown = '
           ))}
         </div>
       </section>
+      )}
 
+      {group === 'assets' ? null : (
       <section className="stat-group" aria-labelledby="stat-group-cleaning">
         <h2 className="stat-group__title" id="stat-group-cleaning">
           Cleaning <span className="stat-group__note">{trackedTotal} laptops and desktops</span>
@@ -83,6 +86,7 @@ export default function StatsGrid({ summary, kit, totalValue, otherBreakdown = '
           })}
         </div>
       </section>
+      )}
     </div>
   );
 }

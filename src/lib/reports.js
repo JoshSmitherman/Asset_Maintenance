@@ -30,8 +30,7 @@ function groupBy(assets, pick) {
 const GROUP_COLUMNS = (label) => [
   { key: 'label', label },
   { key: 'count', label: 'Assets' },
-  { key: 'value', label: 'Total value', format: (row) => money(row.value) },
-  { key: 'overdue', label: 'Overdue cleans' }
+  { key: 'value', label: 'Total value', format: (row) => money(row.value) }
 ];
 
 /**
@@ -328,6 +327,8 @@ export const REPORTS = [
         columns: [
           { key: 'asset_ref', label: 'Asset Ref' },
           { key: 'device_type', label: 'Type' },
+          { key: 'device_name', label: 'Make and model', format: (row) => row.device_name ?? '' },
+          { key: 'serial_number', label: 'Serial number', format: (row) => row.serial_number ?? '' },
           { key: 'department', label: 'Department' },
           { key: 'location', label: 'Location', format: (row) => row.location ?? NOT_RECORDED },
           { key: 'status', label: 'Cleaning status' },

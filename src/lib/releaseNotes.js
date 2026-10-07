@@ -8,6 +8,71 @@
 
 export const RELEASES = [
   {
+    version: '2.13.0',
+    title: 'Everything in Its Place',
+    date: '2026-10-07',
+    sections: [
+      {
+        area: 'Assets',
+        groups: [
+          {
+            heading: 'The register',
+            items: [
+              {
+                type: 'changed',
+                text: 'The Assets page is just the register now - cleaning lives on the Cleaning page',
+                details: [
+                  'No clean status column, no Cleaned by or Status filters, no Record clean in the bulk actions',
+                  'Overdue rows are no longer tinted red here',
+                  'The register export leaves out cleaning too; the cleaning export still has it'
+                ]
+              },
+              {
+                type: 'added',
+                text: 'A **Device** column says what each machine is - "Dell 14 Pro Plus", with "Laptop" underneath',
+                details: ['From the make and model on the Specification tab; kit without them shows its type']
+              },
+              {
+                type: 'changed',
+                text: 'An asset\'s Details tab is grouped: **The asset**, **Cleaning** and **Record**',
+                details: ['The make and model show at the top, beside the device type']
+              },
+              { type: 'changed', text: 'Search also finds serial numbers' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Dashboard',
+        groups: [
+          {
+            heading: 'Layout',
+            items: [
+              {
+                type: 'changed',
+                text: 'The dashboard reads in two halves: **Assets** (cards, by type, by location, purchases), then **Cleaning** (cards, status and what needs attention)'
+              },
+              { type: 'changed', text: 'Needs attention and the cleaning queue name each machine by its make and model' }
+            ]
+          }
+        ]
+      },
+      {
+        area: 'Reports',
+        groups: [
+          {
+            heading: 'Reports',
+            items: [
+              { type: 'changed', text: '**Assets by group** no longer counts overdue cleans - the Cleaning reports cover that' },
+              { type: 'added', text: '**By person** lists each item\'s make, model and serial number' },
+              { type: 'added', text: 'Exports include a **Make and model** column' }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.12.0',
     title: 'Signed Out When Idle',
     date: '2026-10-07',

@@ -6,6 +6,7 @@ import { displayNameFromEmail } from '../lib/accountName';
 const LABELS = {
   asset_ref: 'Asset Ref',
   device_type: 'Type',
+  device_label: 'Device',
   owner_name: 'User',
   department: 'Department',
   location: 'Location',
@@ -14,7 +15,7 @@ const LABELS = {
   date_cleaned: 'Date Cleaned',
   cleaned_by: 'Cleaned By',
   next_clean_due: 'Next Clean Due',
-  status: 'Clean status',
+  status: 'Status',
   updated_at: 'Last updated'
 };
 
@@ -28,16 +29,16 @@ function column(key, className) {
   return { key, label: LABELS[key], className };
 }
 
-/** The register. Cleaning dates live on the Cleaning page, not here. */
+/** The register: what we own, who has it, where, and what it cost. Cleaning
+ *  lives on the Cleaning page, not here. */
 const FULL_COLUMNS = [
   column('asset_ref'),
-  column('device_type', 'col-hide-xs'),
+  column('device_label', 'col-hide-xs'),
   column('owner_name'),
   column('department', 'col-hide-md'),
   column('location', 'col-hide-sm'),
   column('purchase_date', 'col-hide-md'),
   column('purchase_cost', 'col-hide-sm'),
-  column('status'),
   column('updated_at', 'col-hide-lg')
 ];
 
@@ -47,7 +48,7 @@ const FULL_COLUMNS = [
  */
 const CLEANING_COLUMNS = [
   column('asset_ref'),
-  column('device_type', 'col-hide-xs'),
+  column('device_label', 'col-hide-xs'),
   column('owner_name'),
   column('department', 'col-hide-lg'),
   column('location', 'col-hide-md'),
@@ -138,7 +139,7 @@ export default function AssetTable({
             <tr
               key={asset.id}
               className={[
-                asset.status === STATUS.OVERDUE ? 'row--overdue' : '',
+                variant === 'cleaning' && asset.status === STATUS.OVERDUE ? 'row--overdue' : '',
                 selectable && selectedIds.has(asset.id) ? 'row--selected' : ''
               ].filter(Boolean).join(' ') || undefined}
             >
@@ -171,7 +172,17 @@ export default function AssetTable({
                   <span className="note-flag" title={asset.notes} aria-label="Has notes">note</span>
                 ) : null}
               </td>
-              <td className={classOf('device_type')}>{asset.device_type}</td>
+              <td className={classOf('device_label')}>
+                {/* "Dell 14 Pro Plus" over "Laptop"; just the type if no model is recorded. */}
+                {asset.device_name ? (
+                  <>
+                    <span className="cell-block">{asset.device_name}</span>
+                    <span className="cell-muted cell-block">{asset.device_type}</span>
+                  </>
+                ) : (
+                  asset.device_type
+                )}
+              </td>
               <td>
                 {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
               </td>
@@ -212,6 +223,7 @@ export default function AssetTable({
                   )}
                 </td>
               ) : null}
+              {shown.has('status') ? (
               <td>
                 {asset.status === STATUS.NOT_TRACKED ? (
                   // Phones, monitors and cameras are not on the cleaning rota.
@@ -223,6 +235,7 @@ export default function AssetTable({
                   />
                 )}
               </td>
+              ) : null}
               {shown.has('updated_at') ? (
                 <td className={classOf('updated_at')} title={`${formatTimestamp(asset.updated_at)} by ${asset.updated_by_email || 'unknown user'}`}>
                   <span className="cell-nowrap">{formatDate(String(asset.updated_at ?? '').slice(0, 10))}</span>

@@ -7,7 +7,7 @@ import CleanerSelect from './CleanerSelect';
 import { useTeam } from '../hooks/useTeam';
 import { useAuth } from '../context/AuthContext';
 import { displayName } from '../lib/access';
-import { previewNextCleanDue, statusFor } from '../lib/assetStatus';
+import { deviceName, previewNextCleanDue, statusFor } from '../lib/assetStatus';
 import { formatDate, isValidIsoDate, todayIso } from '../lib/dates';
 
 /**
@@ -105,7 +105,7 @@ export default function RecordCleanModal({ asset, onSubmit, onClose }) {
   return (
     <Modal
       title={`Record clean — ${asset.asset_ref}`}
-      description={`${asset.device_type}${asset.owner_name ? ` · ${asset.owner_name}` : ''}${asset.location ? ` · ${asset.location}` : ''}`}
+      description={[deviceName(asset) ?? asset.device_type, asset.owner_name, asset.location].filter(Boolean).join(' · ')}
       onClose={busy ? () => {} : onClose}
       size="sm"
     >

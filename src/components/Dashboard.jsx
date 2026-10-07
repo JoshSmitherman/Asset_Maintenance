@@ -126,30 +126,36 @@ function PurchasesChart({ data }) {
   );
 }
 
-export default function Dashboard({ assets }) {
+/** How the cleaning rota stands, as one bar - for the Cleaning half of the dashboard. */
+export function CleaningStatusCard({ assets }) {
   const status = statusBreakdown(assets);
+  const trackedTotal = status.reduce((sum, item) => sum + item.value, 0);
+  return (
+    <div className="card chart-card">
+      <div className="card__header">
+        <div>
+          <h2 className="card__title">Cleaning status</h2>
+          <p className="card__subtitle">
+            {trackedTotal} {trackedTotal === 1 ? 'computer' : 'computers'} in the cleaning rota.
+            Monitors and peripherals are excluded.
+          </p>
+        </div>
+      </div>
+      <div className="chart-card__body">
+        <StatusComposition data={status} />
+      </div>
+    </div>
+  );
+}
+
+/** The Assets half of the dashboard: what we own, where, and when it was bought. */
+export default function Dashboard({ assets }) {
   const byType = countBy(assets, (asset) => asset.device_type);
   const byLocation = countBy(assets, (asset) => asset.location);
-  const trackedTotal = status.reduce((sum, item) => sum + item.value, 0);
   const purchases = purchasesByMonth(assets);
 
   return (
-    <section className="dashboard" aria-label="Dashboard">
-      <div className="card chart-card">
-        <div className="card__header">
-          <div>
-            <h2 className="card__title">Cleaning status</h2>
-            <p className="card__subtitle">
-              {trackedTotal} {trackedTotal === 1 ? 'computer' : 'computers'} in the cleaning rota.
-              Monitors and peripherals are excluded.
-            </p>
-          </div>
-        </div>
-        <div className="chart-card__body">
-          <StatusComposition data={status} />
-        </div>
-      </div>
-
+    <section className="dashboard dashboard--assets" aria-label="Assets at a glance">
       <div className="card chart-card">
         <div className="card__header">
           <div>
@@ -185,7 +191,6 @@ export default function Dashboard({ assets }) {
           <PurchasesChart data={purchases} />
         </div>
       </div>
-
     </section>
   );
 }

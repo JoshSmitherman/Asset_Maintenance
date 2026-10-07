@@ -1,9 +1,11 @@
 import { DEVICE_TYPES, LOCATIONS, OTHER_KIT_FILTER, STATUS_FILTER_VALUES } from '../lib/constants';
 import { EMPTY_FILTERS } from '../lib/assetQueries';
 
-export default function AssetToolbar({ filters, onChange, departments, resultCount, totalCount, deviceTypes, showOtherKit = true, onFindRef, cleaners = [] }) {
+export default function AssetToolbar({ filters, onChange, departments, resultCount, totalCount, deviceTypes, showOtherKit = true, onFindRef, cleaners = [], showCleaningFilters = true }) {
   const update = (patch) => onChange({ ...filters, ...patch });
-  const isFiltered = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
+  // Only the filters this page shows count towards "Clear filters".
+  const relevant = showCleaningFilters ? filters : { ...filters, status: 'all', cleanedBy: 'all' };
+  const isFiltered = JSON.stringify(relevant) !== JSON.stringify(EMPTY_FILTERS);
 
   return (
     <div className="toolbar">
@@ -23,7 +25,7 @@ export default function AssetToolbar({ filters, onChange, departments, resultCou
             id="asset-search"
             className="input"
             type="search"
-            placeholder="Search or scan a barcode (e.g. AST-0222) - asset ref, user, department, notes…"
+            placeholder="Search or scan a barcode (e.g. AST-0222) - ref, user, model, serial number…"
             value={filters.search}
             onChange={(event) => update({ search: event.target.value })}
             autoComplete="off"
@@ -79,6 +81,8 @@ export default function AssetToolbar({ filters, onChange, departments, resultCou
           </select>
         </div>
 
+        {showCleaningFilters ? (
+        <>
         <div className="field field--inline">
           <label className="field__label" htmlFor="filter-cleaner">Cleaned by</label>
           <select
@@ -105,6 +109,8 @@ export default function AssetToolbar({ filters, onChange, departments, resultCou
             {STATUS_FILTER_VALUES.map((status) => <option key={status} value={status}>{status}</option>)}
           </select>
         </div>
+        </>
+        ) : null}
 
         <div className="toolbar__meta">
           <span className="cell-muted">

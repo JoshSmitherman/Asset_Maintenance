@@ -54,10 +54,27 @@ export function isRetired(asset) {
   return Boolean(asset?.retired_on);
 }
 
+/**
+ * What the machine is, in words: "Dell 14 Pro Plus" from make "Dell" and
+ * model "14 Pro Plus" (or a model that already starts with the make). Null
+ * when neither is recorded.
+ */
+export function deviceName(asset) {
+  const brand = String(asset?.spec_brand ?? '').trim();
+  const model = String(asset?.spec_model ?? '').trim();
+  if (!brand && !model) return null;
+  if (!brand) return model;
+  if (!model) return brand;
+  return model.toLowerCase().startsWith(brand.toLowerCase()) ? model : `${brand} ${model}`;
+}
+
 export function decorateAsset(row, today = todayIso()) {
   const nextCleanDue = row.next_clean_due ?? null;
   return {
     ...row,
+    device_name: deviceName(row),
+    // What to sort and search the Device column by: its name, else its type.
+    device_label: deviceName(row) ?? row.device_type,
     nextCleanDue,
     // Retired kit has left the cleaning rota, whatever its dates say.
     status: isRetired(row)

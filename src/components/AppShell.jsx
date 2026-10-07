@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Header from './Header';
 import AppNav from './AppNav';
 import StatsGrid from './StatsGrid';
-import Dashboard from './Dashboard';
+import Dashboard, { CleaningStatusCard } from './Dashboard';
 import AttentionPanel from './AttentionPanel';
 import AssetToolbar from './AssetToolbar';
 import AssetTable from './AssetTable';
@@ -162,7 +162,10 @@ export default function AppShell() {
     : null;
 
   // Retired kit follows the same search and filters as the register.
-  const visibleRetired = useMemo(() => filterAssets(retiredAssets, filters), [retiredAssets, filters]);
+  const visibleRetired = useMemo(
+    () => filterAssets(retiredAssets, { ...filters, status: 'all', cleanedBy: 'all' }),
+    [retiredAssets, filters]
+  );
 
   const summary = useMemo(() => summariseAssets(assets), [assets]);
   const departments = useMemo(() => uniqueDepartments(assets), [assets]);
@@ -209,8 +212,15 @@ export default function AppShell() {
 
   const sourceAssets = page === 'cleaning' ? queueAssets : assets;
 
+  // The register has no cleaning filters, so any set on the Cleaning page
+  // must not quietly hide rows here.
+  const pageFilters = useMemo(
+    () => (page === 'cleaning' ? filters : { ...filters, status: 'all', cleanedBy: 'all' }),
+    [page, filters]
+  );
+
   const visibleAssets = useMemo(() => {
-    const filtered = filterAssets(sourceAssets, filters);
+    const filtered = filterAssets(sourceAssets, pageFilters);
     // The queue's default order is urgency, which also ranks by how overdue
     // something is - more useful than the plain status grouping a column
     // sort would give. Clicking any heading still sorts normally.
@@ -219,7 +229,7 @@ export default function AppShell() {
       return sort.direction === 'desc' ? [...byUrgency].reverse() : byUrgency;
     }
     return sortAssets(filtered, sort);
-  }, [sourceAssets, filters, sort, page]);
+  }, [sourceAssets, pageFilters, sort, page]);
 
   // On the register, kit nobody holds is listed on its own so it is obvious
   // what is spare or waiting to be issued.
@@ -436,7 +446,10 @@ export default function AppShell() {
           <p className="empty-state" role="status">Loading assets…</p>
         ) : page === 'dashboard' ? (
           <>
+            {/* Two halves, each with its numbers and then its detail: what we
+                own, then where the cleaning stands. */}
             <StatsGrid
+              group="assets"
               summary={summary}
               otherBreakdown={otherKitBreakdown(assets)}
               kit={kit}
@@ -445,6 +458,14 @@ export default function AppShell() {
                 setFilters({ ...EMPTY_FILTERS, deviceType });
                 goToPage('assets');
               }}
+            />
+            <Dashboard assets={assets} />
+
+            <StatsGrid
+              group="cleaning"
+              summary={summary}
+              kit={kit}
+              totalValue={totalValue}
               onSelectStatus={(status) => {
                 setFilters({ ...EMPTY_FILTERS, status });
                 setQueueScope('all');
@@ -452,19 +473,19 @@ export default function AppShell() {
                 goToPage('cleaning');
               }}
             />
-
-            <Dashboard assets={assets} />
-
-            <AttentionPanel
-              assets={cleaningAssets}
-              onRecordClean={editHandler(setCleaningTarget)}
-              onOpenQueue={() => {
-                setFilters({ ...EMPTY_FILTERS });
-                setQueueScope('attention');
-                setCleaningTab('queue');
-                goToPage('cleaning');
-              }}
-            />
+            <div className="dashboard dashboard--cleaning">
+              <CleaningStatusCard assets={assets} />
+              <AttentionPanel
+                assets={cleaningAssets}
+                onRecordClean={editHandler(setCleaningTarget)}
+                onOpenQueue={() => {
+                  setFilters({ ...EMPTY_FILTERS });
+                  setQueueScope('attention');
+                  setCleaningTab('queue');
+                  goToPage('cleaning');
+                }}
+              />
+            </div>
           </>
         ) : page === 'reports' ? (
           <ReportsPage
@@ -612,7 +633,7 @@ export default function AppShell() {
                 onChange={onFiltersChange}
                 departments={departments}
                 deviceTypes={deviceTypeOptions}
-                cleaners={cleanerNames}
+                showCleaningFilters={false}
                 onFindRef={openByRef}
                 resultCount={visibleAssets.length}
                 totalCount={sourceAssets.length}
@@ -627,7 +648,6 @@ export default function AppShell() {
                 onClear={clearSelection}
                 onAssign={() => setBulkAction('assign')}
                 onUnassign={() => setBulkAction('unassign')}
-                onRecordClean={() => setBulkAction('clean')}
                 onRetire={() => setRetireTarget({ assets: selected, fromBulk: true })}
                 onDelete={isAdmin ? () => setBulkAction('delete') : undefined}
               />

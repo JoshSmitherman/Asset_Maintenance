@@ -497,3 +497,21 @@ describe('AppShell for someone with view-only access', () => {
     expect(within(dialog).queryByRole('button', { name: /record clean/i })).not.toBeInTheDocument();
   });
 });
+
+describe('AppShell asset register without cleaning', () => {
+  it('shows what each device is, and nothing about cleaning', async () => {
+    hook.assets = [{ ...asset, spec_brand: 'Dell', spec_model: '14 Pro Plus', device_name: 'Dell 14 Pro Plus', device_label: 'Dell 14 Pro Plus' }];
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Assets' }));
+    const main = screen.getByRole('main');
+    expect(within(main).getByText('Dell 14 Pro Plus')).toBeInTheDocument();
+    expect(within(main).queryByRole('columnheader', { name: /status/i })).not.toBeInTheDocument();
+    expect(within(main).queryByLabelText(/cleaned by/i)).not.toBeInTheDocument();
+    expect(within(main).queryByLabelText(/^status$/i)).not.toBeInTheDocument();
+
+    // Selecting kit offers no cleaning either.
+    await user.click(within(main).getAllByRole('checkbox')[1]);
+    expect(within(main).queryByRole('button', { name: /record clean/i })).not.toBeInTheDocument();
+  });
+});

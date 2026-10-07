@@ -9,6 +9,7 @@ import { useAssetHistory } from '../hooks/useAssetHistory';
 import { useRepairs } from '../hooks/useRepairs';
 import { useAttachments } from '../hooks/useAttachments';
 import { formatCurrency, isCleaningTracked } from '../lib/constants';
+import { deviceName } from '../lib/assetStatus';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import { SPEC_FIELDS, hasSpecs, specsFor } from '../lib/specs';
 import { assetLink } from '../lib/assetLinks';
@@ -115,7 +116,7 @@ export default function AssetDetailsModal({
   return (
     <Modal
       title={asset.asset_ref}
-      description={`${asset.device_type}${asset.owner_name ? ` · ${asset.owner_name}` : ' · Unassigned'}`}
+      description={[deviceName(asset), asset.device_type, asset.owner_name ?? 'Unassigned'].filter(Boolean).join(' · ')}
       onClose={onClose}
       // A repair half-written in the Repairs tab is not lost to a stray Escape.
       confirmDiscard={writingRepair}
@@ -165,35 +166,50 @@ export default function AssetDetailsModal({
         ) : (
           <>
           {retired ? <RetiredBanner asset={asset} /> : null}
+          {/* Grouped as the rest of Orbit is: the register's facts, then
+              cleaning (only for kit on the rota), then the record itself. */}
+          <h3 className="detail-section">The asset</h3>
           <dl className="detail-list">
             <Row label="Asset Ref">{asset.asset_ref}</Row>
-            <Row label="Device type">{asset.device_type}</Row>
+            <Row label="Device">
+              {deviceName(asset) ? (
+                <>
+                  {deviceName(asset)} <span className="cell-muted">· {asset.device_type}</span>
+                </>
+              ) : (
+                asset.device_type
+              )}
+            </Row>
+            <Row label="Serial number">{asset.serial_number ?? EMPTY}</Row>
             <Row label="User">
               {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
             </Row>
             <Row label="Department">{asset.department}</Row>
             <Row label="Location">{asset.location ?? EMPTY}</Row>
-            <Row label="Serial number">{asset.serial_number ?? EMPTY}</Row>
             <Row label="Purchase date">
               {asset.purchase_date ? formatDate(asset.purchase_date) : EMPTY}
             </Row>
             <Row label="Purchase cost">{formatCurrency(asset.purchase_cost) ?? EMPTY}</Row>
+            <Row label="Notes">{asset.notes ?? EMPTY}</Row>
+          </dl>
 
-            <Row label="Status">
-              <StatusBadge status={asset.status} />
-            </Row>
-
-            {tracked ? (
-              <>
-                <Row label="Date cleaned">
+          {tracked ? (
+            <>
+              <h3 className="detail-section">Cleaning</h3>
+              <dl className="detail-list">
+                <Row label="Status">
+                  <StatusBadge status={asset.status} />
+                </Row>
+                <Row label="Last cleaned">
                   {asset.date_cleaned ? (
-                    formatDate(asset.date_cleaned)
+                    <>
+                      {formatDate(asset.date_cleaned)}
+                      {asset.cleaned_by ? <span className="cell-muted"> by {asset.cleaned_by}</span> : null}
+                    </>
                   ) : (
                     <span className="cell-flag">Never cleaned</span>
                   )}
                 </Row>
-                <Row label="Cleaned by">{asset.cleaned_by ?? EMPTY}</Row>
-                <Row label="Cleaning interval">{asset.cleaning_interval_months} months</Row>
                 <Row label="Next clean due">
                   {asset.next_clean_due ? (
                     <>
@@ -204,18 +220,22 @@ export default function AssetDetailsModal({
                     EMPTY
                   )}
                 </Row>
-              </>
-            ) : (
-              <Row label="Cleaning">
-                <span className="cell-muted">
-                  {retired
-                    ? 'Not tracked — retired kit has left the cleaning rota.'
-                    : 'Not tracked — only laptops and desktops are in the cleaning rota.'}
-                </span>
-              </Row>
-            )}
+                <Row label="Cleaned every">{asset.cleaning_interval_months} months</Row>
+              </dl>
+            </>
+          ) : (
+            <>
+              <h3 className="detail-section">Cleaning</h3>
+              <p className="cell-muted detail-note">
+                {retired
+                  ? 'Not tracked — retired kit has left the cleaning rota.'
+                  : 'Not tracked — only laptops and desktops are in the cleaning rota.'}
+              </p>
+            </>
+          )}
 
-            <Row label="Notes">{asset.notes ?? EMPTY}</Row>
+          <h3 className="detail-section">Record</h3>
+          <dl className="detail-list">
             <Row label="Tag link"><TagLink assetRef={asset.asset_ref} /></Row>
             <Row label="Last updated">
               <span className="cell-block">{formatTimestamp(asset.updated_at)}</span>

@@ -1,4 +1,5 @@
 import { formatCurrency } from './constants';
+import { deviceName } from './assetStatus';
 
 /**
  * How an asset appears in an exported file. Dates stay ISO and money stays a
@@ -8,12 +9,13 @@ import { formatCurrency } from './constants';
 const SHARED = [
   { key: 'asset_ref', label: 'Asset Ref' },
   { key: 'device_type', label: 'Device type' },
+  { key: 'device_name', label: 'Make and model', format: (row) => deviceName(row) ?? '' },
   { key: 'owner_name', label: 'User', format: (row) => row.owner_name ?? '' },
   { key: 'department', label: 'Department' },
-  { key: 'location', label: 'Location', format: (row) => row.location ?? '' },
-  { key: 'status', label: 'Status' }
+  { key: 'location', label: 'Location', format: (row) => row.location ?? '' }
 ];
 
+/** The register: no cleaning columns - those are in the cleaning export. */
 export const REGISTER_CSV_COLUMNS = [
   ...SHARED,
   { key: 'serial_number', label: 'Serial number', format: (row) => row.serial_number ?? '' },
@@ -27,6 +29,7 @@ export const REGISTER_CSV_COLUMNS = [
 
 export const CLEANING_CSV_COLUMNS = [
   ...SHARED,
+  { key: 'status', label: 'Status' },
   { key: 'date_cleaned', label: 'Date cleaned', format: (row) => row.date_cleaned ?? '' },
   { key: 'cleaned_by', label: 'Cleaned by', format: (row) => row.cleaned_by ?? '' },
   { key: 'cleaning_interval_months', label: 'Interval (months)' },
