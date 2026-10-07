@@ -7,6 +7,16 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.13.1](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.13.1) - 2026-10-07
+
+_Level Cards_
+
+### Dashboard
+
+**Cleaning**
+
+- **Fixed:** **Cleaning status** and **Needs attention** are the same height, so their bottoms line up
+
 ## [2.13.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.13.0) - 2026-10-07
 
 _Everything in Its Place_

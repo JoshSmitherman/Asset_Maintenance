@@ -8,6 +8,24 @@
 
 export const RELEASES = [
   {
+    version: '2.13.1',
+    title: 'Level Cards',
+    date: '2026-10-07',
+    sections: [
+      {
+        area: 'Dashboard',
+        groups: [
+          {
+            heading: 'Cleaning',
+            items: [
+              { type: 'fixed', text: '**Cleaning status** and **Needs attention** are the same height, so their bottoms line up' }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.13.0',
     title: 'Everything in Its Place',
     date: '2026-10-07',
