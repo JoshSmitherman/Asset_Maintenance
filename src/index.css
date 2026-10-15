@@ -2324,3 +2324,15 @@ body:not(.light-mode) { --input-border: #6b7d93; }
 }
 .detail-section:first-of-type { margin-top: 0; }
 .detail-note { margin: 4px 0 0; font-size: 14px; }
+
+/* ---------------------------------------------------------- Earlier history */
+.history__actions { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.past-form { display: flex; flex-direction: column; gap: 12px; }
+.past-form .segmented { align-self: flex-start; }
+.past-form__actions { display: flex; justify-content: flex-end; gap: 10px; }
+.timeline__item--past .timeline__dot { background: var(--surface); border: 2px dashed var(--accent-text); }
+.custody__segment--earlier {
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(127, 127, 127, 0.18) 6px 12px);
+}
+.past-form .history__heading { margin: 0; }
+.past-form > .field__hint { margin: -6px 0 0; }

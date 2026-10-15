@@ -7,6 +7,23 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.14.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.14.0) - 2026-10-15
+
+_Earlier History_
+
+### Assets
+
+**History**
+
+- **Added:** **+ Add earlier history** on an asset's History tab, for what happened before Orbit knew about it
+  - "Who had it": a name, from when (if you know) and when they handed it back
+  - "A note": anything else worth remembering, with its date
+  - Shown as "Added later", with who added it, so it is never mistaken for what Orbit recorded itself
+  - Who had it also appears at the start of the "Who has had it" bar
+- **Added:** Adding kit someone has handed back? **Record who had it before** on the Add asset form
+  - Fill in who had it and when it came back, and it goes straight onto the history
+- **Security:** History Orbit recorded itself still cannot be changed by anyone; an admin can remove only entries added by hand
+
 ## [2.13.1](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.13.1) - 2026-10-07
 
 _Level Cards_

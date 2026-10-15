@@ -54,6 +54,9 @@ function blankValues(prefill = {}) {
     cleaned_by: '',
     cleaning_interval_months: String(defaultIntervalFor(prefill.device_type ?? DEVICE_TYPES[0])),
     notes: '',
+    // Returned kit: who had it before it came back (new assets only).
+    previous_owner: '',
+    returned_on: todayIso(),
     ...prefill
   };
 }
@@ -177,6 +180,16 @@ function validate(values, { assetRefExists, ignoreId }) {
     errors.cleaning_interval_months = 'Interval must be a whole number of months between 1 and 60.';
   }
 
+  const previous = String(values.previous_owner ?? '').trim();
+  if (previous) {
+    if (previous.length > 80) errors.previous_owner = 'Keep the name to 80 characters.';
+    if (!values.returned_on || !isValidIsoDate(values.returned_on)) {
+      errors.returned_on = 'Enter the date it came back.';
+    } else if (values.returned_on > today) {
+      errors.returned_on = 'This cannot be in the future.';
+    }
+  }
+
   if (values.notes && values.notes.length > 2000) {
     errors.notes = 'Notes must be 2000 characters or fewer.';
   }
@@ -210,6 +223,7 @@ export default function AssetFormModal({
   const team = useTeam();
   // New kit is usually uncleaned; the last-clean boxes wait until asked for.
   const [showLastClean, setShowLastClean] = useState(() => Boolean(prefill?.date_cleaned));
+  const [showPrevious, setShowPrevious] = useState(false);
   const [tab, setTab] = useState('details');
   const [values, setValues] = useState(() =>
     isEditing ? valuesFromAsset(asset, prefill) : blankValues(prefill)
@@ -743,6 +757,57 @@ export default function AssetFormModal({
               </p>
             </div>
           )}
+
+          {/* Kit handed back by someone: who had it goes on its history as
+              "added later", so the timeline starts with them, not with today. */}
+          {!isEditing && values.extra_refs.length === 0 ? (
+            showPrevious ? (
+              <>
+                <h3 className="form-section field--full">Returned kit</h3>
+                <div className="field">
+                  <label className="field__label" htmlFor="previous_owner">Previously with</label>
+                  <input
+                    id="previous_owner"
+                    className={`input${errors.previous_owner ? ' input--error' : ''}`}
+                    value={values.previous_owner}
+                    onChange={(event) => setField('previous_owner', event.target.value)}
+                    placeholder="Who had it before it came back"
+                    maxLength={80}
+                    list="previous_owner_names"
+                    autoComplete="off"
+                    disabled={busy}
+                  />
+                  <datalist id="previous_owner_names">
+                    {users.map((name) => <option key={name} value={name} />)}
+                  </datalist>
+                  {errors.previous_owner ? (
+                    <span className="field__error">{errors.previous_owner}</span>
+                  ) : (
+                    <span className="field__hint">Added to its history as who had it before.</span>
+                  )}
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="returned_on">Returned on</label>
+                  <input
+                    id="returned_on"
+                    type="date"
+                    className={`input${errors.returned_on ? ' input--error' : ''}`}
+                    value={values.returned_on}
+                    max={todayIso()}
+                    onChange={(event) => setField('returned_on', event.target.value)}
+                    disabled={busy}
+                  />
+                  {errors.returned_on ? <span className="field__error">{errors.returned_on}</span> : null}
+                </div>
+              </>
+            ) : (
+              <div className="field field--full">
+                <button type="button" className="link-button" onClick={() => setShowPrevious(true)} disabled={busy}>
+                  Returned by someone? Record who had it before
+                </button>
+              </div>
+            )
+          ) : null}
 
           <div className="field field--full">
             <label className="field__label" htmlFor="notes">Notes</label>

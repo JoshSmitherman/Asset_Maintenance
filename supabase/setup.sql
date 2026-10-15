@@ -926,7 +926,8 @@ alter table public.asset_events drop constraint if exists asset_events_type_vali
 alter table public.asset_events add  constraint asset_events_type_valid check (
   event_type in ('created', 'tracking_started', 'owner', 'department', 'location', 'device_type', 'asset_ref',
                  'retired', 'restored', 'edited', 'deleted',
-                 'repair_added', 'repair_edited', 'repair_deleted')
+                 'repair_added', 'repair_edited', 'repair_deleted',
+                 'past_owner', 'past_note')
 );
 
 create index if not exists asset_events_asset_idx on public.asset_events (asset_id, happened_at);
@@ -1028,6 +1029,111 @@ drop trigger if exists assets_log_delete on public.assets;
 create trigger assets_log_delete
   after delete on public.assets
   for each row execute function public.log_asset_delete();
+
+-- Earlier history: what happened before Orbit knew about the asset (kit
+-- handed back by someone who had it for years, say). Added by hand, so it
+-- is marked as such - details.added_later, with who added it and when -
+-- and never mistaken for what Orbit recorded itself. Editors add it; only
+-- an admin can take one back out, and only these hand-added entries: the
+-- rest of the history stays untouchable.
+create or replace function public.add_past_event(
+  p_asset_id uuid,
+  p_kind     text,
+  p_owner    text default null,
+  p_from     date default null,
+  p_to       date default null,
+  p_note     text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, auth, pg_temp
+as $$
+declare
+  ref     text;
+  owner   text := nullif(btrim(coalesce(p_owner, '')), '');
+  note    text := nullif(btrim(coalesce(p_note, '')), '');
+  happened date;
+  new_id  uuid;
+begin
+  if not public.can_edit() then
+    raise exception 'Only people who can edit can add to an asset''s history.' using errcode = 'insufficient_privilege';
+  end if;
+  select a.asset_ref into ref from public.assets a where a.id = p_asset_id;
+  if ref is null then
+    raise exception 'That asset no longer exists.' using errcode = 'check_violation';
+  end if;
+  if note is not null and char_length(note) > 500 then
+    raise exception 'Keep the note to 500 characters.' using errcode = 'check_violation';
+  end if;
+
+  if p_kind = 'past_owner' then
+    if owner is null then
+      raise exception 'Say who had it.' using errcode = 'check_violation';
+    end if;
+    if char_length(owner) > 80 then
+      raise exception 'Keep the name to 80 characters.' using errcode = 'check_violation';
+    end if;
+    if p_to is null then
+      raise exception 'Say when they stopped having it.' using errcode = 'check_violation';
+    end if;
+    if p_from is not null and p_from > p_to then
+      raise exception 'The start date must be before the end date.' using errcode = 'check_violation';
+    end if;
+    happened := coalesce(p_from, p_to);
+  elsif p_kind = 'past_note' then
+    if note is null then
+      raise exception 'Write what happened.' using errcode = 'check_violation';
+    end if;
+    if p_to is null then
+      raise exception 'Say when it happened.' using errcode = 'check_violation';
+    end if;
+    happened := p_to;
+  else
+    raise exception 'Unknown kind of history.' using errcode = 'check_violation';
+  end if;
+
+  if greatest(coalesce(p_from, p_to), p_to) > public.today_local() then
+    raise exception 'Earlier history cannot be in the future.' using errcode = 'check_violation';
+  end if;
+
+  insert into public.asset_events (asset_id, asset_ref, event_type, details, happened_at, actor_id, actor_email)
+  values (
+    p_asset_id, ref, p_kind,
+    jsonb_build_object('owner', owner, 'from', p_from, 'to', p_to, 'note', note,
+                       'added_later', true, 'added_at', now()),
+    -- Midday in the UK on that date, so it sorts sensibly against the day's
+    -- other events.
+    (happened::timestamp + interval '12 hours') at time zone 'Europe/London',
+    auth.uid(), auth.jwt() ->> 'email'
+  )
+  returning id into new_id;
+  return new_id;
+end;
+$$;
+
+create or replace function public.remove_past_event(p_event_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Only an admin can remove history.' using errcode = 'insufficient_privilege';
+  end if;
+  delete from public.asset_events
+   where id = p_event_id and event_type in ('past_owner', 'past_note');
+  if not found then
+    raise exception 'Only history added by hand can be removed.' using errcode = 'check_violation';
+  end if;
+end;
+$$;
+
+revoke all on function public.add_past_event(uuid, text, text, date, date, text), public.remove_past_event(uuid)
+  from public, anon;
+grant execute on function public.add_past_event(uuid, text, text, date, date, text), public.remove_past_event(uuid)
+  to authenticated;
 
 drop trigger if exists assets_log_change on public.assets;
 create trigger assets_log_change

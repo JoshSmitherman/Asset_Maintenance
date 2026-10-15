@@ -7,7 +7,7 @@ import { isValidIsoDate } from '../dates';
 import { parseCost } from '../repairs';
 import { ageInYears, reportById } from '../reports';
 import { sortAssets } from '../assetQueries';
-import { buildTimeline } from '../assetHistory';
+import { buildCustody, buildTimeline } from '../assetHistory';
 import { nextAssetRef } from '../assetLinks';
 import { describeDatabaseError } from '../errors';
 import { STATUS } from '../constants';
@@ -191,5 +191,32 @@ describe('what a device is called', () => {
     expect(deviceName({ spec_brand: null, spec_model: 'ThinkPad T14' })).toBe('ThinkPad T14');
     expect(deviceName({ spec_brand: 'Samsung', spec_model: '' })).toBe('Samsung');
     expect(deviceName({})).toBeNull();
+  });
+});
+
+describe('earlier history added by hand', () => {
+  const created = { id: 1, event_type: 'created', details: { owner: null }, happened_at: '2026-10-15T15:07:00Z' };
+  const past = {
+    id: 2, event_type: 'past_owner', happened_at: '2024-03-01T12:00:00Z', actor_email: 'bruce.baldomero@adaro.net',
+    details: { owner: 'Sarah Jones', from: '2024-03-01', to: '2026-10-15', note: 'Brought back', added_later: true, added_at: '2026-10-15T16:00:00Z' }
+  };
+
+  it('puts who had it before at the start of "Who has had it"', () => {
+    const custody = buildCustody([created, past], new Date('2026-10-16T12:00:00Z'));
+    expect(custody.map((segment) => segment.owner)).toEqual(['Sarah Jones', null]);
+    expect(custody[0]).toMatchObject({ earlier: true });
+    expect(custody[0].start.slice(0, 10)).toBe('2024-03-01');
+  });
+
+  it('shows "until" when only the hand-back date is known', () => {
+    const untilOnly = { ...past, details: { ...past.details, from: null } };
+    const custody = buildCustody([created, untilOnly], new Date('2026-10-16T12:00:00Z'));
+    expect(custody[0].start).toBeNull();
+  });
+
+  it('marks the timeline entry as added later, by whom', () => {
+    const [entry] = buildTimeline({}, [past]);
+    expect(entry).toMatchObject({ title: 'Was with Sarah Jones', addedLater: true, by: 'bruce.baldomero@adaro.net', at: '2024-03-01' });
+    expect(entry.detail).toContain('Brought back');
   });
 });

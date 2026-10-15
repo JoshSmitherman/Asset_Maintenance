@@ -20,6 +20,7 @@ import RetiredList from './RetiredList';
 import ReleaseNotesPage from './ReleaseNotesPage';
 import { CURRENT_VERSION } from '../lib/releaseNotes';
 import { formatTimestamp } from '../lib/dates';
+import { addPastOwner } from '../lib/pastEvents';
 import { versionFromSearch } from '../lib/releaseLinks';
 import { assetRefFromSearch, clearAssetFromAddress, findAssetByRef, nextAssetRef } from '../lib/assetLinks';
 import { useAuth } from '../context/AuthContext';
@@ -332,9 +333,25 @@ export default function AppShell() {
   const handleCreate = async (values) => {
     const extras = values.extra_refs ?? [];
     if (extras.length === 0) {
-      await createAsset(values);
+      const created = await createAsset(values);
       setFormState(null);
-      setToast({ tone: 'success', message: `Asset ${values.asset_ref.trim()} added.` });
+      const previous = String(values.previous_owner ?? '').trim();
+      if (previous) {
+        try {
+          if (!created?.id) throw new Error('The new asset could not be found.');
+          await addPastOwner(created.id, { owner: previous, to: values.returned_on });
+        } catch (caught) {
+          setToast({
+            tone: 'error',
+            message: `Asset ${values.asset_ref.trim()} added, but who had it before was not saved: ${caught.message} Add it from its History tab.`
+          });
+          return;
+        }
+      }
+      setToast({
+        tone: 'success',
+        message: `Asset ${values.asset_ref.trim()} added${previous ? `, with ${previous} as who had it before` : ''}.`
+      });
       return;
     }
 

@@ -124,6 +124,40 @@ test.describe('Orbit — end to end (mocked Supabase)', () => {
     await expect(page.getByText(/signed out after 1 hour/i)).toBeVisible();
   });
 
+  test('a returned monitor is added with who had it before', async ({ page }) => {
+    const state = await mockSupabase(page);
+    await page.goto('/');
+    await signIn(page);
+    await gotoAssets(page);
+    await page.getByRole('button', { name: /add asset/i }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel(/asset ref/i).fill('AST-0190');
+    await dialog.getByLabel(/device type/i).selectOption('Monitor');
+    await dialog.getByLabel(/^department/i).selectOption({ index: 1 });
+    await dialog.getByRole('button', { name: /record who had it before/i }).click();
+    await dialog.getByLabel(/previously with/i).fill('Sarah Jones');
+    await dialog.getByRole('button', { name: /add asset without specs/i }).click();
+    await expect(page.getByText(/with Sarah Jones as who had it before/i)).toBeVisible();
+    expect(state.pastEvents[0]).toMatchObject({ event_type: 'past_owner', details: { owner: 'Sarah Jones' } });
+  });
+
+  test('earlier history can be added from the History tab', async ({ page }) => {
+    const state = await mockSupabase(page);
+    await page.goto('/');
+    await signIn(page);
+    await gotoAssets(page);
+    await page.getByRole('button', { name: /view details for LAP-001/i }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('tab', { name: /history/i }).click();
+    await dialog.getByRole('button', { name: /add earlier history/i }).click();
+    await dialog.getByLabel(/who had it/i).fill('Previous Starter');
+    await dialog.getByLabel(/^from/i).fill('2024-01-10');
+    await dialog.getByRole('button', { name: /add to history/i }).click();
+    await expect(dialog.getByText('Was with Previous Starter')).toBeVisible();
+    await expect(dialog.getByText(/added by tech@adaro.net/i)).toBeVisible();
+    expect(state.pastEvents).toHaveLength(1);
+  });
+
   test('coming back from Microsoft finishes signing in', async ({ page }) => {
     await mockSupabase(page);
     // What supabase-js saved before leaving for Microsoft (PKCE).

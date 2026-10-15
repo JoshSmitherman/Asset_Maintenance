@@ -109,7 +109,8 @@ export async function mockSupabase(page, { assets = seedAssets(), events = seedE
         access: 'viewer', active: true, last_sign_in_at: null, has_account: false }
     ].filter((member) => member.access),
     requests: [],
-    memberWrites: []
+    memberWrites: [],
+    pastEvents: []
   };
   // One row (maybeSingle/single) or a list, as PostgREST would answer.
   const wantsObject = (req) => (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
@@ -160,7 +161,8 @@ export async function mockSupabase(page, { assets = seedAssets(), events = seedE
         const body = JSON.parse(req.postData() || '{}');
         const row = { id: `new-${state.inserted.length + 1}`, ...body };
         state.inserted.push(body);
-        return json(201, [row]);
+        // .single() asks for one row back, as PostgREST would give it.
+        return json(201, wantsObject(req) ? row : [row]);
       }
       const ids = idsFrom(url.searchParams.get('id'));
       if (method === 'PATCH') {
@@ -256,7 +258,21 @@ export async function mockSupabase(page, { assets = seedAssets(), events = seedE
 
     if (url.pathname === '/rest/v1/asset_events') {
       const id = url.searchParams.get('asset_id')?.replace(/^eq\./, '');
-      return json(200, events.filter((event) => event.asset_id === id));
+      return json(200, [...events, ...state.pastEvents].filter((event) => event.asset_id === id));
+    }
+    if (url.pathname === '/rest/v1/rpc/add_past_event') {
+      const body = JSON.parse(req.postData() || '{}');
+      if (role === 'viewer') return json(403, { code: '42501', message: 'Only people who can edit can add to an asset\'s history.' });
+      const row = {
+        id: `past-${state.pastEvents.length + 1}`,
+        asset_id: body.p_asset_id,
+        event_type: body.p_kind,
+        details: { owner: body.p_owner, from: body.p_from, to: body.p_to, note: body.p_note, added_later: true, added_at: new Date().toISOString() },
+        happened_at: `${body.p_from ?? body.p_to}T12:00:00Z`,
+        actor_email: USER.email
+      };
+      state.pastEvents.push(row);
+      return json(200, row.id);
     }
     if (url.pathname === '/rest/v1/cleaning_log') {
       const id = url.searchParams.get('asset_id')?.replace(/^eq\./, '');

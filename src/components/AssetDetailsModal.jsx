@@ -140,7 +140,14 @@ export default function AssetDetailsModal({
         aria-labelledby={`tab-${activeTab}`}
       >
         {activeTab === 'history' ? (
-          <AssetHistory asset={asset} {...history} />
+          <AssetHistory
+            asset={asset}
+            {...history}
+            canEdit={canEdit}
+            isAdmin={isAdmin}
+            onToast={onToast}
+            onEditingChange={setWritingRepair}
+          />
         ) : activeTab === 'repairs' ? (
           // Retired kit is out of use: its repairs and files are kept to read.
           <AssetRepairs

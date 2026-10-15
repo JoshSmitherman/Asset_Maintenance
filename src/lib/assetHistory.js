@@ -113,6 +113,17 @@ function describeEvent(event) {
           .join(' · ')
       };
     }
+    case 'past_owner': {
+      const d = event.details ?? {};
+      const range = d.from ? `${formatDate(d.from)} – ${formatDate(d.to)}` : `Until ${formatDate(d.to)}`;
+      return {
+        kind: 'past',
+        title: `Was with ${d.owner ?? 'someone'}`,
+        detail: [range, blank(d.note)].filter(Boolean).join(' · ')
+      };
+    }
+    case 'past_note':
+      return { kind: 'past', title: event.details?.note ?? 'Note', detail: null };
     default:
       return { kind: 'change', title: 'Changed', detail: null };
   }
@@ -126,12 +137,17 @@ export function buildTimeline(asset, events = [], cleans = []) {
   const entries = [];
 
   for (const event of events) {
+    const addedLater = Boolean(event.details?.added_later);
     entries.push({
       id: `e-${event.id}`,
+      eventId: event.id,
       ...describeEvent(event),
-      at: event.happened_at,
-      dateOnly: false,
-      by: event.actor_email || null
+      // Hand-added history is about a day, not a moment.
+      at: addedLater ? String(event.details?.from ?? event.details?.to ?? event.happened_at).slice(0, 10) : event.happened_at,
+      dateOnly: addedLater,
+      by: event.actor_email || null,
+      addedLater,
+      addedAt: event.details?.added_at ?? null
     });
   }
 
@@ -184,6 +200,19 @@ export function buildCustody(events = [], now = new Date()) {
 
   const endMs = Math.max(now.getTime(), origin.ms);
   const segments = [];
+
+  // Who had it before Orbit knew about it, from history added by hand,
+  // oldest first. A stretch with no start date is shown "until" its end.
+  const earlier = events
+    .filter((event) => event.event_type === 'past_owner' && event.details?.to)
+    .map((event) => ({
+      owner: blank(event.details.owner),
+      startMs: event.details.from ? toMs(event.details.from) : null,
+      endMs: toMs(event.details.to)
+    }))
+    .filter((segment) => segment.endMs !== null && segment.endMs <= origin.ms + 24 * 60 * 60 * 1000)
+    .sort((a, b) => a.endMs - b.endMs);
+  segments.push(...earlier.map((segment) => ({ ...segment, earlier: true })));
   let owner = blank(origin.event.details?.owner);
   let startMs = origin.ms;
 
@@ -197,11 +226,14 @@ export function buildCustody(events = [], now = new Date()) {
   }
   segments.push({ owner, startMs, endMs: Math.max(endMs, startMs) });
 
-  const total = segments.reduce((sum, segment) => sum + (segment.endMs - segment.startMs), 0);
+  const span = (segment) => (segment.startMs === null ? 0 : Math.max(0, segment.endMs - segment.startMs));
+  const total = segments.reduce((sum, segment) => sum + span(segment), 0);
   return segments.map((segment) => ({
     owner: segment.owner,
-    start: new Date(segment.startMs).toISOString(),
+    // Null when only the end is known ("until 15 Oct 2026").
+    start: segment.startMs === null ? null : new Date(segment.startMs).toISOString(),
     end: new Date(segment.endMs).toISOString(),
-    share: total > 0 ? (segment.endMs - segment.startMs) / total : 1 / segments.length
+    share: total > 0 ? span(segment) / total : 1 / segments.length,
+    earlier: Boolean(segment.earlier)
   }));
 }

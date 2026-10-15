@@ -8,6 +8,42 @@
 
 export const RELEASES = [
   {
+    version: '2.14.0',
+    title: 'Earlier History',
+    date: '2026-10-15',
+    sections: [
+      {
+        area: 'Assets',
+        groups: [
+          {
+            heading: 'History',
+            items: [
+              {
+                type: 'added',
+                text: '**+ Add earlier history** on an asset\'s History tab, for what happened before Orbit knew about it',
+                details: [
+                  '"Who had it": a name, from when (if you know) and when they handed it back',
+                  '"A note": anything else worth remembering, with its date',
+                  'Shown as "Added later", with who added it, so it is never mistaken for what Orbit recorded itself',
+                  'Who had it also appears at the start of the "Who has had it" bar'
+                ]
+              },
+              {
+                type: 'added',
+                text: 'Adding kit someone has handed back? **Record who had it before** on the Add asset form',
+                details: ['Fill in who had it and when it came back, and it goes straight onto the history']
+              },
+              {
+                type: 'security',
+                text: 'History Orbit recorded itself still cannot be changed by anyone; an admin can remove only entries added by hand'
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.13.1',
     title: 'Level Cards',
     date: '2026-10-07',

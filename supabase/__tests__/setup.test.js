@@ -236,4 +236,38 @@ describe('setup.sql', () => {
       expect(row.data_wiped_by_email).toBeNull();
     });
   });
+
+  describe('earlier history, added by hand', () => {
+    it('lets an editor record who had it before, marked as added later', async () => {
+      const asset = await addLaptop('PAST-1');
+      await signInAs(db, TECH);
+      await asUser(db, `select public.add_past_event($1, 'past_owner', 'Sarah Jones', '2024-03-01', '2026-10-15', 'Returned to the office')`, [asset.id]);
+      const [event] = await rows(db, `select event_type, details, actor_email from public.asset_events where asset_id = $1 and event_type = 'past_owner'`, [asset.id]);
+      expect(event.details).toMatchObject({ owner: 'Sarah Jones', from: '2024-03-01', to: '2026-10-15', added_later: true });
+      expect(event.actor_email).toBe(TECH.email);
+    });
+
+    it('refuses future dates, back-to-front dates and viewers', async () => {
+      const asset = await addLaptop('PAST-2');
+      await signInAs(db, TECH);
+      await expect(asUser(db, `select public.add_past_event($1, 'past_owner', 'X', null, '2999-01-01')`, [asset.id])).rejects.toThrow(/future/);
+      await expect(asUser(db, `select public.add_past_event($1, 'past_owner', 'X', '2026-05-01', '2026-01-01')`, [asset.id])).rejects.toThrow(/before the end date/);
+      await signInAs(db, VIEWER);
+      await expect(asUser(db, `select public.add_past_event($1, 'past_note', null, null, '2026-01-01', 'hi')`, [asset.id])).rejects.toThrow(/Only people who can edit/);
+      await signInAs(db, TECH);
+    });
+
+    it('lets only an admin remove a hand-added entry, and nothing Orbit recorded', async () => {
+      const asset = await addLaptop('PAST-3');
+      await signInAs(db, TECH);
+      const [{ add_past_event: id }] = (await asUser(db, `select public.add_past_event($1, 'past_note', null, null, '2026-01-01', 'Bought for Leeds')`, [asset.id])).rows;
+      await expect(asUser(db, `select public.remove_past_event($1)`, [id])).rejects.toThrow(/Only an admin/);
+      const [created] = await rows(db, `select id from public.asset_events where asset_id = $1 and event_type = 'created'`, [asset.id]);
+      await signInAs(db, ADMIN);
+      await expect(asUser(db, `select public.remove_past_event($1)`, [created.id])).rejects.toThrow(/Only history added by hand/);
+      await asUser(db, `select public.remove_past_event($1)`, [id]);
+      expect(await rows(db, `select id from public.asset_events where id = $1`, [id])).toEqual([]);
+      await signInAs(db, TECH);
+    });
+  });
 });

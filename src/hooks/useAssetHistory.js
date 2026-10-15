@@ -49,5 +49,5 @@ export function useAssetHistory(assetId, { enabled }) {
     if (enabled) load();
   }, [enabled, load]);
 
-  return state;
+  return { ...state, reload: load };
 }
