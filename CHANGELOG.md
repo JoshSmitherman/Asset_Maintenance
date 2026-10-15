@@ -7,6 +7,21 @@ notes appear in the app (click the version next to the title) and on each
 <!-- Generated from src/lib/releaseNotes.js by `npm run changelog`.
      Edit that file, not this one; a test fails if they drift apart. -->
 
+## [2.15.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.15.0) - 2026-10-15
+
+_Clearer Sorting_
+
+### General
+
+**Sorting tables**
+
+- **Changed:** Every asset table now shows plainly which column it is sorted by
+  - The sorted column's heading turns purple, with a bar beneath it and a larger arrow
+  - Its cells have a faint purple tint all the way down
+  - Hover over any heading to see what clicking it will do, e.g. "Sort by Cost, highest first"
+- **Added:** "Sorted by…" above the table, in plain words: **Sorted by Asset Ref (A to Z)**, **Sorted by Purchased (newest first)**, **Sorted by urgency (most urgent first)** on Cleaning
+- **Added:** **Reset sort** beside it puts the table back in its usual order, shown only once you have changed it
+
 ## [2.14.0](https://github.com/JoshSmitherman/Asset_Maintenance/releases/tag/v2.14.0) - 2026-10-15
 
 _Earlier History_

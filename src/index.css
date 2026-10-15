@@ -348,8 +348,9 @@ code {
 .toolbar__meta {
   margin-left: auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 16px;
   padding-bottom: 2px;
 }
 
@@ -520,8 +521,23 @@ code {
 }
 .table__sort:hover { color: var(--slate-900); }
 
-.sort-indicator { opacity: 0.4; font-size: 11px; }
-.sort-indicator--active { opacity: 1; color: var(--blue-600); }
+.sort-indicator { opacity: 0.3; font-size: 11px; }
+.sort-indicator--active { opacity: 1; font-size: 13px; color: var(--accent-text); }
+
+/* The column the table is sorted by: its heading in purple with a bar
+   beneath, and a faint wash down every cell, so the order is plain at a
+   glance and still plain halfway down the list. */
+.table thead th.th--sorted {
+  color: var(--accent-text);
+  box-shadow: inset 0 -3px 0 var(--accent-text);
+}
+.table thead th.th--sorted .table__sort:hover { color: var(--accent-text-hover); }
+.table tbody td.col--sorted { background: rgba(140, 74, 156, 0.06); }
+
+/* "Sorted by Asset Ref (A to Z)", beside the count above the table. */
+.sort-summary { color: var(--slate-500); white-space: nowrap; }
+.sort-summary strong { color: var(--text); font-weight: 600; }
+.sort-summary__reset { margin-left: 8px; font-size: 13px; }
 
 .table__actions { white-space: nowrap; }
 .table__actions .btn + .btn { margin-left: 6px; }
@@ -802,6 +818,7 @@ code {
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .app-header__inner { padding: 12px; }
   .toolbar__meta { margin-left: 0; width: 100%; justify-content: space-between; }
+  .sort-summary { white-space: normal; flex-basis: 100%; }
   .field--inline { flex: 1 1 140px; }
   .card__header { flex-direction: column; gap: 8px; }
   .modal-backdrop { padding: 12px; }

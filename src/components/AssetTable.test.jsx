@@ -61,3 +61,21 @@ describe('AssetTable', () => {
     expect(onRecordClean).toHaveBeenCalledWith(asset);
   });
 });
+
+describe('showing which column the table is sorted by', () => {
+  it('marks the sorted heading and tints its cells', () => {
+    renderTable({ variant: 'full', onViewDetails: noop, sort: { key: 'purchase_cost', direction: 'desc' } });
+    const heading = screen.getByRole('columnheader', { name: /^cost/i });
+    expect(heading).toHaveAttribute('aria-sort', 'descending');
+    expect(heading).toHaveClass('th--sorted');
+    expect(screen.getByText('£1,249.00').closest('td')).toHaveClass('col--sorted');
+    expect(screen.getByText('Bruce Baldomero').closest('td')).not.toHaveClass('col--sorted');
+  });
+
+  it('says on each heading what a click will do', () => {
+    renderTable({ variant: 'full', onViewDetails: noop, sort: { key: 'purchase_cost', direction: 'asc' } });
+    expect(screen.getByRole('button', { name: /^cost/i })).toHaveAttribute('title', 'Sort by Cost, highest first');
+    expect(screen.getByRole('button', { name: /^purchased/i })).toHaveAttribute('title', 'Sort by Purchased, oldest first');
+    expect(screen.getByRole('button', { name: /^user/i })).toHaveAttribute('title', 'Sort by User, A to Z');
+  });
+});

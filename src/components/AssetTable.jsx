@@ -2,8 +2,9 @@ import { formatCurrency, isCleaningTracked, STATUS } from '../lib/constants';
 import { describeDayOffset, formatDate, formatTimestamp } from '../lib/dates';
 import StatusBadge from './StatusBadge';
 import { displayNameFromEmail } from '../lib/accountName';
+import { describeDirection, nextSort } from '../lib/sortLabels';
 
-const LABELS = {
+export const LABELS = {
   asset_ref: 'Asset Ref',
   device_type: 'Type',
   device_label: 'Device',
@@ -82,14 +83,11 @@ export default function AssetTable({
   const allOnPageSelected = selectable && assets.length > 0 && selectedOnPage === assets.length;
   const columns = variant === 'cleaning' ? CLEANING_COLUMNS : FULL_COLUMNS;
   const shown = new Map(columns.map((item) => [item.key, item]));
-  const classOf = (key) => shown.get(key)?.className;
-  const handleSort = (key) => {
-    if (sort.key === key) {
-      onSortChange({ key, direction: sort.direction === 'asc' ? 'desc' : 'asc' });
-    } else {
-      onSortChange({ key, direction: 'asc' });
-    }
-  };
+  // The sorted column is tinted all the way down, so the order is plain even
+  // halfway down the table.
+  const classOf = (key, extra) =>
+    [extra, shown.get(key)?.className, sort.key === key ? 'col--sorted' : ''].filter(Boolean).join(' ') || undefined;
+  const handleSort = (key) => onSortChange(nextSort(sort, key));
 
   if (assets.length === 0) {
     return <p className="empty-state">{emptyMessage}</p>;
@@ -117,14 +115,20 @@ export default function AssetTable({
             ) : null}
             {columns.map((col) => {
               const isActive = sort.key === col.key;
+              const next = nextSort(sort, col.key);
               return (
                 <th
                   key={col.key}
                   scope="col"
-                  className={col.className}
+                  className={classOf(col.key, isActive ? 'th--sorted' : '')}
                   aria-sort={isActive ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
                 >
-                  <button type="button" className="table__sort" onClick={() => handleSort(col.key)}>
+                  <button
+                    type="button"
+                    className="table__sort"
+                    onClick={() => handleSort(col.key)}
+                    title={`Sort by ${col.label}, ${describeDirection(col.key, next.direction)}`}
+                  >
                     {col.label}
                     <SortIndicator active={isActive} direction={sort.direction} />
                   </button>
@@ -154,7 +158,7 @@ export default function AssetTable({
                   />
                 </td>
               ) : null}
-              <td className="cell-strong">
+              <td className={classOf('asset_ref', 'cell-strong')}>
                 {/* The reference opens the asset - the obvious thing to click. */}
                 {onViewDetails ? (
                   <button
@@ -183,7 +187,7 @@ export default function AssetTable({
                   asset.device_type
                 )}
               </td>
-              <td>
+              <td className={classOf('owner_name')}>
                 {asset.owner_name ?? <span className="cell-unassigned">Unassigned</span>}
               </td>
               <td className={classOf('department')}>{asset.department}</td>
@@ -224,7 +228,7 @@ export default function AssetTable({
                 </td>
               ) : null}
               {shown.has('status') ? (
-              <td>
+              <td className={classOf('status')}>
                 {asset.status === STATUS.NOT_TRACKED ? (
                   // Phones, monitors and cameras are not on the cleaning rota.
                   <span className="cell-muted" title="Not on the cleaning rota">—</span>

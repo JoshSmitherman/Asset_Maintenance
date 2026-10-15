@@ -36,6 +36,7 @@ import { summariseAssets } from '../lib/assetStatus';
 import { kitSummary, otherKitBreakdown, totalPurchaseValue } from '../lib/dashboardStats';
 import { knownModels, specSuggestions } from '../lib/specs';
 import {
+  CLEANING_SORT,
   DEFAULT_SORT,
   EMPTY_FILTERS,
   filterAssets,
@@ -286,7 +287,7 @@ export default function AppShell() {
     clearSelection();
     // Each page has its own natural order: urgency for the queue, asset
     // reference for the register.
-    setSort(next === 'cleaning' ? { key: 'status', direction: 'asc' } : { ...DEFAULT_SORT });
+    setSort(next === 'cleaning' ? { ...CLEANING_SORT } : { ...DEFAULT_SORT });
     // A new page starts at its top, not wherever the last one was scrolled
     // to (which left its heading hidden under the sticky header).
     window.scrollTo?.({ top: 0 });
@@ -593,6 +594,9 @@ export default function AppShell() {
                   showOtherKit={false}
                   resultCount={visibleAssets.length}
                   totalCount={sourceAssets.length}
+                  sort={sort}
+                  defaultSort={CLEANING_SORT}
+                  onSortChange={setSort}
                 />
 
                 {canEdit ? (
@@ -654,6 +658,9 @@ export default function AppShell() {
                 onFindRef={openByRef}
                 resultCount={visibleAssets.length}
                 totalCount={sourceAssets.length}
+                sort={sort}
+                defaultSort={DEFAULT_SORT}
+                onSortChange={setSort}
               />
 
               {canEdit ? (

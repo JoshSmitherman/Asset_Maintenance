@@ -8,6 +8,40 @@
 
 export const RELEASES = [
   {
+    version: '2.15.0',
+    title: 'Clearer Sorting',
+    date: '2026-10-15',
+    sections: [
+      {
+        area: 'General',
+        groups: [
+          {
+            heading: 'Sorting tables',
+            items: [
+              {
+                type: 'changed',
+                text: 'Every asset table now shows plainly which column it is sorted by',
+                details: [
+                  'The sorted column\'s heading turns purple, with a bar beneath it and a larger arrow',
+                  'Its cells have a faint purple tint all the way down',
+                  'Hover over any heading to see what clicking it will do, e.g. "Sort by Cost, highest first"'
+                ]
+              },
+              {
+                type: 'added',
+                text: '"Sorted by…" above the table, in plain words: **Sorted by Asset Ref (A to Z)**, **Sorted by Purchased (newest first)**, **Sorted by urgency (most urgent first)** on Cleaning'
+              },
+              {
+                type: 'added',
+                text: '**Reset sort** beside it puts the table back in its usual order, shown only once you have changed it'
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     version: '2.14.0',
     title: 'Earlier History',
     date: '2026-10-15',

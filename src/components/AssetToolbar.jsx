@@ -1,7 +1,9 @@
 import { DEVICE_TYPES, LOCATIONS, OTHER_KIT_FILTER, STATUS_FILTER_VALUES } from '../lib/constants';
 import { EMPTY_FILTERS } from '../lib/assetQueries';
+import { describeDirection, isSameSort } from '../lib/sortLabels';
+import { LABELS } from './AssetTable';
 
-export default function AssetToolbar({ filters, onChange, departments, resultCount, totalCount, deviceTypes, showOtherKit = true, onFindRef, cleaners = [], showCleaningFilters = true }) {
+export default function AssetToolbar({ filters, onChange, departments, resultCount, totalCount, deviceTypes, showOtherKit = true, onFindRef, cleaners = [], showCleaningFilters = true, sort, defaultSort, onSortChange }) {
   const update = (patch) => onChange({ ...filters, ...patch });
   // Only the filters this page shows count towards "Clear filters".
   const relevant = showCleaningFilters ? filters : { ...filters, status: 'all', cleanedBy: 'all' };
@@ -113,6 +115,22 @@ export default function AssetToolbar({ filters, onChange, departments, resultCou
         ) : null}
 
         <div className="toolbar__meta">
+          {sort ? (
+            // The table's order in words, next to the count.
+            <span className="sort-summary">
+              <span role="status">
+                Sorted by{' '}
+                <strong>
+                  {sort.key === 'status' ? 'urgency' : LABELS[sort.key] ?? sort.key} ({describeDirection(sort.key, sort.direction)})
+                </strong>
+              </span>
+              {defaultSort && onSortChange && !isSameSort(sort, defaultSort) ? (
+                <button type="button" className="link-button sort-summary__reset" onClick={() => onSortChange({ ...defaultSort })}>
+                  Reset sort
+                </button>
+              ) : null}
+            </span>
+          ) : null}
           <span className="cell-muted">
             Showing {resultCount} of {totalCount}
           </span>

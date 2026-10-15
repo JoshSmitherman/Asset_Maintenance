@@ -10,6 +10,8 @@ export const EMPTY_FILTERS = {
 };
 
 export const DEFAULT_SORT = { key: 'asset_ref', direction: 'asc' };
+// The cleaning queue starts most urgent first.
+export const CLEANING_SORT = { key: 'status', direction: 'asc' };
 
 function matchesSearch(asset, term) {
   if (!term) return true;
